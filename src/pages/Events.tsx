@@ -4,7 +4,8 @@ import { Calendar, MapPin, Users } from 'lucide-react';
 
 const EVENTS = [
   {
-    id: 'tatry-zimowe-2024',
+    id: '2024_01',
+    category: 'GÓRY',
     title: 'Zimowe Tatry: Orla Perć',
     date: '15-18 Grudnia 2024',
     location: 'Tatry Wysokie',
@@ -12,7 +13,8 @@ const EVENTS = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCR5pO5QgFSNLU9L3FbHsULwCRMGO34kqt9OZ-XZxhW0DB_HZsXLqHWcsBQ0aMS0ysZc83MYvmEM1NO9JCPPKhU_MxzI8hIDaIqW8zJ_rrVgjm7oSpOll3ll9RnWZ7dSb8KtwvCAKiaWqxXyDhvkYexfztMYCKBIilPXMd1xilcN8abxVRtf1LTzZoQwUu5Gb-gGxTIl9K6JqR23QrN8JjJ7Ixe8SZWHUSybdNyPrVcZQaj0xjAhytQI3XDHaoZCeD72GRo6Zl_VMA'
   },
   {
-    id: 'beskidy-planszowki',
+    id: '2025_01',
+    category: 'INTEGRACJA',
     title: 'Beskidy & Planszówki',
     date: '12-14 Stycznia 2025',
     location: 'Schronisko Rysianka',
@@ -20,7 +22,8 @@ const EVENTS = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQXZh676chPrNLBMu9h1yRGckedwK1JJ-r01WHjoYJda2Sg-hP5XZcR5sAoV6ygpTTRlc55WhnjoBNJ8bFd2w9vU5igPTfhBNlHMuXuvwt3yhQcnDVc7DYauk-Fi2ir1ohATcgP4bv74UrZgSW56DaiTm56z_NEIvcdN-_DP3Lf1JCEhGNtGkOZ7laRJTOjJZo17ZDhIpPVgMMiKOZFFd6-oKLuHx08Bk9N1-wHsp563zHBc3ycVL3ToPJTzyQrgn8huOZK8y4OSs'
   },
   {
-    id: 'alpy-mont-blanc',
+    id: '2025_02',
+    category: 'EKSPEDYCJA',
     title: 'Projekt Mont Blanc',
     date: 'Lipiec 2025',
     location: 'Chamonix, Francja',
@@ -32,8 +35,8 @@ const EVENTS = [
 export default function Events() {
   return (
     <div className="container mx-auto px-6 md:px-8 py-24">
-      <div className="flex justify-between items-end mb-12">
-        <h1 className="font-display font-black text-5xl md:text-7xl text-on-surface uppercase tracking-tighter">
+      <div className="flex justify-between items-end mb-8 md:mb-12">
+        <h1 className="font-display font-black text-4xl sm:text-5xl md:text-7xl text-on-surface uppercase tracking-tighter">
           Wydarzenia
         </h1>
         <div className="hidden md:block text-on-surface-variant font-bold uppercase tracking-widest text-sm">
@@ -55,17 +58,18 @@ export default function Events() {
                 {event.spots}
               </div>
             </div>
-            <div className="p-6">
-              <h3 className="font-display font-black text-2xl uppercase tracking-tight mb-4 group-hover:text-primary-container transition-colors">
+            <div className="p-6 bg-surface-container-low">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#8ED081] mb-2 block">{event.category}</span>
+              <h3 className="font-display font-black text-2xl uppercase tracking-tight mb-4 group-hover:text-primary transition-colors text-on-surface">
                 {event.title}
               </h3>
               <div className="space-y-2 text-on-surface-variant font-medium text-sm">
                 <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-primary-container" />
+                  <Calendar size={16} className="text-primary" />
                   <span>{event.date}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <MapPin size={16} className="text-primary-container" />
+                  <MapPin size={16} className="text-primary" />
                   <span>{event.location}</span>
                 </div>
               </div>

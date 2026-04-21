@@ -9,6 +9,8 @@ import Gallery from './pages/Gallery';
 import GalleryDetail from './pages/GalleryDetail';
 import Wiki from './pages/Wiki';
 import Profile from './pages/Profile';
+import Admin from './pages/Admin';
+import News from './pages/News';
 
 export default function App() {
   return (
@@ -16,6 +18,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="aktualnosci" element={<News />} />
           <Route path="o-nas" element={<About />} />
           <Route path="wydarzenia" element={<Events />} />
           <Route path="wydarzenia/:id" element={<EventDetail />} />
@@ -23,6 +26,7 @@ export default function App() {
           <Route path="galeria/:id" element={<GalleryDetail />} />
           <Route path="wiki" element={<Wiki />} />
           <Route path="profil" element={<Profile />} />
+          <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>
     </BrowserRouter>

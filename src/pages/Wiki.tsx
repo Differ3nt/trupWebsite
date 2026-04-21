@@ -34,7 +34,7 @@ export default function Wiki() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
           {CATEGORIES.map((cat, idx) => (
             <div key={idx} className="bg-surface-container-low border border-outline-variant/30 p-6 hover:border-primary-container transition-colors cursor-pointer group">
-              <div className="text-primary-container mb-4 group-hover:scale-110 transition-transform origin-left">{cat.icon}</div>
+              <div className="text-primary mb-4 group-hover:scale-110 transition-transform origin-left">{cat.icon}</div>
               <h3 className="font-display font-bold text-xl uppercase tracking-tight mb-2">{cat.title}</h3>
               <p className="text-on-surface-variant text-sm font-medium">{cat.count} artykułów</p>
             </div>
@@ -47,7 +47,7 @@ export default function Wiki() {
             {ARTICLES.map((article, idx) => (
               <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-6 bg-surface-container-low border border-outline-variant/20 hover:bg-surface-container-highest transition-colors cursor-pointer">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary-container mb-2 block">{article.category}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-primary mb-2 block">{article.category}</span>
                   <h4 className="font-display font-bold text-xl">{article.title}</h4>
                 </div>
                 <span className="text-on-surface-variant text-sm font-medium mt-4 sm:mt-0">{article.date}</span>

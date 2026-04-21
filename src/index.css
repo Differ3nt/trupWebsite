@@ -4,17 +4,17 @@
   --font-sans: "Inter", sans-serif;
   --font-display: "Montserrat", sans-serif;
   
-  --color-primary: #006108;
-  --color-primary-container: #1c7c1b;
-  --color-surface: #f9f9f8;
-  --color-on-surface: #1a1c1c;
-  --color-surface-dim: #dadad9;
-  --color-surface-variant: #e2e2e2;
-  --color-on-surface-variant: #404a3b;
-  --color-outline: #707a6a;
-  --color-outline-variant: #bfcab7;
-  --color-surface-container-low: #f3f4f3;
-  --color-surface-container-highest: #e2e2e2;
+  --color-primary: #8ED081;
+  --color-primary-container: #4b4d42;
+  --color-surface: #37392E;
+  --color-on-surface: #f9f9f8;
+  --color-surface-dim: #25261e;
+  --color-surface-variant: #4b4d42;
+  --color-on-surface-variant: #CBD6D2;
+  --color-outline: #8ED081;
+  --color-outline-variant: #5c5e53;
+  --color-surface-container-low: #2a2c22;
+  --color-surface-container-highest: #4b4d42;
   --color-tertiary-container: #b63f75;
 
   /* Alpine Brutalism: 0px border radius everywhere */

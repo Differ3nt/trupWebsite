@@ -1,0 +1,21 @@
+{
+  "name": "TRUP | Więcej Niż Szczyty",
+  "short_name": "TRUP",
+  "description": "Aplikacja wyprawowa TRUP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#ff3b3b",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

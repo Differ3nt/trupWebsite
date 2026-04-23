@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  FLAGGED // Jeśli nałożona flaga, część wyjazdów jest niewidoczna
+}
+
+enum GpxStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  googleId      String?   @unique
+  name          String?
+  avatarUrl     String?
+  role          Role      @default(USER)
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relacje
+  gpxSubmissions   GpxSubmission[]
+  pushSubscriptions PushSubscription[]
+  participations    EventParticipation[]
+}
+
+model Event {
+  id          String   @id // Format: 2026_01
+  title       String
+  dateStart   DateTime
+  dateEnd     DateTime?
+  type        String   // np. góry, kultura, piwo
+  mapLink     String?  // Link do Mapy.cz
+  gearRequired String[] // Lista sprzętu potrzebnego
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacje
+  gpxSubmissions   GpxSubmission[]
+  participations   EventParticipation[]
+}
+
+model EventParticipation {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  status    String   // 'INTERESTED' | 'GOING'
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+}
+
+model Album {
+  id          String   @id @default(uuid())
+  title       String
+  date        DateTime
+  distance    Float?   // W km
+  duration    Float?   // W godzinach
+  locationMap String?  // Link mapy
+  description String?
+  createdAt   DateTime @default(now())
+
+  images      Image[]
+}
+
+model Image {
+  id           String   @id @default(uuid())
+  albumId      String
+  originalUrl  String   // Ścieżka do oryginału (uploads/...)
+  thumbnailUrl String   // Ścieżka do miniatury WebP
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  album        Album    @relation(fields: [albumId], references: [id])
+}
+
+model GpxSubmission {
+  id        String    @id @default(uuid())
+  userId    String
+  eventId   String
+  filePath  String    // Opcjonalnie zapisany plik
+  distance  Float     // Zanalizowany z XML
+  duration  Float     // Zanalizowany z XML
+  status    GpxStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+  event     Event     @relation(fields: [eventId], references: [id])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}

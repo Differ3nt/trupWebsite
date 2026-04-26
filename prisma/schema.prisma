@@ -32,37 +32,51 @@ model User {
   avatarUrl     String?
   role          Role      @default(USER)
   status        UserStatus @default(ACTIVE)
+  hardware      String[]  @default([]) // Posiadany sprzęt (np. Czekan, Raki)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   // Relacje
-  gpxSubmissions   GpxSubmission[]
+  gpxSubmissions    GpxSubmission[]
   pushSubscriptions PushSubscription[]
-  participations    EventParticipation[]
+  participations     EventParticipation[]
+  notifications      Notification[]
 }
 
 model Event {
-  id          String   @id // Format: 2026_01
-  title       String
-  dateStart   DateTime
-  dateEnd     DateTime?
-  type        String   // np. góry, kultura, piwo
-  mapLink     String?  // Link do Mapy.cz
+  id           String   @id // Format: 2024_01
+  title        String
+  description  String?
+  dateStart    DateTime
+  dateEnd      DateTime?
+  location     String?
+  mapLink      String?  // Link do Mapy.cz
+  difficulty   Int?     // Liczba gwiazdek 1-5
+  spots        Int?     // Liczba miejsc (np. 12)
+
+  image        String?
+  type         String   // np. GÓRY, INTEGRACJA
   gearRequired String[] // Lista sprzętu potrzebnego
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  gearCritical String[] @default([]) // Lista sprzętu obowiązkowego
+  featured     Boolean  @default(false) // Wyróżnione w Aktualnościach na stronie głównej
+  highlighted  Boolean  @default(false) // Nasze Osiągnięcia — wizytówka grupy
+  isExpedition Boolean  @default(false) // Czy wydarzenie jest oficjalną wyprawą
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relacje
   gpxSubmissions   GpxSubmission[]
-  participations   EventParticipation[]
+  participants     EventParticipation[]
 }
 
 model EventParticipation {
-  id        String   @id @default(uuid())
-  userId    String
-  eventId   String
-  status    String   // 'INTERESTED' | 'GOING'
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  userId           String
+  eventId          String
+  status           String   // 'INTERESTED' | 'GOING'
+  notifyDaysBefore Int?     // Powiadom X dni przed wydarzeniem (null = brak powiadomienia)
+  attended         Boolean  @default(false) // Czy osoba faktycznie była obecna
+  createdAt        DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id])
   event Event @relation(fields: [eventId], references: [id])
@@ -74,6 +88,7 @@ model Album {
   id          String   @id @default(uuid())
   title       String
   date        DateTime
+  location    String?
   distance    Float?   // W km
   duration    Float?   // W godzinach
   locationMap String?  // Link mapy
@@ -85,13 +100,13 @@ model Album {
 
 model Image {
   id           String   @id @default(uuid())
-  albumId      String
+  albumId      String?
   originalUrl  String   // Ścieżka do oryginału (uploads/...)
-  thumbnailUrl String   // Ścieżka do miniatury WebP
+  thumbnailUrl String?  // Ścieżka do miniatury WebP
   uploadedById String?
   createdAt    DateTime @default(now())
 
-  album        Album    @relation(fields: [albumId], references: [id])
+  album        Album?   @relation(fields: [albumId], references: [id])
 }
 
 model GpxSubmission {
@@ -106,6 +121,19 @@ model GpxSubmission {
 
   user      User      @relation(fields: [userId], references: [id])
   event     Event     @relation(fields: [eventId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("SYSTEM") // SYSTEM, EVENT, NEWS
+  url       String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model PushSubscription {

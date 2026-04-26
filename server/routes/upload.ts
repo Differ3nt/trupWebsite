@@ -8,9 +8,12 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Konfiguracja multer - zapis tymczasowy w pamięci dla szybszego przetworzenia
+// Konfiguracja multer - limit 5MB dla oszczędności miejsca
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -32,16 +35,22 @@ router.post('/image', upload.single('image'), async (req: any, res) => {
     const originalPath = path.join(UPLOADS_DIR, originalName);
     const thumbnailPath = path.join(UPLOADS_DIR, thumbnailName);
 
-    // Zapis oryginału
-    await sharp(req.file.buffer)
-      .jpeg({ quality: 85 })
-      .toFile(originalPath);
+    try {
+      // Zapis oryginału
+      await sharp(req.file.buffer)
+        .jpeg({ quality: 85 })
+        .toFile(originalPath);
 
-    // Zapis lekkiej miniatury
-    await sharp(req.file.buffer)
-      .resize({ width: 600, withoutEnlargement: true })
-      .webp({ quality: 60 })
-      .toFile(thumbnailPath);
+      // Zapis lekkiej miniatury
+      await sharp(req.file.buffer)
+        .resize({ width: 600, withoutEnlargement: true })
+        .webp({ quality: 60 })
+        .toFile(thumbnailPath);
+    } catch (sharpError) {
+      console.warn('[UPLOAD-GALLERY] Sharp zawiódł, zapisuję surowe dane:', sharpError);
+      fs.writeFileSync(originalPath, req.file.buffer);
+      fs.writeFileSync(thumbnailPath, req.file.buffer); // Fallback: miniatura to oryginał
+    }
 
     // Zapis do bazy
     const image = await prisma.image.create({
@@ -92,6 +101,61 @@ router.get('/:id/download', async (req, res) => {
   } catch (error) {
     console.error('Błąd pobierania zdjęcia:', error);
     res.status(500).json({ error: 'Nie udało się przetworzyć obrazu' });
+  }
+});
+
+// 3. Prosty upload zdjęcia (nieprzypisany do albumu) — np. dla tła wydarzenia
+router.post('/upload-simple', upload.single('image'), async (req: any, res) => {
+  try {
+    if (!req.file) {
+      console.error('[UPLOAD] Brak pliku w żądaniu');
+      return res.status(400).json({ error: 'Brak pliku' });
+    }
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(req.file.originalname) || '.jpg';
+    const fileName = `${uniqueSuffix}${ext}`;
+    const filePath = path.join(UPLOADS_DIR, fileName);
+
+    try {
+      // Próba optymalizacji przez sharp
+      await sharp(req.file.buffer)
+        .jpeg({ quality: 80, force: false })
+        .toFile(filePath);
+      console.log(`[UPLOAD] Plik zoptymalizowany i zapisany: ${fileName}`);
+    } catch (sharpError) {
+      console.warn('[UPLOAD] Sharp zawiódł, zapisuję surowy plik:', sharpError);
+      // Fallback: zapis surowego pliku jeśli sharp zawiedzie
+      fs.writeFileSync(filePath, req.file.buffer);
+    }
+
+    const url = `/uploads/${fileName}`;
+
+    // Zapis do bazy jako ogólne zdjęcie (bez albumId)
+    await prisma.image.create({
+      data: {
+        originalUrl: url,
+        thumbnailUrl: url // W prostym uploandzie miniatura to to samo co oryginał
+      }
+    });
+
+    res.json({ success: true, url });
+  } catch (error) {
+    console.error('[UPLOAD] Krytyczny błąd uploadu:', error);
+    res.status(500).json({ error: 'Błąd uploadu' });
+  }
+});
+
+// 4. Pobieranie wszystkich dostępnych zdjęć z bazy (dla pickera)
+router.get('/all', async (req, res) => {
+  try {
+    const images = await prisma.image.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: { originalUrl: true, thumbnailUrl: true }
+    });
+    res.json(images);
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd pobierania galerii' });
   }
 });
 

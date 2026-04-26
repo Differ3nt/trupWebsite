@@ -1,14 +1,30 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAppContext } from '../contexts/AppContext';
+import { Calendar, MapPin, ArrowRight, Trophy } from 'lucide-react';
 
 export default function Home() {
-  const { role } = useAppContext();
+  const [featuredEvents, setFeaturedEvents] = React.useState<any[]>([]);
+  const [highlightedEvents, setHighlightedEvents] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [visibleCount, setVisibleCount] = React.useState(3);
+
+  React.useEffect(() => {
+    Promise.all([
+      fetch('/api/events/featured').then(r => r.ok ? r.json() : []),
+      fetch('/api/events/highlighted').then(r => r.ok ? r.json() : [])
+    ])
+      .then(([featured, highlighted]) => {
+        setFeaturedEvents(Array.isArray(featured) ? featured : []);
+        setHighlightedEvents(Array.isArray(highlighted) ? highlighted : []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <>
       {/* Hero Section */}
-      <section className="pt-32 pb-16 md:pt-56 md:pb-32 px-6 md:px-12 max-w-7xl mx-auto">
+      <section className="pt-8 pb-16 md:pt-24 md:pb-32 px-6 md:px-12 max-w-7xl mx-auto">
         <h1 className="font-display font-black text-5xl sm:text-6xl md:text-[8rem] leading-[0.9] tracking-tighter text-on-surface uppercase mb-8">
           SUROWA <span className="text-primary">GÓRSKA</span><br />
           POTĘGA.
@@ -19,28 +35,178 @@ export default function Home() {
         </p>
       </section>
 
-      {/* Aktualności (Only for logged in) */}
-      {role !== 'guest' && (
-        <section className="px-6 md:px-12 max-w-7xl mx-auto mb-24">
-          <div className="border border-outline-variant/30 bg-surface-container-low p-8">
-             <div className="flex justify-between items-end mb-8 border-b border-outline-variant/30 pb-4">
-               <Link to="/aktualnosci" className="font-display font-black text-3xl uppercase tracking-tighter text-primary hover:text-primary/80 transition-colors">Aktualności</Link>
-               <Link to="/aktualnosci" className="hidden md:block text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary">Zobacz wszystkie uaktualnienia</Link>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary mb-2 block">Najbliższe Wydarzenie</span>
-                  <h3 className="font-display font-bold text-2xl uppercase mb-2">Zimowe Tatry: Orla Perć</h3>
-                  <p className="text-sm text-on-surface-variant mb-4">15-18 Grudnia 2024</p>
-                  <Link to="/wydarzenia/2024_01" className="text-sm font-bold uppercase tracking-widest text-primary hover:underline">Szczegóły logistyczne</Link>
-               </div>
-               <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary mb-2 block">Nowa Galeria</span>
-                  <h3 className="font-display font-bold text-2xl uppercase mb-2">Beskidy Jesienią</h3>
-                  <p className="text-sm text-on-surface-variant mb-4">Dodano 42 nowe ujęcia z ostatniej wyprawy.</p>
-                  <Link to="/galeria/bieszczady-jesien" className="text-sm font-bold uppercase tracking-widest text-primary hover:underline">Otwórz Lightbox</Link>
-               </div>
-             </div>
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* AKTUALNOŚCI — nadchodzące featured wydarzenia               */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <section className="px-6 md:px-12 max-w-7xl mx-auto mb-24">
+        <div className="border border-outline-variant/30 bg-surface-container-low">
+          {/* Header */}
+          <div className="flex justify-between items-end px-8 pt-8 pb-6 border-b border-outline-variant/30">
+            <Link to="/wydarzenia" className="group">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary block mb-1 group-hover:translate-x-1 transition-transform">Na Radarze</span>
+              <h2 className="font-display font-black text-3xl md:text-4xl uppercase tracking-tighter text-on-surface group-hover:text-primary transition-colors">Aktualności</h2>
+            </Link>
+            <Link to="/wydarzenia" className="hidden md:flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors">
+              Wszystkie wydarzenia <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {/* Content */}
+          <div className="p-8">
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="animate-pulse space-y-3 p-6 border border-outline-variant/20">
+                    <div className="h-3 w-24 bg-surface-container-highest" />
+                    <div className="h-6 w-3/4 bg-surface-container-highest" />
+                    <div className="h-3 w-1/2 bg-surface-container-highest" />
+                  </div>
+                ))}
+              </div>
+            ) : featuredEvents.length > 0 ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6 overflow-hidden transition-all duration-500 ease-in-out">
+                  {featuredEvents.slice(0, visibleCount).map((event, i) => (
+                    <Link
+                      key={event.id}
+                      to={`/wydarzenia/${event.id}`}
+                      className="group relative block border border-outline-variant/20 hover:border-primary transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 duration-700 overflow-hidden"
+                    >
+                      {/* Background Image Overlay */}
+                      {event.image && (
+                        <div className="absolute inset-0 z-0">
+                          <img 
+                            src={event.image} 
+                            alt="" 
+                            className="w-full h-full object-cover opacity-[0.07] grayscale group-hover:scale-105 transition-transform duration-700" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-r from-surface-container-low via-transparent to-surface-container-low opacity-60"></div>
+                        </div>
+                      )}
+
+                      <div className="relative z-10 flex flex-col md:flex-row bg-surface-container-low/40 backdrop-blur-[2px]">
+                        {/* Image */}
+                        {event.image && (
+                          <div className="overflow-hidden md:w-1/3 lg:w-1/4 h-48 md:h-auto shrink-0 border-r border-outline-variant/10 relative">
+                            <img
+                              src={event.image}
+                              alt={event.title}
+                              className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                            />
+                            {event.userStatus && new Date(event.dateStart) >= new Date() && (
+                              <div className="absolute top-0 left-0 bg-primary text-surface px-2 py-1 text-[8px] font-black uppercase tracking-widest shadow-lg">
+                                {event.userStatus === 'GOING' ? 'Zapisano' : 'Zainteresowany'}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {/* Content */}
+                        <div className="p-6 md:p-8 flex flex-col justify-center flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5">{event.type}</span>
+                            {event.isExpedition && event.difficulty > 0 && (
+                              <span className="text-primary text-xs tracking-widest font-black">
+                                {'★'.repeat(event.difficulty)}{'☆'.repeat(5 - event.difficulty)}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-display font-black text-xl md:text-2xl uppercase tracking-tight mb-3 group-hover:text-primary transition-colors text-on-surface">
+                            {event.title}
+                          </h3>
+                          <div className="space-y-1.5 text-on-surface-variant text-sm font-medium">
+                            <div className="flex items-center gap-2">
+                              <Calendar size={14} className="text-primary shrink-0" />
+                              <span>{new Date(event.dateStart).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                            </div>
+                            {event.location && (
+                              <div className="flex items-center gap-2">
+                                <MapPin size={14} className="text-primary shrink-0" />
+                                <span>{event.location}</span>
+                              </div>
+                            )}
+                          </div>
+                          {event.spots !== null && event.spots > 0 && (
+                            <div className="mt-4 pt-3 border-t border-outline-variant/20">
+                              <span className={`text-[10px] font-bold uppercase tracking-widest ${Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'text-red-500' : 'text-on-surface-variant'}`}>
+                                {Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'Brak wolnych miejsc' : `${Math.max(0, event.spots - (event.goingCount || 0))} wolnych miejsc`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Show more button */}
+                <div className="mt-8 flex justify-center">
+                  <button
+                    onClick={() => setVisibleCount(prev => prev + 3)}
+                    disabled={visibleCount >= featuredEvents.length}
+                    className={`px-8 py-4 font-display font-black text-xs uppercase tracking-widest border transition-all duration-300 ${
+                      visibleCount >= featuredEvents.length
+                        ? 'border-outline-variant/30 text-on-surface-variant/30 cursor-not-allowed opacity-50'
+                        : 'border-primary text-primary hover:bg-primary hover:text-surface active:scale-95'
+                    }`}
+                  >
+                    {visibleCount >= featuredEvents.length ? 'To już wszystko' : 'Pokaż więcej wydarzeń'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-on-surface-variant italic text-sm mb-4">Brak zaplanowanych wyróżnionych wydarzeń.</p>
+                <Link to="/wydarzenia" className="text-xs font-bold uppercase tracking-widest text-primary hover:underline">
+                  Zobacz wszystkie nadchodzące wydarzenia →
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile footer link */}
+          <div className="md:hidden border-t border-outline-variant/30 px-8 py-4">
+            <Link to="/wydarzenia" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
+              Wszystkie wydarzenia <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* NASZE OSIĄGNIĘCIA — highlighted wyprawy                     */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {highlightedEvents.length > 0 && (
+        <section className="px-6 md:px-12 max-w-7xl mx-auto mb-32">
+          <div className="flex items-center gap-4 mb-12">
+            <Link to="/wydarzenia" className="flex items-center gap-3 group">
+              <Trophy size={24} className="text-primary group-hover:scale-110 transition-transform" />
+              <h2 className="font-display font-black text-4xl uppercase tracking-tighter group-hover:text-primary transition-colors">Nasze Osiągnięcia</h2>
+            </Link>
+            <div className="h-px flex-1 bg-outline-variant/30"></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {highlightedEvents.map(event => (
+              <Link key={event.id} to={`/wydarzenia/${event.id}`} className="group relative aspect-[4/5] overflow-hidden bg-surface-container-low border border-outline-variant/30">
+                <img 
+                  src={event.image || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800'} 
+                  className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700"
+                  alt={event.title}
+                />
+                {event.userStatus && new Date(event.dateStart) >= new Date() && (
+                  <div className="absolute top-4 right-4 bg-primary text-surface px-2 py-1 text-[8px] font-black uppercase tracking-widest shadow-lg z-20">
+                    {event.userStatus === 'GOING' ? 'Zapisano' : 'Zainteresowany'}
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-8 flex flex-col justify-end translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                  <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2">{event.type}</p>
+                  <h3 className="text-white font-display font-black text-2xl uppercase leading-none mb-2 tracking-tighter">{event.title}</h3>
+                  <p className="text-white/60 text-xs font-bold uppercase tracking-widest">
+                    {new Date(event.dateStart).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {event.location ? ` · ${event.location}` : ''}
+                  </p>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       )}
@@ -144,4 +310,3 @@ function SlantedStrip({ zIndex, clipPath, marginTop, img, overlayClass, label, l
     </section>
   );
 }
-

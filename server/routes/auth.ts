@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 const oAuth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  'postmessage' // Używamy postmessage dla przepływu bez pełnego przekierowania (lub pełne URL przekierowania)
+  'http://localhost:3001/api/auth/google/callback'
 );
 
 // Helper do generowania tokena JWT
@@ -19,21 +19,23 @@ const generateToken = (userId: string) => {
   });
 };
 
-// 1. Generowanie URL logowania (jeśli chcemy pełny redirect)
-router.get('/google/url', (req, res) => {
+// 1. Inicjacja logowania - przekierowanie do Google
+router.get('/google', (req, res) => {
   const url = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
     prompt: 'consent'
   });
-  res.json({ url });
+  res.redirect(url);
 });
 
 // 2. Odbiór kodu z Google i logowanie/rejestracja użytkownika
-router.post('/google/callback', async (req, res) => {
+router.get('/google/callback', async (req, res) => {
   try {
-    const { code } = req.body;
-    const { tokens } = await oAuth2Client.getToken(code);
+    const { code } = req.query;
+    if (!code) throw new Error('Brak kodu autoryzacyjnego');
+
+    const { tokens } = await oAuth2Client.getToken(code as string);
     oAuth2Client.setCredentials(tokens);
 
     // Pobranie danych profilu
@@ -44,7 +46,7 @@ router.post('/google/callback', async (req, res) => {
     const data = userInfo.data as any;
 
     if (!data.email) {
-      return res.status(400).json({ error: 'Brak adresu email z Google' });
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/?error=no_email`);
     }
 
     // Szukamy lub tworzymy użytkownika w bazie (Upsert)
@@ -69,15 +71,16 @@ router.post('/google/callback', async (req, res) => {
     const token = generateToken(user.id);
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // W dev używamy HTTP
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dni
     });
 
-    res.json({ success: true, user });
+    // Powrót na frontend
+    res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
   } catch (error) {
     console.error('Google Auth Error:', error);
-    res.status(500).json({ error: 'Błąd uwierzytelniania Google' });
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/?error=auth_failed`);
   }
 });
 
@@ -86,21 +89,55 @@ router.get('/me', async (req, res) => {
   try {
     const token = req.cookies.token;
     if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
-    });
+    
+    const users: any = await prisma.$queryRaw`SELECT * FROM "User" WHERE id = ${decoded.userId}`;
 
-    if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+    if (!users || !users.length) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+    
+    let participations: any = [];
+    try {
+      participations = await prisma.$queryRaw`
+        SELECT p.*, (SELECT row_to_json(e) FROM "Event" e WHERE e.id = p."eventId") as event 
+        FROM "EventParticipation" p WHERE p."userId" = ${decoded.userId}
+      `;
+    } catch (e) {
+      console.warn('Participations query failed, returning empty:', e);
+    }
 
-    res.json({ user });
-  } catch (error) {
-    res.status(401).json({ error: 'Nieprawidłowy token' });
+    res.json({ user: { ...users[0], participations: participations || [] } });
+  } catch (error: any) {
+    console.error('Błąd /me:', error);
+    res.status(500).json({ error: 'Błąd serwera podczas weryfikacji sesji', details: error.message });
   }
 });
 
-// 4. Wylogowanie
+// Bootstrap: Ustaw siebie jako Admina (tylko jeśli brak innych Adminów)
+router.post('/make-admin', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
+
+    // Sprawdź czy w bazie nie ma już admina
+    const existingAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+    if (existingAdmin && existingAdmin.id !== decoded.userId) {
+      return res.status(403).json({ error: 'Administrator już istnieje w systemie' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: decoded.userId },
+      data: { role: 'ADMIN' }
+    });
+
+    res.json({ success: true, message: `${user.name} jest teraz Administratorem` });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd nadawania uprawnień' });
+  }
+});
+
+// Wylogowanie
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.json({ success: true });

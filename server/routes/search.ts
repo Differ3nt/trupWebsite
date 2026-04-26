@@ -15,40 +15,26 @@ router.get('/', async (req, res) => {
 
     const searchTerm = query.trim();
 
-    // Równoległe wyszukiwanie po tabelach (uproszczone z użyciem contains)
-    // W produkcji, na większych bazach lepiej użyć Full Text Search z Prisma (np. search: searchTerm)
-    const [users, events, albums] = await Promise.all([
-      prisma.user.findMany({
-        where: {
-          OR: [
-            { name: { contains: searchTerm, mode: 'insensitive' } },
-            { email: { contains: searchTerm, mode: 'insensitive' } }
-          ],
-          status: 'ACTIVE' // Ukrywamy oznaczonych/nieaktywnych w publicznej szukarce
-        },
-        select: { id: true, name: true, avatarUrl: true }
-      }),
-      prisma.event.findMany({
-        where: {
-          OR: [
-            { title: { contains: searchTerm, mode: 'insensitive' } },
-            { id: { contains: searchTerm, mode: 'insensitive' } }
-          ]
-        },
-        select: { id: true, title: true, type: true, dateStart: true }
-      }),
-      prisma.album.findMany({
-        where: {
-          OR: [
-            { title: { contains: searchTerm, mode: 'insensitive' } },
-            { description: { contains: searchTerm, mode: 'insensitive' } }
-          ]
-        },
-        select: { id: true, title: true, date: true }
-      })
+    const [users, events, albums]: [any, any, any] = await Promise.all([
+      prisma.$queryRaw`
+        SELECT id, name, "avatarUrl" FROM "User" WHERE ("name" ILIKE ${`%${searchTerm}%`} OR "email" ILIKE ${`%${searchTerm}%`}) AND status = 'ACTIVE' LIMIT 10
+      `,
+      prisma.$queryRaw`
+        SELECT id, title, type, "dateStart" FROM "Event" WHERE "title" ILIKE ${`%${searchTerm}%`} OR id ILIKE ${`%${searchTerm}%`} LIMIT 10
+      `,
+      prisma.$queryRaw`
+        SELECT id, title, date FROM "Album" WHERE "title" ILIKE ${`%${searchTerm}%`} OR "description" ILIKE ${`%${searchTerm}%`} LIMIT 10
+      `
     ]);
 
-    res.json({ users, events, albums });
+    // Formatowanie wyników pod ujednolicony format frontendu (używany w Layout.tsx)
+    const results = [
+      ...users.map((u: any) => ({ title: u.name, type: 'Użytkownik', url: `/profil/${u.id}`, description: 'Członek grupy' })),
+      ...events.map((e: any) => ({ title: e.title, type: e.type, url: `/wydarzenia/${e.id}`, description: new Date(e.dateStart).toLocaleDateString() })),
+      ...albums.map((a: any) => ({ title: a.title, type: 'Album', url: `/galeria/${a.id}`, description: new Date(a.date).toLocaleDateString() }))
+    ];
+
+    res.json({ results });
   } catch (error) {
     console.error('Błąd wyszukiwarki:', error);
     res.status(500).json({ error: 'Wystąpił błąd podczas wyszukiwania' });

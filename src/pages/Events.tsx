@@ -1,81 +1,162 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Users } from 'lucide-react';
+import { Calendar, MapPin } from 'lucide-react';
+import { useAppContext } from '../contexts/AppContext';
 
-const EVENTS = [
-  {
-    id: '2024_01',
-    category: 'GÓRY',
-    title: 'Zimowe Tatry: Orla Perć',
-    date: '15-18 Grudnia 2024',
-    location: 'Tatry Wysokie',
-    spots: 'Brak miejsc',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCR5pO5QgFSNLU9L3FbHsULwCRMGO34kqt9OZ-XZxhW0DB_HZsXLqHWcsBQ0aMS0ysZc83MYvmEM1NO9JCPPKhU_MxzI8hIDaIqW8zJ_rrVgjm7oSpOll3ll9RnWZ7dSb8KtwvCAKiaWqxXyDhvkYexfztMYCKBIilPXMd1xilcN8abxVRtf1LTzZoQwUu5Gb-gGxTIl9K6JqR23QrN8JjJ7Ixe8SZWHUSybdNyPrVcZQaj0xjAhytQI3XDHaoZCeD72GRo6Zl_VMA'
-  },
-  {
-    id: '2025_01',
-    category: 'INTEGRACJA',
-    title: 'Beskidy & Planszówki',
-    date: '12-14 Stycznia 2025',
-    location: 'Schronisko Rysianka',
-    spots: '5 wolnych miejsc',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQXZh676chPrNLBMu9h1yRGckedwK1JJ-r01WHjoYJda2Sg-hP5XZcR5sAoV6ygpTTRlc55WhnjoBNJ8bFd2w9vU5igPTfhBNlHMuXuvwt3yhQcnDVc7DYauk-Fi2ir1ohATcgP4bv74UrZgSW56DaiTm56z_NEIvcdN-_DP3Lf1JCEhGNtGkOZ7laRJTOjJZo17ZDhIpPVgMMiKOZFFd6-oKLuHx08Bk9N1-wHsp563zHBc3ycVL3ToPJTzyQrgn8huOZK8y4OSs'
-  },
-  {
-    id: '2025_02',
-    category: 'EKSPEDYCJA',
-    title: 'Projekt Mont Blanc',
-    date: 'Lipiec 2025',
-    location: 'Chamonix, Francja',
-    spots: 'Zapisy wkrótce',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBcjkRKbPnllP6Fu_t4F60Sra3mvomt0nnpwjYHyJA8eTZZcMRgepBhquGNCO3xA2-1Z1sSBqVR9aT8oWKsxM6ju6ZIUwN364UtbkxEAuX03_gG-vEszryhTaRJglj8iZwCksg3SYAxiAb4RethpFxt5jt4tk4phlVag9kNcHIX-PLkcNrIgihV2T-Cjy0Wc39TuvYv3c4hdUNUzv5DOZCM96QyfSd8_jUH4zX2DV4AwZNYL10R_DmQh2QePLduEfJ9xx3tcHZQ8NI'
-  }
-];
+const ALL_TYPES = ['Wszystkie', 'GÓRY', 'INTEGRACJA', 'EKSPEDYCJA', 'KULTURA'];
+
+function EventSkeleton() {
+  return (
+    <div className="bg-surface-container-low border border-outline-variant/30 overflow-hidden animate-pulse">
+      <div className="h-64 bg-surface-container-highest" />
+      <div className="p-6 space-y-3">
+        <div className="h-3 w-20 bg-surface-container-highest rounded" />
+        <div className="h-6 w-3/4 bg-surface-container-highest rounded" />
+        <div className="h-3 w-1/2 bg-surface-container-highest rounded" />
+        <div className="h-3 w-2/5 bg-surface-container-highest rounded" />
+      </div>
+    </div>
+  );
+}
+
+function LoginWall() {
+  const { loginWithGoogle } = useAppContext();
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-32 text-center gap-8">
+      <div className="border border-outline-variant/30 bg-surface-container-low p-12 max-w-md w-full">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-4">Dostęp Ograniczony</p>
+        <h2 className="font-display font-black text-3xl uppercase tracking-tighter mb-4 text-on-surface">
+          Zaloguj się, aby zobaczyć wyprawy
+        </h2>
+        <p className="text-sm text-on-surface-variant mb-8 leading-relaxed">
+          Dostęp do planowanych wypraw i zapisów mają wyłącznie członkowie grupy TRUP.
+        </p>
+        <button
+          onClick={loginWithGoogle}
+          className="w-full bg-primary text-surface py-4 font-display font-black uppercase tracking-widest text-sm hover:bg-primary/90 transition-colors"
+        >
+          Zaloguj się przez Google
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Events() {
+  const { role } = useAppContext();
+  const [events, setEvents] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [activeFilter, setActiveFilter] = React.useState('Wszystkie');
+
+  React.useEffect(() => {
+    if (role === 'guest') {
+      setLoading(false);
+      return;
+    }
+    fetch('/api/events', { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) return [];
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data)) setEvents(data);
+      })
+      .catch(err => console.error('Błąd pobierania wydarzeń:', err))
+      .finally(() => setLoading(false));
+  }, [role]);
+
+  const filtered = activeFilter === 'Wszystkie'
+    ? events
+    : events.filter(e => e.type === activeFilter);
+
   return (
-    <div className="container mx-auto px-6 md:px-8 py-24">
-      <div className="flex justify-between items-end mb-8 md:mb-12">
+    <div className="container mx-auto px-6 md:px-8 py-12">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-8 md:mb-12 gap-4">
         <h1 className="font-display font-black text-4xl sm:text-5xl md:text-7xl text-on-surface uppercase tracking-tighter">
           Wydarzenia
         </h1>
-        <div className="hidden md:block text-on-surface-variant font-bold uppercase tracking-widest text-sm">
+        <p className="text-on-surface-variant font-bold uppercase tracking-widest text-xs">
           Dołącz do nas na szlaku
-        </div>
+        </p>
       </div>
 
+      {/* Filtry — tylko dla zalogowanych */}
+      {role !== 'guest' && (
+        <div className="flex flex-wrap gap-2 mb-10">
+          {ALL_TYPES.map(type => (
+            <button
+              key={type}
+              onClick={() => setActiveFilter(type)}
+              className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest border transition-colors ${activeFilter === type ? 'bg-primary text-surface border-primary' : 'border-outline-variant/50 text-on-surface-variant hover:border-primary hover:text-on-surface'}`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {EVENTS.map((event) => (
-          <Link key={event.id} to={`/wydarzenia/${event.id}`} className="group block bg-surface-container-low border border-outline-variant/30 hover:border-primary-container transition-colors duration-300">
-            <div className="h-64 overflow-hidden relative">
-              <img 
-                src={event.image} 
-                alt={event.title} 
-                className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute top-4 left-4 bg-primary-container text-white px-3 py-1 font-bold text-xs uppercase tracking-wider">
-                {event.spots}
+        {role === 'guest' ? (
+          <LoginWall />
+        ) : loading ? (
+          Array.from({ length: 3 }).map((_, i) => <EventSkeleton key={i} />)
+        ) : filtered.length > 0 ? (
+          filtered.map((event) => (
+            <Link key={event.id} to={`/wydarzenia/${event.id}`} className="group block bg-surface-container-low border border-outline-variant/30 hover:border-primary transition-colors duration-300">
+              <div className="h-64 overflow-hidden relative">
+                <img
+                  src={event.image || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800'}
+                  alt={event.title}
+                  className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                  referrerPolicy="no-referrer"
+                />
+                {event.userStatus && new Date(event.dateStart) >= new Date() && (
+                  <div className="absolute top-4 right-4 bg-primary text-surface px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-xl border border-white/20">
+                    {event.userStatus === 'GOING' ? 'Zapisano' : 'Zainteresowany'}
+                  </div>
+                )}
+                {event.type && (
+                  <div className="absolute top-4 left-4 bg-primary text-surface px-3 py-1 font-bold text-[10px] uppercase tracking-wider">
+                    {event.type}
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="p-6 bg-surface-container-low">
-              <span className="text-xs font-bold uppercase tracking-widest text-[#8ED081] mb-2 block">{event.category}</span>
-              <h3 className="font-display font-black text-2xl uppercase tracking-tight mb-4 group-hover:text-primary transition-colors text-on-surface">
-                {event.title}
-              </h3>
-              <div className="space-y-2 text-on-surface-variant font-medium text-sm">
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-primary" />
-                  <span>{event.date}</span>
+              <div className="p-6 bg-surface-container-low">
+                <div className="flex justify-between items-start mb-2">
+                  {event.isExpedition && event.difficulty > 0 && (
+                    <div className="text-primary text-xs tracking-widest font-black">
+                      {'★'.repeat(event.difficulty)}{'☆'.repeat(5 - event.difficulty)}
+                    </div>
+                  )}
+                  {event.spots !== null && event.spots > 0 && (
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'text-red-500' : 'text-on-surface-variant'}`}>
+                      {Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'Brak miejsc' : `${Math.max(0, event.spots - (event.goingCount || 0))} wolnych miejsc`}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin size={16} className="text-primary" />
-                  <span>{event.location}</span>
+                <h3 className="font-display font-black text-2xl uppercase tracking-tight mb-4 group-hover:text-primary transition-colors text-on-surface">
+                  {event.title}
+                </h3>
+                <div className="space-y-2 text-on-surface-variant font-medium text-sm">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-primary" />
+                    <span>{new Date(event.dateStart).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </div>
+                  {event.location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin size={16} className="text-primary" />
+                      <span>{event.location}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          ))
+        ) : (
+          <p className="col-span-full text-center py-24 text-on-surface-variant uppercase tracking-widest font-bold">
+            Brak wydarzeń w tej kategorii.
+          </p>
+        )}
       </div>
     </div>
   );

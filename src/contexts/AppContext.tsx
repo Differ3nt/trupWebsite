@@ -10,6 +10,7 @@ interface AppContextType {
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -17,45 +18,49 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('guest');
   const [user, setUser] = useState<any>(null);
-  const [hardware] = useState<string[]>(['Kask', 'Czekan']); // Missing e.g., 'Raki'
   const [loading, setLoading] = useState(true);
 
-  // Sprawdzamy stan zalogowania przy załadowaniu
-  React.useEffect(() => {
-    fetch('http://localhost:3001/api/auth/me', {credentials: 'include'})
-      .then(res => res.json())
-      .then(data => {
-        if (data.user) {
-          setUser(data.user);
-          setRole(data.user.role.toLowerCase());
-        }
-      })
-      .catch(() => console.error('Błąd weryfikacji sesji'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const loginWithGoogle = async () => {
+  const refreshUser = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/google/url');
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
       const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url; // Przekierowanie do Google
+      if (data.user) {
+        setUser(data.user);
+        setRole(data.user.role.toLowerCase() as UserRole);
+      } else {
+        setUser(null);
+        setRole('guest');
       }
     } catch (e) {
-      console.error('Błąd inicjacji logowania', e);
+      console.error('Błąd weryfikacji sesji', e);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Sprawdzamy stan zalogowania przy załadowaniu
+  React.useEffect(() => {
+    refreshUser();
+  }, []);
+
+  const loginWithGoogle = () => {
+    window.location.href = '/api/auth/google';
+  };
+
   const logout = async () => {
-    await fetch('http://localhost:3001/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     setUser(null);
     setRole('guest');
   };
 
-  const hasHardware = (item: string) => hardware.includes(item);
+  const hasHardware = (item: string) => {
+    if (!user || !user.hardware) return false;
+    const userHardware = Array.isArray(user.hardware) ? user.hardware : JSON.parse(user.hardware || '[]');
+    return userHardware.includes(item);
+  };
 
   return (
-    <AppContext.Provider value={{ role, setRole, hasHardware, user, loginWithGoogle, logout, loading }}>
+    <AppContext.Provider value={{ role, setRole, hasHardware, user, loginWithGoogle, logout, loading, refreshUser }}>
       {children}
     </AppContext.Provider>
   );

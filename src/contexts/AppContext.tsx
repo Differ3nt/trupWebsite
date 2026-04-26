@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
+// Możliwe role użytkownika w aplikacji frontendowej
 type UserRole = 'guest' | 'user' | 'admin';
 
 interface AppContextType {
@@ -15,11 +16,17 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+/**
+ * Provider dostarczający stan globalny (użytkownik, rola, ładowanie) do wszystkich komponentów.
+ */
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('guest');
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Sprawdza aktualną sesję użytkownika odpytując serwer (/api/auth/me).
+   */
   const refreshUser = async () => {
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
@@ -32,27 +39,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setRole('guest');
       }
     } catch (e) {
-      console.error('Błąd weryfikacji sesji', e);
+      console.error('Błąd weryfikacji sesji użytkownika', e);
     } finally {
       setLoading(false);
     }
   };
 
-  // Sprawdzamy stan zalogowania przy załadowaniu
+  // Inicjalne sprawdzenie sesji przy pierwszym załadowaniu strony
   React.useEffect(() => {
     refreshUser();
   }, []);
 
+  /**
+   * Przekierowuje użytkownika do logowania przez Google.
+   */
   const loginWithGoogle = () => {
     window.location.href = '/api/auth/google';
   };
 
+  /**
+   * Wylogowuje użytkownika usuwając ciasteczko sesji na serwerze i resetując stan lokalny.
+   */
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     setUser(null);
     setRole('guest');
   };
 
+  /**
+   * Helper sprawdzający czy zalogowany użytkownik posiada dany sprzęt techniczny.
+   */
   const hasHardware = (item: string) => {
     if (!user || !user.hardware) return false;
     const userHardware = Array.isArray(user.hardware) ? user.hardware : JSON.parse(user.hardware || '[]');
@@ -66,6 +82,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Hook ułatwiający dostęp do kontekstu aplikacji w komponentach funkcyjnych.
+ */
 export function useAppContext() {
   const context = useContext(AppContext);
   if (!context) throw new Error('useAppContext must be used within AppProvider');

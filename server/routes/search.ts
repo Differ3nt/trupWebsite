@@ -4,17 +4,22 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 const prisma = new PrismaClient();
 
-// 1. Globalna wyszukiwarka
+/**
+ * Globalna wyszukiwarka systemowa.
+ * Przeszukuje użytkowników, wydarzenia oraz albumy zdjęć.
+ */
 router.get('/', async (req, res) => {
   try {
     const query = req.query.q as string;
     
+    // Wymagamy minimum 3 znaków do rozpoczęcia wyszukiwania
     if (!query || query.trim().length < 3) {
-      return res.json({ users: [], events: [], albums: [] });
+      return res.json({ results: [] });
     }
 
     const searchTerm = query.trim();
 
+    // Równoległe zapytania do bazy dla zwiększenia wydajności
     const [users, events, albums]: [any, any, any] = await Promise.all([
       prisma.$queryRaw`
         SELECT id, name, "avatarUrl" FROM "User" WHERE ("name" ILIKE ${`%${searchTerm}%`} OR "email" ILIKE ${`%${searchTerm}%`}) AND status = 'ACTIVE' LIMIT 10
@@ -27,7 +32,7 @@ router.get('/', async (req, res) => {
       `
     ]);
 
-    // Formatowanie wyników pod ujednolicony format frontendu (używany w Layout.tsx)
+    // Ujednolicenie formatu wyników, aby frontend mógł je wyświetlić w jednej liście (np. w menu)
     const results = [
       ...users.map((u: any) => ({ title: u.name, type: 'Użytkownik', url: `/profil/${u.id}`, description: 'Członek grupy' })),
       ...events.map((e: any) => ({ title: e.title, type: e.type, url: `/wydarzenia/${e.id}`, description: new Date(e.dateStart).toLocaleDateString() })),
@@ -37,7 +42,7 @@ router.get('/', async (req, res) => {
     res.json({ results });
   } catch (error) {
     console.error('Błąd wyszukiwarki:', error);
-    res.status(500).json({ error: 'Wystąpił błąd podczas wyszukiwania' });
+    res.status(500).json({ error: 'Wystąpił nieoczekiwany błąd podczas wyszukiwania' });
   }
 });
 

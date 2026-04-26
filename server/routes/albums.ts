@@ -4,12 +4,14 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Pobieranie wszystkich albumów z okładką (pierwszym zdjęciem)
+/**
+ * Pobieranie listy wszystkich albumów wraz z okładką (pierwszym zdjęciem).
+ */
 router.get('/', async (req, res) => {
   try {
     const albums: any = await prisma.$queryRaw`SELECT * FROM "Album" ORDER BY date DESC`;
     
-    // Dla każdego albumu pobieramy okładkę (pierwsze zdjęcie)
+    // Dla każdego albumu pobieramy okładkę, aby wyświetlić ją na liście galerii
     const albumsWithImages = await Promise.all(albums.map(async (album: any) => {
       const images: any = await prisma.$queryRaw`
         SELECT * FROM "Image" WHERE "albumId" = ${album.id} LIMIT 1
@@ -20,16 +22,18 @@ router.get('/', async (req, res) => {
     res.json(albumsWithImages);
   } catch (error) {
     console.error('Błąd pobierania albumów:', error);
-    res.status(500).json({ error: 'Nie udało się pobrać albumów' });
+    res.status(500).json({ error: 'Nie udało się pobrać listy albumów' });
   }
 });
 
-// Pobieranie pojedynczego albumu ze wszystkimi zdjęciami
+/**
+ * Pobieranie szczegółów pojedynczego albumu wraz ze wszystkimi zdjęciami.
+ */
 router.get('/:id', async (req, res) => {
   try {
     const albums: any = await prisma.$queryRaw`SELECT * FROM "Album" WHERE id = ${req.params.id}`;
     
-    if (!albums || !albums.length) return res.status(404).json({ error: 'Album nie znaleziony' });
+    if (!albums || !albums.length) return res.status(404).json({ error: 'Album nie został znaleziony' });
     const album = albums[0];
 
     const images: any = await prisma.$queryRaw`
@@ -39,7 +43,7 @@ router.get('/:id', async (req, res) => {
     res.json({ ...album, images: images || [] });
   } catch (error) {
     console.error('Błąd pobierania albumu:', error);
-    res.status(500).json({ error: 'Nie udało się pobrać albumu' });
+    res.status(500).json({ error: 'Nie udało się pobrać zawartości albumu' });
   }
 });
 

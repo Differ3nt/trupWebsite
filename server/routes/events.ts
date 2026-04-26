@@ -5,7 +5,10 @@ import { authenticate } from '../middleware/auth';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Pomocnicza funkcja sprawdzająca sesję
+/**
+ * Pomocnicza funkcja do wyciągania ID użytkownika z ciasteczka tokena.
+ * Pozwala sprawdzić status zalogowania w trasach publicznych (gdzie logowanie nie jest wymagane, ale zmienia wynik).
+ */
 function getUserIdFromCookie(req: any): string | null {
   try {
     const jwt = require('jsonwebtoken');
@@ -18,16 +21,18 @@ function getUserIdFromCookie(req: any): string | null {
   }
 }
 
-// Pobieranie wszystkich wydarzeń — publiczne (z uwzględnieniem statusu zalogowanego)
+/**
+ * Pobiera listę wszystkich wydarzeń.
+ * Jeśli upcoming=true, zwraca tylko przyszłe wydarzenia.
+ * Dołącza informację o liczbie uczestników i statusie aktualnego użytkownika.
+ */
 router.get('/', async (req: any, res) => {
   try {
     const { upcoming } = req.query;
     const userId = getUserIdFromCookie(req);
-    let events: any;
-    
-    // Używamy NULL jeśli użytkownik nie jest zalogowany, aby uniknąć błędów rzutowania UUID
     const uid = userId || null;
     
+    // Zapytanie SQL zliczające uczestników i pobierające status zalogowanego (INTERESTED/GOING)
     const query = upcoming === 'true' 
       ? `SELECT e.*, 
           (SELECT COUNT(*)::int FROM "EventParticipation" p WHERE p."eventId" = e.id AND p.status = 'GOING') as "goingCount",
@@ -38,15 +43,17 @@ router.get('/', async (req: any, res) => {
           (SELECT status FROM "EventParticipation" p WHERE p."eventId" = e.id AND p."userId" = $1) as "userStatus"
         FROM "Event" e ORDER BY e."dateStart" ASC`;
     
-    events = await prisma.$queryRawUnsafe(query, uid);
+    const events = await prisma.$queryRawUnsafe(query, uid);
     res.json(events);
   } catch (error: any) {
     console.error('Błąd pobierania wydarzeń:', error);
-    res.status(500).json({ error: 'Nie udało się pobrać wydarzeń' });
+    res.status(500).json({ error: 'Nie udało się pobrać listy wydarzeń' });
   }
 });
 
-// Wyróżnione nadchodzące wydarzenia — sekcja "Aktualności" na stronie głównej
+/**
+ * Pobiera wyróżnione wydarzenia do sekcji "Aktualności" (strona główna).
+ */
 router.get('/featured', async (req, res) => {
   try {
     const userId = getUserIdFromCookie(req);
@@ -61,11 +68,13 @@ router.get('/featured', async (req, res) => {
     res.json(events);
   } catch (error: any) {
     console.error('Błąd pobierania featured:', error);
-    res.status(500).json({ error: 'Nie udało się pobrać wyróżnionych' });
+    res.status(500).json({ error: 'Nie udało się pobrać wyróżnionych wydarzeń' });
   }
 });
 
-// Wyróżnione osiągnięcia — sekcja "Nasze Osiągnięcia" na stronie głównej
+/**
+ * Pobiera osiągnięcia grupy (archiwalne, ważne wyjazdy) na stronę główną.
+ */
 router.get('/highlighted', async (req, res) => {
   try {
     const userId = getUserIdFromCookie(req);
@@ -84,23 +93,25 @@ router.get('/highlighted', async (req, res) => {
   }
 });
 
-// Pobieranie pojedynczego wydarzenia
+/**
+ * Pobiera szczegóły konkretnego wydarzenia wraz z pełną listą uczestników.
+ */
 router.get('/:id', async (req: any, res) => {
   try {
     let userId: string | null = getUserIdFromCookie(req);
 
     const events: any = await prisma.$queryRaw`SELECT * FROM "Event" WHERE id = ${req.params.id}`;
 
-    if (!events.length) return res.status(404).json({ error: 'Wydarzenie nie znalezione' });
+    if (!events.length) return res.status(404).json({ error: 'Wydarzenie nie zostało znalezione' });
     const event = events[0];
 
-    // Pobieramy uczestników osobno (z polem attended)
+    // Pobranie danych uczestników (nazwa, awatar, status obecności)
     const participants: any = await prisma.$queryRaw`
       SELECT p.*, (SELECT json_build_object('id', u.id, 'name', u.name, 'avatarUrl', u."avatarUrl") FROM "User" u WHERE u.id = p."userId") as user
       FROM "EventParticipation" p WHERE p."eventId" = ${req.params.id}
     `;
 
-    // Dodajemy aktualny status użytkownika i ustawienia powiadomień
+    // Informacja o statusie RSVP aktualnie zalogowanego użytkownika
     let myRsvp: string | null = null;
     let myNotifyDays: number | null = null;
     if (userId) {
@@ -114,11 +125,13 @@ router.get('/:id', async (req: any, res) => {
     res.json({ ...event, participants: participants || [], myRsvp, myNotifyDays });
   } catch (error: any) {
     console.error('Błąd pobierania wydarzenia:', error);
-    res.status(500).json({ error: 'Nie udało się pobrać wydarzenia' });
+    res.status(500).json({ error: 'Nie udało się pobrać szczegółów wydarzenia' });
   }
 });
 
-// Zarządzanie frekwencją (Admin)
+/**
+ * Aktualizuje status faktycznej obecności użytkownika (tylko Admin).
+ */
 router.patch('/:id/attendance', authenticate, async (req: any, res) => {
   try {
     const { userId, attended } = req.body;
@@ -135,7 +148,10 @@ router.patch('/:id/attendance', authenticate, async (req: any, res) => {
   }
 });
 
-// Tworzenie wydarzenia
+/**
+ * Tworzy nowe wydarzenie.
+ * Automatycznie generuje ID w formacie: RRRR_NR_KOD (np. 2024_05_WYP).
+ */
 router.post('/', authenticate, async (req: any, res) => {
   try {
     const { 
@@ -148,7 +164,7 @@ router.post('/', authenticate, async (req: any, res) => {
       return res.status(400).json({ error: 'Brak wymaganych pól' });
     }
 
-    // Mapowanie typów na krótkie kody ID
+    // Skróty typów dla czytelniejszego ID
     const typeMap: Record<string, string> = {
       'GÓRY': 'WYP',
       'EKSPEDYCJA': 'EKS',
@@ -158,6 +174,7 @@ router.post('/', authenticate, async (req: any, res) => {
     };
     const typeCode = typeMap[type] || 'INNE';
 
+    // Generowanie kolejnego numeru wydarzenia w danym roku
     const year = new Date(dateStart).getFullYear();
     const count: any = await prisma.$queryRaw`
       SELECT COUNT(*)::int as total FROM "Event" WHERE EXTRACT(YEAR FROM "dateStart") = ${year}
@@ -182,11 +199,13 @@ router.post('/', authenticate, async (req: any, res) => {
     res.json({ success: true, eventId });
   } catch (error: any) {
     console.error('Błąd tworzenia wydarzenia:', error);
-    res.status(500).json({ error: 'Błąd zapisu' });
+    res.status(500).json({ error: 'Błąd zapisu nowego wydarzenia' });
   }
 });
 
-// Edycja wydarzenia
+/**
+ * Edytuje istniejące wydarzenie.
+ */
 router.put('/:id', authenticate, async (req: any, res) => {
   try {
     const { id } = req.params;
@@ -221,27 +240,32 @@ router.put('/:id', authenticate, async (req: any, res) => {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Błąd edycji wydarzenia:', error);
-    res.status(500).json({ error: 'Błąd aktualizacji' });
+    res.status(500).json({ error: 'Błąd podczas aktualizacji danych' });
   }
 });
 
-// RSVP
+/**
+ * Obsługuje deklarację udziału (RSVP) przez użytkownika.
+ * status: 'GOING' (jadę), 'INTERESTED' (zainteresowany) lub null (usuń rsvp).
+ */
 router.post('/:id/rsvp', authenticate, async (req: any, res) => {
   try {
     const { status, notifyDaysBefore } = req.body;
     const eventId = req.params.id;
     const userId = req.userId;
 
+    // Jeśli status jest null, usuwamy użytkownika z listy uczestników
     if (status === null) {
       await prisma.$executeRaw`DELETE FROM "EventParticipation" WHERE "userId" = ${userId} AND "eventId" = ${eventId}`;
       return res.json({ success: true, status: null });
     }
 
     if (!['INTERESTED', 'GOING'].includes(status)) {
-      return res.status(400).json({ error: 'Nieprawidłowy status' });
+      return res.status(400).json({ error: 'Nieprawidłowy status uczestnictwa' });
     }
 
     const partId = `part_${Date.now()}`;
+    // Upsert — jeśli rekord już istnieje, aktualizujemy go, jeśli nie — tworzymy nowy
     await prisma.$executeRaw`
       INSERT INTO "EventParticipation" (id, "userId", "eventId", status, "notifyDaysBefore", "createdAt")
       VALUES (${partId}, ${userId}, ${eventId}, ${status}, ${notifyDaysBefore ?? null}, NOW())
@@ -251,41 +275,48 @@ router.post('/:id/rsvp', authenticate, async (req: any, res) => {
     res.json({ success: true, status });
   } catch (error) {
     console.error('Błąd RSVP:', error);
-    res.status(500).json({ error: 'Nie udało się zapisać uczestnictwa' });
+    res.status(500).json({ error: 'Nie udało się zapisać Twojej deklaracji' });
   }
 });
 
-// Toggle featured / highlighted (Admin)
+/**
+ * Szybkie przełączanie statusów 'featured' i 'highlighted' (tylko Admin).
+ */
 router.patch('/:id/featured', authenticate, async (req: any, res) => {
   try {
-    const data: any = {};
-    if (req.body.featured !== undefined) data.featured = Boolean(req.body.featured);
-    if (req.body.highlighted !== undefined) data.highlighted = Boolean(req.body.highlighted);
+    const { featured, highlighted } = req.body;
     
+    // Pobieramy aktualne dane, jeśli nie zostały przesłane w body
+    const event: any = await prisma.event.findUnique({ where: { id: req.params.id } });
+    if (!event) return res.status(404).json({ error: 'Wydarzenie nie istnieje' });
+
     await prisma.$executeRaw`
       UPDATE "Event" SET 
-        featured = ${data.featured !== undefined ? data.featured : prisma.event.findUnique({where:{id:req.params.id}}).then((e:any)=>e.featured)},
-        highlighted = ${data.highlighted !== undefined ? data.highlighted : prisma.event.findUnique({where:{id:req.params.id}}).then((e:any)=>e.highlighted)}
+        featured = ${featured !== undefined ? Boolean(featured) : event.featured},
+        highlighted = ${highlighted !== undefined ? Boolean(highlighted) : event.highlighted}
       WHERE id = ${req.params.id}
     `;
-    // Uproszczony powrót (bez ponownego query dla szybkości, admin i tak odświeży listę)
+
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Nie udało się zaktualizować wydarzenia' });
+    res.status(500).json({ error: 'Nie udało się zaktualizować statusu' });
   }
 });
 
-// Usuwanie wydarzenia
+/**
+ * Usuwa wydarzenie wraz z powiązanymi danymi (uczestnictwo, zgłoszenia GPX).
+ */
 router.delete('/:id', authenticate, async (req: any, res) => {
   try {
     const { id } = req.params;
+    // Ważne: najpierw usuwamy rekordy z tabel zależnych (Klucze obce)
     await prisma.$executeRaw`DELETE FROM "EventParticipation" WHERE "eventId" = ${id}`;
     await prisma.$executeRaw`DELETE FROM "GpxSubmission" WHERE "eventId" = ${id}`;
     await prisma.$executeRaw`DELETE FROM "Event" WHERE id = ${id}`;
     res.json({ success: true });
   } catch (error: any) {
     console.error('Błąd usuwania wydarzenia:', error);
-    res.status(500).json({ error: 'Nie udało się usunąć wydarzenia' });
+    res.status(500).json({ error: 'Nie udało się usunąć wydarzenia z bazy' });
   }
 });
 

@@ -2,12 +2,17 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, ArrowRight, Trophy } from 'lucide-react';
 
+/**
+ * Strona główna aplikacji (Landing Page).
+ * Prezentuje manifest grupy, wyróżnione nadchodzące wydarzenia oraz kluczowe obszary działalności (Góry, Planszówki, Ludzie).
+ */
 export default function Home() {
   const [featuredEvents, setFeaturedEvents] = React.useState<any[]>([]);
   const [highlightedEvents, setHighlightedEvents] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [visibleCount, setVisibleCount] = React.useState(3);
 
+  // Pobieranie danych z API na starcie komponentu
   React.useEffect(() => {
     Promise.all([
       fetch('/api/events/featured').then(r => r.ok ? r.json() : []),
@@ -23,7 +28,10 @@ export default function Home() {
 
   return (
     <>
-      {/* Hero Section */}
+      {/* 
+          Hero Section 
+          Główny nagłówek z manifestem wizualnym grupy.
+      */}
       <section className="pt-8 pb-16 md:pt-24 md:pb-32 px-6 md:px-12 max-w-7xl mx-auto">
         <h1 className="font-display font-black text-5xl sm:text-6xl md:text-[8rem] leading-[0.9] tracking-tighter text-on-surface uppercase mb-8">
           SUROWA <span className="text-primary">GÓRSKA</span><br />
@@ -36,11 +44,11 @@ export default function Home() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* AKTUALNOŚCI — nadchodzące featured wydarzenia               */}
+      {/* AKTUALNOŚCI — sekcja prezentująca nadchodzące wyprawy        */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <section className="px-6 md:px-12 max-w-7xl mx-auto mb-24">
         <div className="border border-outline-variant/30 bg-surface-container-low">
-          {/* Header */}
+          {/* Header sekcji Aktualności */}
           <div className="flex justify-between items-end px-8 pt-8 pb-6 border-b border-outline-variant/30">
             <Link to="/wydarzenia" className="group">
               <span className="text-[10px] font-bold uppercase tracking-widest text-primary block mb-1 group-hover:translate-x-1 transition-transform">Na Radarze</span>
@@ -51,9 +59,9 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Content */}
           <div className="p-8">
             {loading ? (
+              // Szkielet ładowania (Skeleton UI)
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {Array.from({ length: 2 }).map((_, i) => (
                   <div key={i} className="animate-pulse space-y-3 p-6 border border-outline-variant/20">
@@ -72,7 +80,7 @@ export default function Home() {
                       to={`/wydarzenia/${event.id}`}
                       className="group relative block border border-outline-variant/20 hover:border-primary transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 duration-700 overflow-hidden"
                     >
-                      {/* Background Image Overlay */}
+                      {/* Subtelne tło z obrazka wydarzenia */}
                       {event.image && (
                         <div className="absolute inset-0 z-0">
                           <img 
@@ -85,7 +93,7 @@ export default function Home() {
                       )}
 
                       <div className="relative z-10 flex flex-col md:flex-row bg-surface-container-low/40 backdrop-blur-[2px]">
-                        {/* Image */}
+                        {/* Miniatura zdjęcia */}
                         {event.image && (
                           <div className="overflow-hidden md:w-1/3 lg:w-1/4 h-48 md:h-auto shrink-0 border-r border-outline-variant/10 relative">
                             <img
@@ -93,6 +101,7 @@ export default function Home() {
                               alt={event.title}
                               className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
                             />
+                            {/* Etykieta statusu zapisu dla zalogowanego użytkownika */}
                             {event.userStatus && new Date(event.dateStart) >= new Date() && (
                               <div className="absolute top-0 left-0 bg-primary text-surface px-2 py-1 text-[8px] font-black uppercase tracking-widest shadow-lg">
                                 {event.userStatus === 'GOING' ? 'Zapisano' : 'Zainteresowany'}
@@ -100,7 +109,7 @@ export default function Home() {
                             )}
                           </div>
                         )}
-                        {/* Content */}
+                        {/* Szczegóły wydarzenia w karcie aktualności */}
                         <div className="p-6 md:p-8 flex flex-col justify-center flex-1">
                           <div className="flex items-center gap-3 mb-3">
                             <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5">{event.type}</span>
@@ -125,6 +134,7 @@ export default function Home() {
                               </div>
                             )}
                           </div>
+                          {/* Informacja o wolnych miejscach */}
                           {event.spots !== null && event.spots > 0 && (
                             <div className="mt-4 pt-3 border-t border-outline-variant/20">
                               <span className={`text-[10px] font-bold uppercase tracking-widest ${Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'text-red-500' : 'text-on-surface-variant'}`}>
@@ -138,7 +148,7 @@ export default function Home() {
                   ))}
                 </div>
 
-                {/* Show more button */}
+                {/* Przycisk rozwijający więcej aktualności */}
                 <div className="mt-8 flex justify-center">
                   <button
                     onClick={() => setVisibleCount(prev => prev + 3)}
@@ -162,18 +172,11 @@ export default function Home() {
               </div>
             )}
           </div>
-
-          {/* Mobile footer link */}
-          <div className="md:hidden border-t border-outline-variant/30 px-8 py-4">
-            <Link to="/wydarzenia" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
-              Wszystkie wydarzenia <ArrowRight size={14} />
-            </Link>
-          </div>
         </div>
       </section>
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* NASZE OSIĄGNIĘCIA — highlighted wyprawy                     */}
+      {/* NASZE OSIĄGNIĘCIA — sekcja archiwalnych sukcesów              */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {highlightedEvents.length > 0 && (
         <section className="px-6 md:px-12 max-w-7xl mx-auto mb-32">
@@ -192,11 +195,6 @@ export default function Home() {
                   className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700"
                   alt={event.title}
                 />
-                {event.userStatus && new Date(event.dateStart) >= new Date() && (
-                  <div className="absolute top-4 right-4 bg-primary text-surface px-2 py-1 text-[8px] font-black uppercase tracking-widest shadow-lg z-20">
-                    {event.userStatus === 'GOING' ? 'Zapisano' : 'Zainteresowany'}
-                  </div>
-                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-8 flex flex-col justify-end translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                   <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2">{event.type}</p>
                   <h3 className="text-white font-display font-black text-2xl uppercase leading-none mb-2 tracking-tighter">{event.title}</h3>
@@ -211,7 +209,10 @@ export default function Home() {
         </section>
       )}
 
-      {/* Strips Container */}
+      {/* 
+          Slanted Strips 
+          Kontenery o ściętych krawędziach prezentujące fundamenty grupy.
+      */}
       <div className="relative flex flex-col">
         {/* GÓRY */}
         <SlantedStrip
@@ -256,7 +257,10 @@ export default function Home() {
         />
       </div>
 
-      {/* Contact Section */}
+      {/* 
+          Contact Section 
+          Sekcja końcowa z linkami do mediów społecznościowych.
+      */}
       <section className="bg-surface py-32 relative z-0 -mt-[4vw] pt-[12vw]">
         <div className="container mx-auto px-6 md:px-8 text-center max-w-3xl">
           <h2 className="font-display font-black text-4xl md:text-6xl text-on-surface uppercase tracking-tighter mb-6">
@@ -286,7 +290,10 @@ export default function Home() {
   );
 }
 
-function SlantedStrip({ zIndex, clipPath, marginTop, img, overlayClass, label, labelClass = "text-white/80", title, titleClass, desc, descClass, align }: any) {
+/**
+ * Komponent pomocniczy do renderowania charakterystycznych ściętych pasków z tekstem na stronie głównej.
+ */
+function SlantedStrip({ zIndex, clipPath, marginTop, img, overlayClass, title, titleClass, desc, descClass, align }: any) {
   const isRight = align === 'right';
   return (
     <section 

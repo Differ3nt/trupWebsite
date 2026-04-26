@@ -1,11 +1,18 @@
 import { PrismaClient } from '@prisma/client';
 
+/**
+ * Skrypt do zasilania bazy danych (seeding).
+ * Uruchamiany zazwyczaj przy pierwszej instalacji lub w celach testowych.
+ * Komenda: npx prisma db seed
+ */
+
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Zasilanie bazy danych...');
+  console.log('Zasilanie bazy danych przykładowymi danymi...');
 
-  // 1. Przykładowe Wydarzenie
+  // 1. Przykładowe Wydarzenie (Event)
+  // Używamy upsert, aby uniknąć błędów przy wielokrotnym uruchamianiu skryptu
   const event = await prisma.event.upsert({
     where: { id: 'seed-event-1' },
     update: {},
@@ -16,15 +23,15 @@ async function main() {
       dateStart: new Date('2024-12-15'),
       dateEnd: new Date('2024-12-18'),
       location: 'Tatry Wysokie',
-      difficulty: 'Ekspert',
-      spots: '12 wolnych miejsc',
+      difficulty: 5, // Trudność jako liczba 1-5 (zgodnie ze schema)
+      spots: 12,     // Liczba miejsc jako liczba
       type: 'GÓRY',
       gearRequired: ['Kask', 'Czekan', 'Raki', 'Uprząż'],
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCR5pO5QgFSNLU9L3FbHsULwCRMGO34kqt9OZ-XZxhW0DB_HZsXLqHWcsBQ0aMS0ysZc83MYvmEM1NO9JCPPKhU_MxzI8hIDaIqW8zJ_rrVgjm7oSpOll3ll9RnWZ7dSb8KtwvCAKiaWqxXyDhvkYexfztMYCKBIilPXMd1xilcN8abxVRtf1LTzZoQwUu5Gb-gGxTIl9K6JqR23QrN8JjJ7Ixe8SZWHUSybdNyPrVcZQaj0xjAhytQI3XDHaoZCeD72GRo6Zl_VMA'
+      image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b' // Przykładowe zdjęcie
     }
   });
 
-  // 2. Przykładowy Album
+  // 2. Przykładowy Album ze zdjęciami
   const album = await prisma.album.upsert({
     where: { id: 'seed-album-1' },
     update: {},
@@ -37,14 +44,15 @@ async function main() {
     }
   });
 
-  console.log('Baza zasilona!');
+  console.log('Baza została pomyślnie zasilona!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Błąd podczas zasilania bazy:', e);
     process.exit(1);
   })
   .finally(async () => {
+    // Rozłączenie z bazą danych po zakończeniu operacji
     await prisma.$disconnect();
   });

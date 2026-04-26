@@ -4,21 +4,26 @@ import App from './App.tsx';
 import { AppProvider } from './contexts/AppContext.tsx';
 import './index.css';
 
+/**
+ * Rejestracja Service Workera dla obsługi powiadomień PWA i Offline.
+ */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(
       (registration) => {
-        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        console.log('ServiceWorker zarejestrowany pomyślnie z zakresem: ', registration.scope);
       },
       (err) => {
-        console.log('ServiceWorker registration failed: ', err);
+        console.log('ServiceWorker - błąd rejestracji: ', err);
       }
     );
   });
 }
 
+// Inicjalizacja głównego drzewa React
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    {/* AppProvider zarządza stanem użytkownika i autoryzacją w całej aplikacji */}
     <AppProvider>
       <App />
     </AppProvider>

@@ -3,8 +3,12 @@ import { Link } from 'react-router-dom';
 import { Calendar, MapPin } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
 
+// Dostępne typy wydarzeń do filtrowania
 const ALL_TYPES = ['Wszystkie', 'GÓRY', 'INTEGRACJA', 'EKSPEDYCJA', 'KULTURA'];
 
+/**
+ * Komponent szkieletu (loader) wyświetlany podczas pobierania danych.
+ */
 function EventSkeleton() {
   return (
     <div className="bg-surface-container-low border border-outline-variant/30 overflow-hidden animate-pulse">
@@ -19,6 +23,9 @@ function EventSkeleton() {
   );
 }
 
+/**
+ * Komponent blokujący dostęp do listy wydarzeń dla niezalogowanych użytkowników.
+ */
 function LoginWall() {
   const { loginWithGoogle } = useAppContext();
   return (
@@ -42,12 +49,17 @@ function LoginWall() {
   );
 }
 
+/**
+ * Strona listy wydarzeń. 
+ * Obsługuje filtrowanie po typie oraz weryfikację uprawnień dostępu.
+ */
 export default function Events() {
   const { role } = useAppContext();
   const [events, setEvents] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [activeFilter, setActiveFilter] = React.useState('Wszystkie');
 
+  // Pobieranie wydarzeń z API (wymaga autoryzacji sesją)
   React.useEffect(() => {
     if (role === 'guest') {
       setLoading(false);
@@ -65,6 +77,7 @@ export default function Events() {
       .finally(() => setLoading(false));
   }, [role]);
 
+  // Logika filtrowania listy po stronie klienta
   const filtered = activeFilter === 'Wszystkie'
     ? events
     : events.filter(e => e.type === activeFilter);
@@ -80,7 +93,7 @@ export default function Events() {
         </p>
       </div>
 
-      {/* Filtry — tylko dla zalogowanych */}
+      {/* Przyciski filtrów — widoczne tylko dla zalogowanych */}
       {role !== 'guest' && (
         <div className="flex flex-wrap gap-2 mb-10">
           {ALL_TYPES.map(type => (
@@ -95,6 +108,7 @@ export default function Events() {
         </div>
       )}
 
+      {/* Siatka kart wydarzeń */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {role === 'guest' ? (
           <LoginWall />
@@ -110,24 +124,25 @@ export default function Events() {
                   className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
                   referrerPolicy="no-referrer"
                 />
+                {/* Status udziału użytkownika (zapisano/zainteresowany) */}
                 {event.userStatus && new Date(event.dateStart) >= new Date() && (
                   <div className="absolute top-4 right-4 bg-primary text-surface px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-xl border border-white/20">
                     {event.userStatus === 'GOING' ? 'Zapisano' : 'Zainteresowany'}
                   </div>
                 )}
-                {event.type && (
-                  <div className="absolute top-4 left-4 bg-primary text-surface px-3 py-1 font-bold text-[10px] uppercase tracking-wider">
-                    {event.type}
-                  </div>
-                )}
+                <div className="absolute top-4 left-4 bg-primary text-surface px-3 py-1 font-bold text-[10px] uppercase tracking-wider">
+                  {event.type}
+                </div>
               </div>
               <div className="p-6 bg-surface-container-low">
                 <div className="flex justify-between items-start mb-2">
+                  {/* Trudność wyprawy (gwiazdki) */}
                   {event.isExpedition && event.difficulty > 0 && (
                     <div className="text-primary text-xs tracking-widest font-black">
                       {'★'.repeat(event.difficulty)}{'☆'.repeat(5 - event.difficulty)}
                     </div>
                   )}
+                  {/* Licznik wolnych miejsc */}
                   {event.spots !== null && event.spots > 0 && (
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'text-red-500' : 'text-on-surface-variant'}`}>
                       {Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'Brak miejsc' : `${Math.max(0, event.spots - (event.goingCount || 0))} wolnych miejsc`}

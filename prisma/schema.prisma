@@ -1,154 +1,146 @@
-// Konfiguracja generatora klienta Prisma dla JavaScript/TypeScript
 generator client {
   provider = "prisma-client-js"
 }
 
-// Konfiguracja połączenia z bazą danych PostgreSQL
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// Role użytkowników w systemie
-enum Role {
-  USER  // Standardowy użytkownik
-  ADMIN // Administrator z pełnymi uprawnieniami
-}
-
-// Status konta użytkownika
-enum UserStatus {
-  ACTIVE   // Aktywny
-  INACTIVE // Nieaktywny
-  FLAGGED  // Oznaczony flagą (np. za łamanie regulaminu), ogranicza widoczność niektórych wypraw
-}
-
-// Status zgłoszenia trasy GPX
-enum GpxStatus {
-  PENDING  // Oczekuje na weryfikację
-  APPROVED // Zatwierdzony
-  REJECTED // Odrzucony
-}
-
-// Model użytkownika systemu
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  googleId      String?   @unique
-  name          String?
-  avatarUrl     String?
-  role          Role      @default(USER)
-  status        UserStatus @default(ACTIVE)
-  hardware      String[]  @default([]) // Posiadany sprzęt techniczny (np. Czekan, Raki)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relacje użytkownika
-  gpxSubmissions    GpxSubmission[]    // Przesłane trasy GPX
-  pushSubscriptions PushSubscription[] // Subskrypcje powiadomień Push
-  participations     EventParticipation[] // Udział w wydarzeniach
-  notifications      Notification[]      // Powiadomienia systemowe
+  id                String               @id @default(uuid())
+  email             String               @unique
+  googleId          String?              @unique
+  name              String?
+  nickname          String?
+  avatarUrl         String?
+  role              Role                 @default(USER)
+  status            UserStatus           @default(ACTIVE)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  hardware          String[]             @default([])
+  phoneNumber       String?
+  participations    EventParticipation[]
+  gpxSubmissions    GpxSubmission[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
 }
 
-// Model wydarzenia (wyjazdu/spotkania)
 model Event {
-  id           String   @id // Format klucza: RRRR_NR (np. 2024_01)
-  title        String
-  description  String?
-  dateStart    DateTime
-  dateEnd      DateTime?
-  location     String?
-  mapLink      String?  // Link do trasy na Mapy.cz
-  difficulty   Int?     // Poziom trudności: 1-5 gwiazdek
-  spots        Int?     // Maksymalna liczba uczestników
-
-  image        String?  // Główne zdjęcie wydarzenia
-  type         String   // Typ: GÓRY, INTEGRACJA, itp.
-  gearRequired String[] // Sugerowany sprzęt
-  gearCritical String[] @default([]) // Sprzęt obowiązkowy dla bezpieczeństwa
-  featured     Boolean  @default(false) // Czy pokazywać w sekcji "Aktualności"
-  highlighted  Boolean  @default(false) // Czy pokazywać w "Osiągnięciach" (wizytówka grupy)
-  isExpedition Boolean  @default(false) // Czy wydarzenie jest oficjalną wyprawą TRUP
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relacje wydarzenia
-  gpxSubmissions   GpxSubmission[]      // Trasy GPX z tego wydarzenia
-  participants     EventParticipation[] // Lista uczestników
+  id               String               @id
+  title            String
+  dateStart        DateTime
+  dateEnd          DateTime?
+  type             String
+  mapLink          String?
+  gearRequired     String[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  description      String?
+  image            String?
+  location         String?
+  featured         Boolean              @default(false)
+  difficulty       Int?
+  spots            Int?
+  highlighted      Boolean              @default(false)
+  isExpedition     Boolean              @default(false)
+  gearCritical     String[]             @default([])
+  mapEmbed         String?
+  isDraft          Boolean              @default(false)
+  isFinalized      Boolean              @default(false)
+  organizer        String?
+  meetingPointName String?
+  meetingPointLink String?
+  meetingPointEmbed String?
+  transport        String?
+  weatherInfo      String?
+  actualDistance   Float?
+  actualElevation  Float?
+  actualDuration   Float?
+  participants     EventParticipation[]
+  gpxSubmissions   GpxSubmission[]
 }
 
-// Relacja łącząca użytkowników z wydarzeniami (kto idzie, kto jest zainteresowany)
 model EventParticipation {
   id               String   @id @default(uuid())
   userId           String
   eventId          String
-  status           String   // Status: 'INTERESTED' (zainteresowany) | 'GOING' (jedzie)
-  notifyDaysBefore Int?     // Przypomnienie X dni przed (null = brak)
-  attended         Boolean  @default(false) // Czy faktycznie wziął udział w wydarzeniu
+  status           String
   createdAt        DateTime @default(now())
+  notifyDaysBefore Int?
+  attended         Boolean  @default(false)
+  event            Event    @relation(fields: [eventId], references: [id])
+  user             User     @relation(fields: [userId], references: [id])
 
-  user  User  @relation(fields: [userId], references: [id])
-  event Event @relation(fields: [eventId], references: [id])
-
-  @@unique([userId, eventId]) // Użytkownik może mieć tylko jeden status w danym wydarzeniu
+  @@unique([userId, eventId])
 }
 
-// Album ze zdjęciami z wyprawy
 model Album {
   id          String   @id @default(uuid())
   title       String
   date        DateTime
-  location    String?
-  distance    Float?   // Przebyty dystans w km
-  duration    Float?   // Czas trwania w godzinach
-  locationMap String?  // Link do mapy z przebytą trasą
+  distance    Float?
+  duration    Float?
+  locationMap String?
   description String?
   createdAt   DateTime @default(now())
-
-  images      Image[] // Zdjęcia w albumie
+  location    String?
+  images      Image[]
 }
 
-// Pojedyncze zdjęcie w systemie
 model Image {
   id           String   @id @default(uuid())
   albumId      String?
-  originalUrl  String   // Ścieżka do pliku oryginalnego na serwerze
-  thumbnailUrl String?  // Ścieżka do miniatury (zoptymalizowanej)
-  uploadedById String?  // ID użytkownika, który wgrał zdjęcie
+  originalUrl  String
+  thumbnailUrl String?
+  uploadedById String?
   createdAt    DateTime @default(now())
-
+  height       Int?
+  size         Int?
+  width        Int?
+  name         String?
   album        Album?   @relation(fields: [albumId], references: [id])
+  tags         Tag[]    @relation("ImageTags")
 }
 
-// Zgłoszenie przebytej trasy (GPX) przez użytkownika
+model Tag {
+  id     String  @id @default(uuid())
+  name   String  @unique
+  images Image[] @relation("ImageTags")
+}
+
 model GpxSubmission {
-  id        String    @id @default(uuid())
-  userId    String
-  eventId   String
-  filePath  String    // Ścieżka do zapisanego pliku .gpx
-  distance  Float     // Wyliczony dystans w km
-  duration  Float     // Wyliczony czas w godzinach
-  status    GpxStatus @default(PENDING)
-  createdAt DateTime  @default(now())
-
-  user      User      @relation(fields: [userId], references: [id])
-  event     Event     @relation(fields: [eventId], references: [id])
+  id             String    @id @default(uuid())
+  userId         String
+  eventId        String
+  filePath       String
+  distance       Float
+  duration       Float
+  elevationGain  Float?
+  participantIds String[]  @default([])
+  isOfficial     Boolean   @default(false)
+  label          String?
+  mapLink        String?
+  mapEmbed       String?
+  status         GpxStatus @default(PENDING)
+  order          Int       @default(0)
+  createdAt      DateTime  @default(now())
+  event          Event     @relation(fields: [eventId], references: [id])
+  user           User      @relation(fields: [userId], references: [id])
 }
 
-// Powiadomienie wewnątrz aplikacji
 model Notification {
   id        String   @id @default(uuid())
   userId    String
   title     String
   message   String
-  type      String   @default("SYSTEM") // Typy: SYSTEM, EVENT, NEWS
-  url       String?  // Opcjonalny link, do którego prowadzi powiadomienie
+  type      String   @default("SYSTEM")
+  url       String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id])
 }
 
-// Dane do powiadomień Web Push w przeglądarce
 model PushSubscription {
   id        String   @id @default(uuid())
   userId    String
@@ -156,6 +148,48 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model WikiArticle {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  category   String
+  tags       String[] @default([])
+  authorId   String?
+  authorName String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model NewsItem {
+  id        String   @id
+  title     String
+  content   String?
+  type      String   @default("GENERAL")
+  imageUrl  String?
+  link      String?
+  eventId   String?
+  articleId String?
+  priority  Int?     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  FLAGGED
+}
+
+enum GpxStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

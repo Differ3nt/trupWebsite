@@ -8,11 +8,11 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Konfiguracja multer — limit 5MB dla oszczędności miejsca na serwerze
+// Konfiguracja multer — zwiększony limit do 20MB dla obrazów wysokiej jakości
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 } // Limit: 5MB
+  limits: { fileSize: 20 * 1024 * 1024 } // Limit: 20MB
 });
 
 // Upewnienie się, że folder uploads istnieje
@@ -22,8 +22,27 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 }
 
 /**
+ * Helper: Przetwarzanie i zapisywanie tagów
+ */
+async function processTags(tagNames: string[] | string) {
+  if (!tagNames) return [];
+  const names = Array.isArray(tagNames) ? tagNames : tagNames.split(',').map(t => t.trim()).filter(Boolean);
+  
+  const tagObjects = await Promise.all(
+    names.map(async (name) => {
+      return prisma.tag.upsert({
+        where: { name },
+        update: {},
+        create: { name }
+      });
+    })
+  );
+  
+  return tagObjects.map(tag => ({ id: tag.id }));
+}
+
+/**
  * 1. Upload zdjęcia do galerii (albumu).
- * Automatycznie generuje oryginał i zoptymalizowaną miniaturę WebP.
  */
 router.post('/image', upload.single('image'), async (req: any, res) => {
   try {
@@ -32,6 +51,9 @@ router.post('/image', upload.single('image'), async (req: any, res) => {
     const albumId = req.body.albumId;
     if (!albumId) return res.status(400).json({ error: 'Brak ID albumu' });
 
+    const tags = req.body.tags;
+    const name = req.body.name || req.file.originalname;
+
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const originalName = `${uniqueSuffix}-orig.jpg`;
     const thumbnailName = `${uniqueSuffix}-thumb.webp`;
@@ -39,15 +61,17 @@ router.post('/image', upload.single('image'), async (req: any, res) => {
     const originalPath = path.join(UPLOADS_DIR, originalName);
     const thumbnailPath = path.join(UPLOADS_DIR, thumbnailName);
 
+    let metadata: any = {};
     try {
-      // Przetwarzanie obrazu przy użyciu Sharp (optymalizacja i resize)
+      metadata = await sharp(req.file.buffer).metadata();
+
       await sharp(req.file.buffer)
-        .jpeg({ quality: 85 })
+        .jpeg({ quality: 90 })
         .toFile(originalPath);
 
       await sharp(req.file.buffer)
-        .resize({ width: 600, withoutEnlargement: true })
-        .webp({ quality: 60 })
+        .resize({ width: 800, withoutEnlargement: true })
+        .webp({ quality: 75 })
         .toFile(thumbnailPath);
     } catch (sharpError) {
       console.warn('[UPLOAD] Sharp zawiódł, zapisuję surowe dane:', sharpError);
@@ -55,12 +79,23 @@ router.post('/image', upload.single('image'), async (req: any, res) => {
       fs.writeFileSync(thumbnailPath, req.file.buffer);
     }
 
-    // Zapis informacji o zdjęciu w bazie danych
+    const tagIds = await processTags(tags);
+
     const image = await prisma.image.create({
       data: {
+        name,
         albumId,
         originalUrl: `/uploads/${originalName}`,
-        thumbnailUrl: `/uploads/${thumbnailName}`
+        thumbnailUrl: `/uploads/${thumbnailName}`,
+        width: metadata.width,
+        height: metadata.height,
+        size: req.file.size,
+        tags: {
+          connect: tagIds
+        }
+      },
+      include: {
+        tags: true
       }
     });
 
@@ -72,7 +107,7 @@ router.post('/image', upload.single('image'), async (req: any, res) => {
 });
 
 /**
- * 2. Pobieranie zdjęcia ze znakiem wodnym "TRUP" generowanym w locie.
+ * 2. Pobieranie zdjęcia ze znakiem wodnym "TRUP".
  */
 router.get('/:id/download', async (req, res) => {
   try {
@@ -83,11 +118,10 @@ router.get('/:id/download', async (req, res) => {
 
     const originalPath = path.join(process.cwd(), image.originalUrl);
     
-    // Dynamicznie generowany znak wodny w formacie SVG
     const watermarkSvg = `
       <svg width="800" height="600">
-        <text x="50%" y="50%" font-family="Arial" font-size="48" font-weight="bold" fill="rgba(255,255,255,0.5)" text-anchor="middle">
-          ZNAK TRUP
+        <text x="50%" y="50%" font-family="Arial" font-size="48" font-weight="bold" fill="rgba(255,255,255,0.3)" text-anchor="middle">
+          TRUP.PL
         </text>
       </svg>
     `;
@@ -95,7 +129,6 @@ router.get('/:id/download', async (req, res) => {
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Disposition', `attachment; filename="trup-${id}.jpg"`);
 
-    // Nakładanie warstwy SVG na zdjęcie i wysyłanie strumienia do przeglądarki
     await sharp(originalPath)
       .composite([{
         input: Buffer.from(watermarkSvg),
@@ -111,49 +144,195 @@ router.get('/:id/download', async (req, res) => {
 });
 
 /**
- * 3. Prosty upload zdjęcia (np. dla tła wydarzenia lub awatara).
+ * 3. Zaawansowany upload zdjęcia (jako asset strony).
  */
-router.post('/upload-simple', upload.single('image'), async (req: any, res) => {
+router.post('/upload-asset', upload.single('image'), async (req: any, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Brak pliku' });
 
+    const tags = req.body.tags;
+    const name = req.body.name || req.file.originalname;
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(req.file.originalname) || '.jpg';
     const fileName = `${uniqueSuffix}${ext}`;
+    const thumbName = `${uniqueSuffix}-thumb.webp`;
+    
     const filePath = path.join(UPLOADS_DIR, fileName);
+    const thumbPath = path.join(UPLOADS_DIR, thumbName);
 
-    await sharp(req.file.buffer)
-      .jpeg({ quality: 80, force: false })
-      .toFile(filePath);
+    let metadata: any = {};
+    try {
+      metadata = await sharp(req.file.buffer).metadata();
+      
+      await sharp(req.file.buffer)
+        .jpeg({ quality: 95, force: false })
+        .toFile(filePath);
 
-    const url = `/uploads/${fileName}`;
+      await sharp(req.file.buffer)
+        .resize({ width: 600, height: 600, fit: 'cover' })
+        .webp({ quality: 80 })
+        .toFile(thumbPath);
+    } catch (e) {
+      fs.writeFileSync(filePath, req.file.buffer);
+      fs.writeFileSync(thumbPath, req.file.buffer);
+    }
 
-    await prisma.image.create({
+    const tagIds = await processTags(tags);
+
+    const image = await prisma.image.create({
       data: {
-        originalUrl: url,
-        thumbnailUrl: url 
+        name,
+        originalUrl: `/uploads/${fileName}`,
+        thumbnailUrl: `/uploads/${thumbName}`,
+        width: metadata.width,
+        height: metadata.height,
+        size: req.file.size,
+        tags: {
+          connect: tagIds
+        }
+      },
+      include: {
+        tags: true
       }
     });
 
-    res.json({ success: true, url });
+    res.json({ success: true, image });
   } catch (error) {
-    console.error('[UPLOAD-SIMPLE] Błąd:', error);
+    console.error('[UPLOAD-ASSET] Błąd:', error);
     res.status(500).json({ error: 'Błąd wgrywania pliku' });
   }
 });
 
 /**
- * 4. Pobieranie listy wszystkich zdjęć dostępnych w systemie (do wyboru w panelu Admina).
+ * 4. Wyszukiwanie zdjęcia.
+ */
+router.get('/search', async (req, res) => {
+  try {
+    const { query, tag } = req.query;
+    
+    const where: any = {};
+    
+    if (tag) {
+      where.tags = {
+        some: {
+          name: {
+            contains: tag as string,
+            mode: 'insensitive'
+          }
+        }
+      };
+    } else if (query) {
+      where.OR = [
+        {
+          tags: {
+            some: {
+              name: {
+                contains: query as string,
+                mode: 'insensitive'
+              }
+            }
+          }
+        },
+        {
+          name: {
+            contains: query as string,
+            mode: 'insensitive'
+          }
+        },
+        {
+          originalUrl: {
+            contains: query as string,
+            mode: 'insensitive'
+          }
+        }
+      ];
+    }
+
+    const images = await prisma.image.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        tags: true
+      }
+    });
+    
+    res.json(images);
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd wyszukiwania zdjęć' });
+  }
+});
+
+/**
+ * 5. Pobieranie wszystkich zdjęć.
  */
 router.get('/all', async (req, res) => {
   try {
     const images = await prisma.image.findMany({
       orderBy: { createdAt: 'desc' },
-      select: { originalUrl: true, thumbnailUrl: true }
+      include: {
+        tags: true
+      }
     });
     res.json(images);
   } catch (error) {
     res.status(500).json({ error: 'Błąd pobierania listy zdjęć' });
+  }
+});
+
+/**
+ * 6. Aktualizacja zdjęcia (nazwa i tagi).
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tags, name } = req.body;
+
+    const data: any = {};
+    if (name) data.name = name;
+    
+    if (tags) {
+      const tagIds = await processTags(tags);
+      data.tags = {
+        set: [], 
+        connect: tagIds
+      };
+    }
+
+    const image = await prisma.image.update({
+      where: { id },
+      data,
+      include: {
+        tags: true
+      }
+    });
+
+    res.json(image);
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd aktualizacji zdjęcia' });
+  }
+});
+
+/**
+ * 7. Usuwanie zdjęcia.
+ */
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const image = await prisma.image.findUnique({ where: { id } });
+    
+    if (!image) return res.status(404).json({ error: 'Zdjęcie nie istnieje' });
+
+    const fullOriginalPath = path.join(process.cwd(), image.originalUrl);
+    const fullThumbPath = image.thumbnailUrl ? path.join(process.cwd(), image.thumbnailUrl) : null;
+
+    if (fs.existsSync(fullOriginalPath)) fs.unlinkSync(fullOriginalPath);
+    if (fullThumbPath && fs.existsSync(fullThumbPath)) fs.unlinkSync(fullThumbPath);
+
+    await prisma.image.delete({ where: { id } });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd usuwania zdjęcia' });
   }
 });
 

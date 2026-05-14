@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, MapPin, Activity, Clock, Upload, Download, Maximize2, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { EXPEDITIONS } from './Gallery';
 import { useAppContext } from '../contexts/AppContext';
 
 export default function GalleryDetail() {
@@ -30,7 +29,7 @@ export default function GalleryDetail() {
     return (
       <div className="pt-40 pb-24 px-6 md:px-12 max-w-7xl mx-auto text-center min-h-screen">
         <h1 className="font-display font-black text-4xl uppercase mb-4">Nie znaleziono albumu</h1>
-        <Link to="/galeria" className="text-primary hover:underline font-bold tracking-widest uppercase text-sm">
+        <Link to="/galeria" className="btn btn-secondary px-8 py-4">
           Wróć do galerii
         </Link>
       </div>
@@ -48,7 +47,7 @@ export default function GalleryDetail() {
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         
         {/* Back Button */}
-        <Link to="/galeria" className="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-12 font-bold text-xs tracking-widest uppercase">
+        <Link to="/galeria" className="btn btn-back inline-flex items-center gap-2 px-4 py-2 mb-12">
           <ArrowLeft size={16} />
           Wróć do archiwum
         </Link>
@@ -77,7 +76,7 @@ export default function GalleryDetail() {
 
           <div className="flex flex-wrap gap-4">
              {role !== 'guest' && (
-                <button className="bg-primary-container text-white px-6 py-3 text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-primary transition-colors">
+                <button className="btn btn-primary px-6 py-3 text-xs flex items-center gap-2">
                   <Upload size={16} /> Dodaj swoje ujęcia
                 </button>
              )}

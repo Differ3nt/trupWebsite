@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Lock } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
+import PageHeader from '../components/PageHeader';
 
 export default function Gallery() {
   const { role } = useAppContext();
@@ -25,34 +26,31 @@ export default function Gallery() {
   if (loading) return <div className="pt-32 text-center text-on-surface font-bold uppercase tracking-widest">Wczytywanie archiwum...</div>;
 
   return (
-    <div className="pt-32 pb-24 bg-surface min-h-screen">
-      {/* Header Section */}
-      <div className="px-6 md:px-12 max-w-7xl mx-auto mb-12 md:mb-20">
-        <div className="border-l-4 border-primary pl-6 md:pl-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h1 className="font-display font-black text-4xl sm:text-5xl md:text-7xl lg:text-[6rem] leading-[0.9] text-on-surface uppercase tracking-tighter mb-6">
-              ARCHIWUM WIZUALNE
-            </h1>
-            <p className="text-on-surface-variant text-xs md:text-base max-w-2xl uppercase tracking-widest leading-relaxed font-bold">
-              DOKUMENTACJA WYPRAW, SZKOLEŃ I EKSPEDYCJI GRUPY GÓRSKIEJ. BRUTALNA SZCZEROŚĆ NATURY UCHWYCONA W KADRZE.
-            </p>
-          </div>
-          {showLoginPrompt && (
-            <div className="bg-surface-container-highest p-6 max-w-sm border border-outline-variant/30 flex items-start gap-4">
-               <Lock className="text-primary mt-1 shrink-0" size={24} />
-               <div>
-                 <h3 className="text-on-surface font-bold uppercase tracking-widest text-sm mb-2">Prywatna Galeria</h3>
-                 <p className="text-on-surface-variant text-xs leading-relaxed">Widzisz tylko ujęcia promocyjne. Pełne archiwa wypraw na własnym serwerze wymagają zalogowania.</p>
-               </div>
-            </div>
-          )}
+    <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-8 mb-12 md:mb-20">
+        <div className="flex-1">
+          <PageHeader 
+            title="Archiwum Wizualne" 
+            subtitle="DOKUMENTACJA WYPRAW, SZKOLEŃ I EKSPEDYCJI GRUPY GÓRSKIEJ. BRUTALNA SZCZEROŚĆ NATURY UCHWYCONA W KADRZE."
+            category="Multimedia i wspomnienia"
+            className="mb-0"
+          />
         </div>
+        {showLoginPrompt && (
+          <div className="bg-surface-container-highest p-6 max-w-sm border border-outline-variant/30 flex items-start gap-4">
+             <Lock className="text-primary mt-1 shrink-0" size={24} />
+             <div>
+               <h3 className="text-on-surface font-bold uppercase tracking-widest text-sm mb-2">Prywatna Galeria</h3>
+               <p className="text-on-surface-variant text-xs leading-relaxed">Widzisz tylko ujęcia promocyjne. Pełne archiwa wypraw na własnym serwerze wymagają zalogowania.</p>
+             </div>
+          </div>
+        )}
       </div>
 
       {/* Albums List */}
       <div className="flex flex-col gap-20">
         {visibleAlbums.map((album) => (
-          <div key={album.id} className="max-w-7xl mx-auto px-6 md:px-12 w-full">
+          <div key={album.id} className="w-full">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 border-b border-outline-variant/30 pb-4">
               <div>
                 <div className="text-primary font-bold text-xs tracking-widest uppercase mb-1">ARCHIWUM {new Date(album.date).getFullYear()}</div>

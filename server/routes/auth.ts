@@ -1,7 +1,17 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, GpxStatus } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
+
+function logError(msg: string, err: any) {
+  const logPath = path.join(process.cwd(), 'server_errors.log');
+  const timestamp = new Date().toISOString();
+  const errorData = `[${timestamp}] ${msg}\n${err?.stack || err}\n${err?.response?.data ? JSON.stringify(err.response.data) : ''}\n\n`;
+  fs.appendFileSync(logPath, errorData);
+  console.error(msg, err);
+}
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -17,11 +27,12 @@ const oAuth2Client = new OAuth2Client(
  * Generuje token JWT dla danego użytkownika.
  * Token wygasa po 7 dniach.
  */
-const generateToken = (userId: string) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'secret', {
+const generateToken = (userId: string, role: string) => {
+  return jwt.sign({ userId, role }, process.env.JWT_SECRET || 'secret', {
     expiresIn: '7d',
   });
 };
+
 
 /**
  * 1. Punkt wejścia logowania przez Google.
@@ -46,41 +57,74 @@ router.get('/google/callback', async (req, res) => {
     const { code } = req.query;
     if (!code) throw new Error('Brak kodu autoryzacyjnego');
 
-    // Wymiana kodu na tokeny Google
-    const { tokens } = await oAuth2Client.getToken(code as string);
-    oAuth2Client.setCredentials(tokens);
-
-    // Pobranie szczegółowych danych o użytkowniku z Google
-    const userInfo = await oAuth2Client.request({
-      url: 'https://www.googleapis.com/oauth2/v3/userinfo'
+    // Wymiana kodu na tokeny Google - Ręczna implementacja z powodu błędów gaxios
+    logError(`DEBUG: Manual token exchange starting...`, null);
+    
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: code as string,
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        redirect_uri: 'http://localhost:3001/api/auth/google/callback',
+        grant_type: 'authorization_code',
+      })
     });
 
-    const data = userInfo.data as any;
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      logError('Manual Token Exchange Failed:', errorText);
+      throw new Error(`Google Token Exchange failed: ${errorText}`);
+    }
+
+    const tokens = await tokenResponse.json();
+    oAuth2Client.setCredentials(tokens);
+
+    // Pobranie szczegółowych danych o użytkowniku z Google - Ręcznie
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+
+    if (!userRes.ok) {
+      const errorText = await userRes.text();
+      logError('Manual User Info Fetch Failed:', errorText);
+      throw new Error(`Google User Info fetch failed: ${errorText}`);
+    }
+
+    const data = await userRes.json();
 
     if (!data.email) {
       return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/?error=no_email`);
     }
 
     // Synchronizacja danych użytkownika z naszą bazą (Upsert)
-    const user = await prisma.user.upsert({
-      where: { email: data.email },
-      update: {
-        googleId: data.sub,
-        name: data.name,
-        avatarUrl: data.picture,
-      },
-      create: {
-        email: data.email,
-        googleId: data.sub,
-        name: data.name,
-        avatarUrl: data.picture,
-        role: 'USER',
-        status: 'ACTIVE'
-      }
-    });
+    let user;
+    try {
+      user = await prisma.user.upsert({
+        where: { email: data.email },
+        update: {
+          googleId: data.sub,
+          name: data.name,
+          avatarUrl: data.picture,
+        },
+        create: {
+          email: data.email,
+          googleId: data.sub,
+          name: data.name,
+          avatarUrl: data.picture,
+          role: 'USER',
+          status: 'ACTIVE'
+        }
+      });
+    } catch (dbError: any) {
+      logError('CRITICAL DATABASE ERROR DURING AUTH:', dbError);
+      throw dbError;
+    }
 
     // Generowanie naszego tokena sesji i zapisanie go w ciasteczku
-    const token = generateToken(user.id);
+    const token = generateToken(user.id, user.role);
+
     res.cookie('token', token, {
       httpOnly: true, // Zabezpieczenie przed dostępem z JS (XSS)
       secure: false,  // W środowisku produkcyjnym powinno być true (HTTPS)
@@ -90,8 +134,8 @@ router.get('/google/callback', async (req, res) => {
 
     // Powrót do aplikacji frontendowej
     res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
-  } catch (error) {
-    console.error('Błąd autoryzacji Google:', error);
+  } catch (error: any) {
+    logError('Błąd autoryzacji Google [SERVER]:', error);
     res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/?error=auth_failed`);
   }
 });
@@ -108,23 +152,44 @@ router.get('/me', async (req, res) => {
     // Weryfikacja tokena JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
     
-    // Pobranie danych użytkownika z bazy za pomocą surowego SQL (queryRaw)
-    const users: any = await prisma.$queryRaw`SELECT * FROM "User" WHERE id = ${decoded.userId}`;
+    // Pobranie danych użytkownika z bazy
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        participations: {
+          include: { 
+            event: {
+              include: {
+                participants: {
+                  where: { attended: true },
+                  select: { id: true }
+                }
+              }
+            } 
+          }
+        },
+        gpxSubmissions: true
+      }
+    });
 
-    if (!users || !users.length) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+    if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+
+    // Fetch GPX submissions where user is in participantIds array (PostgreSQL specific query)
+    const participatedTracks = await prisma.gpxSubmission.findMany({
+      where: {
+        status: 'APPROVED',
+        participantIds: {
+          has: decoded.userId
+        }
+      }
+    });
+
+    // Merge uploaded and participated tracks for stats
+    const allUserGpx = [...user.gpxSubmissions, ...participatedTracks];
+    // Filter duplicates (in case user uploaded and is participant)
+    const uniqueGpx = Array.from(new Map(allUserGpx.map(g => [g.id, g])).values());
     
-    // Pobranie listy wydarzeń, w których użytkownik bierze udział
-    let participations: any = [];
-    try {
-      participations = await prisma.$queryRaw`
-        SELECT p.*, (SELECT row_to_json(e) FROM "Event" e WHERE e.id = p."eventId") as event 
-        FROM "EventParticipation" p WHERE p."userId" = ${decoded.userId}
-      `;
-    } catch (e) {
-      console.warn('Błąd pobierania uczestnictwa:', e);
-    }
-
-    res.json({ user: { ...users[0], participations: participations || [] } });
+    res.json({ user: { ...user, gpxSubmissions: uniqueGpx } });
   } catch (error: any) {
     console.error('Błąd endpointu /me:', error);
     res.status(500).json({ error: 'Błąd serwera podczas weryfikacji sesji' });
@@ -152,7 +217,17 @@ router.post('/make-admin', async (req, res) => {
       data: { role: 'ADMIN' }
     });
 
+    // Odświeżamy token, aby zawierał nową rolę
+    const newToken = generateToken(user.id, user.role);
+    res.cookie('token', newToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
     res.json({ success: true, message: `${user.name} jest teraz Administratorem` });
+
   } catch (error) {
     res.status(500).json({ error: 'Błąd nadawania uprawnień' });
   }

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Upload, Grid, Loader2, Check } from 'lucide-react';
 import ImageCropper from './ImageCropper';
+import { Button } from './ui/Button';
+import { cn } from '../lib/utils';
+import { useAppContext } from '../contexts/AppContext';
 
 interface ImagePickerProps {
   onSelect: (url: string) => void;
@@ -8,6 +12,7 @@ interface ImagePickerProps {
 }
 
 export default function ImagePicker({ onSelect, onClose }: ImagePickerProps) {
+  const { setIsModalOpen } = useAppContext();
   const [activeTab, setActiveTab] = useState<'upload' | 'gallery'>('gallery');
   const [images, setImages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -18,6 +23,15 @@ export default function ImagePicker({ onSelect, onClose }: ImagePickerProps) {
       loadGallery();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    setIsModalOpen(true);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      setIsModalOpen(false);
+      document.body.style.overflow = 'unset';
+    };
+  }, [setIsModalOpen]);
 
   const loadGallery = async () => {
     setLoading(true);
@@ -76,8 +90,8 @@ export default function ImagePicker({ onSelect, onClose }: ImagePickerProps) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 md:p-8">
+  return createPortal(
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 md:p-8 pointer-events-auto">
       <div className="bg-surface border border-outline-variant/30 w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-outline-variant/20 bg-surface-container-low">
@@ -91,17 +105,19 @@ export default function ImagePicker({ onSelect, onClose }: ImagePickerProps) {
         <div className="flex border-b border-outline-variant/10 bg-surface-container-lowest">
           <button
             onClick={() => setActiveTab('gallery')}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 font-bold text-[10px] uppercase tracking-widest transition-all ${
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-4 font-bold text-[10px] uppercase tracking-widest transition-all",
               activeTab === 'gallery' ? 'bg-primary text-surface' : 'text-on-surface-variant hover:bg-surface-container'
-            }`}
+            )}
           >
             <Grid size={14} /> Galeria Serwera
           </button>
           <button
             onClick={() => setActiveTab('upload')}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 font-bold text-[10px] uppercase tracking-widest transition-all ${
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-4 font-bold text-[10px] uppercase tracking-widest transition-all",
               activeTab === 'upload' ? 'bg-primary text-surface' : 'text-on-surface-variant hover:bg-surface-container'
-            }`}
+            )}
           >
             <Upload size={14} /> Wgraj Nowe
           </button>
@@ -171,12 +187,12 @@ export default function ImagePicker({ onSelect, onClose }: ImagePickerProps) {
 
         {/* Footer */}
         <div className="p-4 border-t border-outline-variant/10 bg-surface-container-lowest text-right">
-          <button
+          <Button
+            variant="ghost"
             onClick={onClose}
-            className="px-6 py-3 font-bold text-[10px] uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors"
           >
             Anuluj
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -188,6 +204,7 @@ export default function ImagePicker({ onSelect, onClose }: ImagePickerProps) {
           onCancel={() => setCropSrc(null)} 
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

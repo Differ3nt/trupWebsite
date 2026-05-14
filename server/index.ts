@@ -1,7 +1,12 @@
+import nodeFetch from 'isomorphic-fetch';
+(global as any).fetch = nodeFetch;
+(globalThis as any).fetch = nodeFetch;
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 
@@ -14,8 +19,12 @@ import searchRouter from './routes/search';
 import eventsRouter from './routes/events';
 import albumsRouter from './routes/albums';
 import usersRouter from './routes/users';
+import wikiRouter from './routes/wiki';
+import newsRouter from './routes/news';
+import statsRouter from './routes/stats';
 
-dotenv.config();
+
+
 
 const app = express();
 const prisma = new PrismaClient();
@@ -88,12 +97,69 @@ async function runMigrations() {
       ALTER TABLE "EventParticipation" ADD COLUMN IF NOT EXISTS "attended" BOOLEAN DEFAULT false;
     `);
 
+    // Dodanie kolumny transport (dojazd) do tabeli Event
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "transport" TEXT;
+    `);
+
+    // Dodanie nowych pól: organizator, miejsce zbiórki, pogoda
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "organizer" TEXT`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "meetingPointName" TEXT`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "meetingPointLink" TEXT`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "meetingPointEmbed" TEXT`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "weatherInfo" TEXT`);
+
+
     // Upewnienie się, że albumId w tabeli Image może być puste (np. dla zdjęć profilowych/tymczasowych)
     try {
       await prisma.$executeRawUnsafe('ALTER TABLE "Image" ALTER COLUMN "albumId" DROP NOT EXISTS');
-    } catch (e) {
-      // Ignorujemy jeśli tabela nie istnieje
-    }
+    } catch (e) {}
+
+    // Tworzenie tabeli WikiArticle
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "WikiArticle" (
+        "id" TEXT PRIMARY KEY,
+        "title" TEXT NOT NULL,
+        "content" TEXT NOT NULL,
+        "category" TEXT NOT NULL,
+        "authorId" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL
+      )
+    `);
+
+    // Tworzenie tabeli NewsItem
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "NewsItem" (
+        "id" TEXT PRIMARY KEY,
+        "title" TEXT NOT NULL,
+        "content" TEXT,
+        "type" TEXT NOT NULL DEFAULT 'GENERAL',
+        "imageUrl" TEXT,
+        "link" TEXT,
+        "eventId" TEXT,
+        "articleId" TEXT,
+        "priority" INTEGER DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL
+      )
+    `);
+
+    // --- NOWE KOLUMNY DLA ROZLICZEŃ ---
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "isFinalized" BOOLEAN NOT NULL DEFAULT false`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "actualDistance" DOUBLE PRECISION`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "actualElevation" DOUBLE PRECISION`);
+
+    // Sprawdzenie nazwy tabeli GpxSubmission
+    const gpxCheck = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('GpxSubmission', 'gpx_submission')`
+    );
+    const actualGpxName = gpxCheck.length > 0 ? gpxCheck[0].table_name : 'GpxSubmission';
+
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualGpxName}" ADD COLUMN IF NOT EXISTS "elevationGain" DOUBLE PRECISION`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualGpxName}" ADD COLUMN IF NOT EXISTS "participantIds" TEXT[] DEFAULT '{}'`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualGpxName}" ADD COLUMN IF NOT EXISTS "isOfficial" BOOLEAN NOT NULL DEFAULT false`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualGpxName}" ADD COLUMN IF NOT EXISTS "label" TEXT`);
 
     console.log('[DB] Struktura bazy danych zweryfikowana pomyślnie');
   } catch (e: any) {
@@ -127,6 +193,10 @@ app.use('/api/search', searchRouter); // Wyszukiwarka globalna
 app.use('/api/events', eventsRouter); // Wydarzenia i wyjazdy
 app.use('/api/albums', albumsRouter); // Galerie zdjęć
 app.use('/api/users', usersRouter);   // Zarządzanie profilami użytkowników
+app.use('/api/wiki', wikiRouter);     // Baza wiedzy Wiki
+app.use('/api/news', newsRouter);     // System aktualności
+app.use('/api/stats', statsRouter);   // Statystyki grupy
+
 
 // Uruchomienie serwera
 app.listen(PORT, async () => {
@@ -134,3 +204,4 @@ app.listen(PORT, async () => {
   // Uruchamiamy sprawdzanie bazy danych po starcie
   await runMigrations();
 });
+ 

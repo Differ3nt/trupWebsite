@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { toast } from 'sonner';
 
 // Możliwe role użytkownika w aplikacji frontendowej
 type UserRole = 'guest' | 'user' | 'admin';
@@ -9,9 +10,33 @@ interface AppContextType {
   hasHardware: (item: string) => boolean;
   user: any;
   loading: boolean;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  showToast: (message: string, type?: 'success' | 'error' | 'info', onUndo?: () => void) => void;
+  confirmAction: (options: { 
+    title: string, 
+    message: string, 
+    variant?: 'danger' | 'primary' | 'warning', 
+    onConfirm: () => void,
+    onDiscard?: () => void,
+    confirmText?: string,
+    cancelText?: string,
+    discardText?: string
+  }) => void;
+  modal: { 
+    title: string, 
+    message: string, 
+    variant?: 'danger' | 'primary' | 'warning', 
+    onConfirm: () => void,
+    onDiscard?: () => void,
+    confirmText?: string,
+    cancelText?: string,
+    discardText?: string
+  } | null;
+  setModal: (modal: any) => void;
+  isModalOpen: boolean;
+  setIsModalOpen: (val: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -23,6 +48,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('guest');
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<{ 
+    title: string, 
+    message: string, 
+    variant?: 'danger' | 'primary' | 'warning', 
+    onConfirm: () => void,
+    onDiscard?: () => void,
+    confirmText?: string,
+    cancelText?: string,
+    discardText?: string
+  } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success', onUndo?: () => void) => {
+    if (type === 'success') {
+      toast.success(message, {
+        action: onUndo ? { label: 'UNDO', onClick: onUndo } : undefined
+      });
+    } else if (type === 'error') {
+      toast.error(message);
+    } else {
+      toast(message);
+    }
+  };
+
+  const confirmAction = (options: { 
+    title: string, 
+    message: string, 
+    variant?: 'danger' | 'primary' | 'warning', 
+    onConfirm: () => void,
+    onDiscard?: () => void,
+    confirmText?: string,
+    cancelText?: string,
+    discardText?: string
+  }) => {
+    setModal(options);
+  };
 
   /**
    * Sprawdza aktualną sesję użytkownika odpytując serwer (/api/auth/me).
@@ -76,8 +136,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AppContext.Provider value={{ role, setRole, hasHardware, user, loginWithGoogle, logout, loading, refreshUser }}>
+    <AppContext.Provider value={{ 
+      role, setRole, hasHardware, user, loginWithGoogle, logout, loading, refreshUser, 
+      showToast, confirmAction, modal, setModal, isModalOpen, setIsModalOpen
+    }}>
       {children}
+      
+      {/* Global components moved to Layout.tsx but their state is here */}
     </AppContext.Provider>
   );
 }

@@ -13,7 +13,7 @@ export interface AuthRequest extends Request {
  * Middleware sprawdzający czy użytkownik jest zalogowany.
  * Weryfikuje token JWT przesłany w ciasteczku 'token'.
  */
-export function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
+export async function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const token = req.cookies?.token;
     if (!token) {
@@ -23,11 +23,21 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
     // Weryfikacja tokenu przy użyciu klucza JWT_SECRET
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role?: string };
     
-    // Przypisanie danych do obiektu request, aby były dostępne w ruterach
+    // Przypisanie danych do obiektu request
     req.userId = decoded.userId;
     req.userRole = decoded.role;
+
+    // Jeśli w tokenie brakuje roli (stary token), pobieramy ją z bazy
+    if (!req.userRole) {
+      const { PrismaClient } = await import('@prisma/client');
+      const prisma = new PrismaClient();
+      const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
+      if (user) req.userRole = user.role;
+      await prisma.$disconnect();
+    }
     
     next();
+
   } catch (error) {
     return res.status(401).json({ error: 'Nieprawidłowy lub wygasły token', code: 'INVALID_TOKEN' });
   }
@@ -39,7 +49,25 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
  */
 export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   if (req.userRole !== 'ADMIN') {
+    console.log(`ODMOWA DOSTĘPU ADMINA: Użytkownik ${req.userId} ma rolę ${req.userRole}`);
     return res.status(403).json({ error: 'Brak uprawnień administratora', code: 'FORBIDDEN' });
   }
   next();
 }
+
+export function getUserIdFromCookie(req: any): string | null {
+  const user = getUserFromCookie(req);
+  return user?.userId ?? null;
+}
+
+export function getUserFromCookie(req: any): { userId: string; role: string } | null {
+  try {
+    const token = req.cookies?.token;
+    if (!token) return null;
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    return { userId: decoded.userId, role: decoded.role };
+  } catch {
+    return null;
+  }
+}
+

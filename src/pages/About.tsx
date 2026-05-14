@@ -1,11 +1,14 @@
 import React from 'react';
+import PageHeader from '../components/PageHeader';
 
 export default function About() {
   return (
-    <div className="container mx-auto px-6 md:px-8 py-24">
-      <h1 className="font-display font-black text-5xl md:text-7xl text-on-surface uppercase tracking-tighter mb-12">
-        O nas
-      </h1>
+    <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+      <PageHeader 
+        title="O nas" 
+        subtitle="TRUP TO NIE TYLKO GRUPA GÓRSKA. TO IDEA, KTÓRA ZRODZIŁA SIĘ Z POTRZEBY PRZEKRACZANIA WŁASNYCH GRANIC."
+        category="Nasza historia"
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
         <div>
           <p className="text-on-surface-variant text-lg leading-relaxed mb-6">

@@ -1,106 +1,241 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, GpxStatus } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
+
+function logError(msg: string, err: any) {
+  const logPath = path.join(process.cwd(), 'server_errors.log');
+  const timestamp = new Date().toISOString();
+  const errorData = `[${timestamp}] ${msg}\n${err?.stack || err}\n${err?.response?.data ? JSON.stringify(err.response.data) : ''}\n\n`;
+  fs.appendFileSync(logPath, errorData);
+  console.error(msg, err);
+}
 
 const router = Router();
 const prisma = new PrismaClient();
 
+// Inicjalizacja klienta Google OAuth2
 const oAuth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  'postmessage' // Używamy postmessage dla przepływu bez pełnego przekierowania (lub pełne URL przekierowania)
+  'http://localhost:3001/api/auth/google/callback' // Adres zwrotny po zalogowaniu w Google
 );
 
-// Helper do generowania tokena JWT
-const generateToken = (userId: string) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'secret', {
+/**
+ * Generuje token JWT dla danego użytkownika.
+ * Token wygasa po 7 dniach.
+ */
+const generateToken = (userId: string, role: string) => {
+  return jwt.sign({ userId, role }, process.env.JWT_SECRET || 'secret', {
     expiresIn: '7d',
   });
 };
 
-// 1. Generowanie URL logowania (jeśli chcemy pełny redirect)
-router.get('/google/url', (req, res) => {
+
+/**
+ * 1. Punkt wejścia logowania przez Google.
+ * Przekierowuje użytkownika do formularza logowania Google.
+ */
+router.get('/google', (req, res) => {
   const url = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
     prompt: 'consent'
   });
-  res.json({ url });
+  res.redirect(url);
 });
 
-// 2. Odbiór kodu z Google i logowanie/rejestracja użytkownika
-router.post('/google/callback', async (req, res) => {
+/**
+ * 2. Callback z Google.
+ * Wywoływany przez Google po udanym zalogowaniu użytkownika.
+ * Pobiera dane profilu i tworzy/aktualizuje użytkownika w bazie.
+ */
+router.get('/google/callback', async (req, res) => {
   try {
-    const { code } = req.body;
-    const { tokens } = await oAuth2Client.getToken(code);
-    oAuth2Client.setCredentials(tokens);
+    const { code } = req.query;
+    if (!code) throw new Error('Brak kodu autoryzacyjnego');
 
-    // Pobranie danych profilu
-    const userInfo = await oAuth2Client.request({
-      url: 'https://www.googleapis.com/oauth2/v3/userinfo'
+    // Wymiana kodu na tokeny Google - Ręczna implementacja z powodu błędów gaxios
+    logError(`DEBUG: Manual token exchange starting...`, null);
+    
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: code as string,
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        redirect_uri: 'http://localhost:3001/api/auth/google/callback',
+        grant_type: 'authorization_code',
+      })
     });
 
-    const data = userInfo.data as any;
-
-    if (!data.email) {
-      return res.status(400).json({ error: 'Brak adresu email z Google' });
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      logError('Manual Token Exchange Failed:', errorText);
+      throw new Error(`Google Token Exchange failed: ${errorText}`);
     }
 
-    // Szukamy lub tworzymy użytkownika w bazie (Upsert)
-    const user = await prisma.user.upsert({
-      where: { email: data.email },
-      update: {
-        googleId: data.sub,
-        name: data.name,
-        avatarUrl: data.picture,
-      },
-      create: {
-        email: data.email,
-        googleId: data.sub,
-        name: data.name,
-        avatarUrl: data.picture,
-        role: 'USER',
-        status: 'ACTIVE'
-      }
+    const tokens = await tokenResponse.json();
+    oAuth2Client.setCredentials(tokens);
+
+    // Pobranie szczegółowych danych o użytkowniku z Google - Ręcznie
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
 
-    // Zapis tokena w HttpOnly Cookie
-    const token = generateToken(user.id);
+    if (!userRes.ok) {
+      const errorText = await userRes.text();
+      logError('Manual User Info Fetch Failed:', errorText);
+      throw new Error(`Google User Info fetch failed: ${errorText}`);
+    }
+
+    const data = await userRes.json();
+
+    if (!data.email) {
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/?error=no_email`);
+    }
+
+    // Synchronizacja danych użytkownika z naszą bazą (Upsert)
+    let user;
+    try {
+      user = await prisma.user.upsert({
+        where: { email: data.email },
+        update: {
+          googleId: data.sub,
+          name: data.name,
+          avatarUrl: data.picture,
+        },
+        create: {
+          email: data.email,
+          googleId: data.sub,
+          name: data.name,
+          avatarUrl: data.picture,
+          role: 'USER',
+          status: 'ACTIVE'
+        }
+      });
+    } catch (dbError: any) {
+      logError('CRITICAL DATABASE ERROR DURING AUTH:', dbError);
+      throw dbError;
+    }
+
+    // Generowanie naszego tokena sesji i zapisanie go w ciasteczku
+    const token = generateToken(user.id, user.role);
+
     res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true, // Zabezpieczenie przed dostępem z JS (XSS)
+      secure: false,  // W środowisku produkcyjnym powinno być true (HTTPS)
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dni
+      maxAge: 7 * 24 * 60 * 60 * 1000 // Czas życia: 7 dni
     });
 
-    res.json({ success: true, user });
-  } catch (error) {
-    console.error('Google Auth Error:', error);
-    res.status(500).json({ error: 'Błąd uwierzytelniania Google' });
+    // Powrót do aplikacji frontendowej
+    res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+  } catch (error: any) {
+    logError('Błąd autoryzacji Google [SERVER]:', error);
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/?error=auth_failed`);
   }
 });
 
-// 3. Weryfikacja tożsamości na froncie (/api/auth/me)
+/**
+ * 3. Pobranie danych aktualnie zalogowanego użytkownika.
+ * Wywoływane przez frontend przy starcie aplikacji (App.tsx).
+ */
 router.get('/me', async (req, res) => {
   try {
     const token = req.cookies.token;
     if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
 
+    // Weryfikacja tokena JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
+    
+    // Pobranie danych użytkownika z bazy
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
+      where: { id: decoded.userId },
+      include: {
+        participations: {
+          include: { 
+            event: {
+              include: {
+                participants: {
+                  where: { attended: true },
+                  select: { id: true }
+                }
+              }
+            } 
+          }
+        },
+        gpxSubmissions: true
+      }
     });
 
     if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
 
-    res.json({ user });
-  } catch (error) {
-    res.status(401).json({ error: 'Nieprawidłowy token' });
+    // Fetch GPX submissions where user is in participantIds array (PostgreSQL specific query)
+    const participatedTracks = await prisma.gpxSubmission.findMany({
+      where: {
+        status: 'APPROVED',
+        participantIds: {
+          has: decoded.userId
+        }
+      }
+    });
+
+    // Merge uploaded and participated tracks for stats
+    const allUserGpx = [...user.gpxSubmissions, ...participatedTracks];
+    // Filter duplicates (in case user uploaded and is participant)
+    const uniqueGpx = Array.from(new Map(allUserGpx.map(g => [g.id, g])).values());
+    
+    res.json({ user: { ...user, gpxSubmissions: uniqueGpx } });
+  } catch (error: any) {
+    console.error('Błąd endpointu /me:', error);
+    res.status(500).json({ error: 'Błąd serwera podczas weryfikacji sesji' });
   }
 });
 
-// 4. Wylogowanie
+/**
+ * Funkcja awaryjna: nadaje uprawnienia admina pierwszemu użytkownikowi.
+ */
+router.post('/make-admin', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
+
+    // Pozwalamy na nadanie admina tylko jeśli w systemie nie ma jeszcze żadnego admina
+    const existingAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+    if (existingAdmin && existingAdmin.id !== decoded.userId) {
+      return res.status(403).json({ error: 'Administrator już istnieje w systemie' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: decoded.userId },
+      data: { role: 'ADMIN' }
+    });
+
+    // Odświeżamy token, aby zawierał nową rolę
+    const newToken = generateToken(user.id, user.role);
+    res.cookie('token', newToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({ success: true, message: `${user.name} jest teraz Administratorem` });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd nadawania uprawnień' });
+  }
+});
+
+/**
+ * Wylogowanie użytkownika - czyszczenie ciasteczka sesji.
+ */
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.json({ success: true });

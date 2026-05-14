@@ -1,16 +1,31 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { DOMParser } from '@xmldom/xmldom';
-import { gpx } from '@tmcw/togeojson';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import { analyzeGpxFile } from '../lib/gpxUtils';
+import { invalidateStatsCache } from './stats';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-const upload = multer({ storage: multer.memoryStorage() });
+// Konfiguracja multer do zapisu plików GPX na dysku
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = 'uploads/gpx';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+const upload = multer({ storage });
 
-// Middleware uwierzytelniający (prosty, duplikowany - w produkcji przenieść do middlewares/)
+/**
+ * Middleware autoryzacyjny dla modułu GPX.
+ */
 const requireAuth = (req: any, res: any, next: any) => {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
@@ -23,96 +38,47 @@ const requireAuth = (req: any, res: any, next: any) => {
   }
 };
 
-// Obliczanie dystansu pomiędzy dwoma koordynatami używając Haversine formula
-function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  var R = 6371; // Promień Ziemi w km
-  var dLat = deg2rad(lat2 - lat1);
-  var dLon = deg2rad(lon2 - lon1);
-  var a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  var d = R * c; 
-  return d;
-}
-
-function deg2rad(deg: number) {
-  return deg * (Math.PI / 180)
-}
-
-// 1. Wgrywanie GPX do sprawdzenia przez Admina
+/**
+ * 1. Przesyłanie i analiza pliku GPX.
+ */
 router.post('/upload', requireAuth, upload.single('gpx'), async (req: any, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Brak pliku GPX' });
-    const { eventId } = req.body;
-    if (!eventId) return res.status(400).json({ error: 'Brak przypisania do wydarzenia' });
+    const { eventId, participantIds, label, duration: manualDuration } = req.body;
+    if (!eventId) return res.status(400).json({ error: 'Brak powiązania z wydarzeniem' });
 
-    const gpxString = req.file.buffer.toString('utf-8');
-    const parser = new DOMParser();
-    const gpxDoc = parser.parseFromString(gpxString, 'text/xml');
+    // Analiza pliku za pomocą nowej biblioteki
+    const stats = await analyzeGpxFile(req.file.path);
     
-    const geoJSON = gpx(gpxDoc);
+    // Jeśli podano czas ręcznie, używamy go. W przeciwnym razie używamy tego z GPX.
+    const finalDuration = manualDuration ? parseInt(manualDuration) : stats.duration;
 
-    if (geoJSON.features.length === 0) {
-      return res.status(400).json({ error: 'Nie odnaleziono poprawnych ścieżek w pliku GPX' });
-    }
-
-    let totalDistanceKm = 0;
-    let startTime: Date | null = null;
-    let endTime: Date | null = null;
-
-    // Przeszukanie punktów w poszukiwaniu dystansu i czasu
-    // Zakładamy LineString
-    geoJSON.features.forEach(feature => {
-      if (feature.geometry.type === 'LineString') {
-        const coords = feature.geometry.coordinates;
-        // Wg specyfikacji geoJSON properties.coordTimes zawiera czasy (zależne od togeojson)
-        const times = feature.properties?.coordTimes;
-        
-        if (times && times.length > 0) {
-          if (!startTime) startTime = new Date(times[0]);
-          const currentEndTime = new Date(times[times.length - 1]);
-          if (!endTime || currentEndTime > endTime) endTime = currentEndTime;
-        }
-
-        for (let i = 0; i < coords.length - 1; i++) {
-          const lon1 = coords[i][0];
-          const lat1 = coords[i][1];
-          const lon2 = coords[i+1][0];
-          const lat2 = coords[i+1][1];
-          totalDistanceKm += getDistanceFromLatLonInKm(lat1, lon1, lat2, lat2); // Mała korekta do pełnego wzoru
-        }
-      }
-    });
-
-    let durationHours = 0;
-    if (startTime && endTime) {
-      const diffMs = endTime.getTime() - startTime.getTime();
-      durationHours = diffMs / (1000 * 60 * 60);
-    }
-
-    // Zapisujemy zgłoszenie w bazie
+    // Zapisanie zgłoszenia do bazy
     const submission = await prisma.gpxSubmission.create({
       data: {
         userId: req.userId,
         eventId: eventId,
-        filePath: 'Opcjonalne zapisywanie na dysku...',
-        distance: totalDistanceKm,
-        duration: durationHours,
-        status: 'PENDING' // Wpada do "Kolejki zatwierdzeń" dla Admina
+        filePath: req.file.path,
+        distance: stats.distance,
+        elevationGain: stats.elevationGain,
+        duration: finalDuration,
+        participantIds: Array.isArray(participantIds) ? participantIds : JSON.parse(participantIds || '[]'),
+        label: label || 'Trasa',
+        status: 'PENDING'
       }
     });
 
-    res.json({ success: true, submission, parsedData: { distance: totalDistanceKm, duration: durationHours } });
+    res.json({ success: true, submission });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Błąd parsowania GPX:', error);
-    res.status(500).json({ error: 'Wystąpił błąd podczas analizy pliku GPX' });
+    res.status(500).json({ error: error.message || 'Wystąpił błąd podczas analizy pliku GPX' });
   }
 });
 
-// 2. Pobieranie kolejki dla Admina
+/**
+ * 2. Pobieranie kolejki tras oczekujących na zatwierdzenie (Tylko Admin).
+ */
 router.get('/queue', requireAuth, async (req: any, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
   if (user?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
@@ -125,17 +91,21 @@ router.get('/queue', requireAuth, async (req: any, res) => {
   res.json({ queue });
 });
 
-// 3. Akceptacja lub Odrzucenie śladu
+/**
+ * 3. Zmiana statusu trasy (Akceptacja/Odrzucenie) przez Admina.
+ */
 router.patch('/:id/status', requireAuth, async (req: any, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
   if (user?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
 
-  const { status } = req.body; // 'APPROVED' | 'REJECTED'
+  const { status } = req.body; // APPROVED lub REJECTED
   
   const updated = await prisma.gpxSubmission.update({
     where: { id: req.params.id },
     data: { status }
   });
+  
+  invalidateStatsCache();
 
   res.json({ success: true, submission: updated });
 });

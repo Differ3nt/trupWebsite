@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Konfiguracja Web Push VAPID
+// Konfiguracja Web Push VAPID (identyfikacja serwera wysyłającego)
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || 'mailto:admin@trup.pl',
@@ -15,7 +15,9 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   );
 }
 
-// Middleware uwierzytelniający (prosty do celu autoryzacji tokena)
+/**
+ * Middleware autoryzacyjny dla powiadomień.
+ */
 const requireAuth = (req: any, res: any, next: any) => {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
@@ -28,39 +30,71 @@ const requireAuth = (req: any, res: any, next: any) => {
   }
 };
 
-// 1. Zapis subskrypcji użytkownika
+/**
+ * 1. Pobieranie historii powiadomień użytkownika (np. do dzwoneczka na górze).
+ */
+router.get('/', requireAuth, async (req: any, res) => {
+  try {
+    const notifications = await prisma.$queryRawUnsafe(
+      `SELECT * FROM "Notification" WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT 20`,
+      req.userId
+    );
+    res.json(notifications);
+  } catch (error) {
+    console.error('Błąd pobierania powiadomień:', error);
+    res.status(500).json({ error: 'Błąd pobierania powiadomień' });
+  }
+});
+
+/**
+ * 2. Oznaczanie pojedynczego powiadomienia jako przeczytane.
+ */
+router.patch('/:id/read', requireAuth, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Notification" SET "isRead" = true WHERE id = $1 AND "userId" = $2`,
+      id, req.userId
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd aktualizacji statusu powiadomienia' });
+  }
+});
+
+/**
+ * 3. Rejestracja subskrypcji Web Push z przeglądarki użytkownika.
+ */
 router.post('/subscribe', requireAuth, async (req: any, res) => {
   try {
     const subscription = req.body;
 
-    // Zapisz do bazy
-    await prisma.pushSubscription.create({
-      data: {
-        userId: req.userId,
-        endpoint: subscription.endpoint,
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
-      }
-    });
+    // Zapisujemy nową subskrypcję w bazie
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "PushSubscription" (id, "userId", endpoint, p256dh, auth, "createdAt") VALUES ($1, $2, $3, $4, $5, NOW())`,
+      `sub_${Date.now()}`, req.userId, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth
+    );
 
     res.status(201).json({ success: true });
   } catch (error) {
     console.error('Błąd zapisu subskrypcji:', error);
-    res.status(500).json({ error: 'Nie udało się zapisać subskrypcji' });
+    res.status(500).json({ error: 'Nie udało się zapisać subskrypcji push' });
   }
 });
 
-// 2. Wysłanie testowego/masowego powiadomienia (Tylko dla Admina - uproszczone dla przykładu)
+/**
+ * 4. Wysłanie masowego powiadomienia (Broadcast) do wszystkich użytkowników (Tylko Admin).
+ */
 router.post('/send', requireAuth, async (req: any, res) => {
   try {
     const { message, title, url } = req.body;
     
-    // Sprawdzenie czy użytkownik to admin
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (user?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
+    // Weryfikacja uprawnień administratora
+    const users: any = await prisma.$queryRawUnsafe(`SELECT role FROM "User" WHERE id = $1`, req.userId);
+    if (!users.length || users[0].role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień administratora' });
 
-    // Pobranie wszystkich aktywnych subskrypcji
-    const subscriptions = await prisma.pushSubscription.findMany();
+    // Pobranie wszystkich zarejestrowanych urządzeń
+    const subscriptions: any = await prisma.$queryRawUnsafe(`SELECT * FROM "PushSubscription"`);
 
     const payload = JSON.stringify({
       title: title || 'Nowa Wyprawa!',
@@ -68,8 +102,8 @@ router.post('/send', requireAuth, async (req: any, res) => {
       url: url || '/'
     });
 
-    // Wysyłka powiadomień
-    const sendPromises = subscriptions.map(sub => {
+    // Równoległa wysyłka powiadomień
+    const sendPromises = subscriptions.map((sub: any) => {
       const pushSub = {
         endpoint: sub.endpoint,
         keys: {
@@ -79,9 +113,9 @@ router.post('/send', requireAuth, async (req: any, res) => {
       };
       return webpush.sendNotification(pushSub, payload).catch(e => {
         console.error('Błąd wysyłki do jednego z odbiorców (możliwe wygaśnięcie):', e);
-        // Opcjonalnie: usunięcie wygasłej subskrypcji z bazy
+        // Jeśli przeglądarka zgłosi, że subskrypcja wygasła (410 Gone), usuwamy ją z bazy
         if (e.statusCode === 410) {
-          prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(console.error);
+          prisma.$executeRawUnsafe(`DELETE FROM "PushSubscription" WHERE id = $1`, sub.id).catch(console.error);
         }
       });
     });
@@ -90,7 +124,7 @@ router.post('/send', requireAuth, async (req: any, res) => {
 
     res.json({ success: true, count: subscriptions.length });
   } catch (error) {
-    res.status(500).json({ error: 'Błąd wysyłania powiadomień' });
+    res.status(500).json({ error: 'Błąd podczas wysyłania powiadomień masowych' });
   }
 });
 

@@ -112,8 +112,10 @@ async function runMigrations() {
 
     // Upewnienie się, że albumId w tabeli Image może być puste (np. dla zdjęć profilowych/tymczasowych)
     try {
-      await prisma.$executeRawUnsafe('ALTER TABLE "Image" ALTER COLUMN "albumId" DROP NOT EXISTS');
-    } catch (e) {}
+      await prisma.$executeRawUnsafe('ALTER TABLE "Image" ALTER COLUMN "albumId" DROP NOT NULL');
+    } catch (e) {
+      console.warn('[DB] albumId already nullable or column missing');
+    }
 
     // Tworzenie tabeli WikiArticle
     await prisma.$executeRawUnsafe(`

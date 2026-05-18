@@ -5,6 +5,8 @@ const router = Router();
 const prisma = new PrismaClient();
 
 let cachedStats: any = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Czyści pamięć podręczną statystyk.
@@ -12,6 +14,7 @@ let cachedStats: any = null;
  */
 export function invalidateStatsCache() {
   cachedStats = null;
+  cacheTimestamp = 0;
 }
 
 /**
@@ -19,7 +22,7 @@ export function invalidateStatsCache() {
  */
 router.get('/', async (req, res) => {
   try {
-    if (cachedStats) {
+    if (cachedStats && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
       return res.json(cachedStats);
     }
 
@@ -49,6 +52,7 @@ router.get('/', async (req, res) => {
       duration: Math.round(statsResult._sum.duration || 0),
       members: activeMembers
     };
+    cacheTimestamp = Date.now();
 
     res.json(cachedStats);
   } catch (error) {

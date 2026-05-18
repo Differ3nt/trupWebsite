@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
 /**
  * Tworzy nową aktualność (Admin).
  */
-router.post('/', authenticate, async (req: any, res) => {
+router.post('/', authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { title, content, type, imageUrl, link, eventId, articleId, priority } = req.body;
     const id = `news_${Date.now()}`;
@@ -49,7 +49,7 @@ router.post('/', authenticate, async (req: any, res) => {
 /**
  * Usuwa aktualność (Admin).
  */
-router.delete('/:id', authenticate, async (req: any, res) => {
+router.delete('/:id', authenticate, requireAdmin, async (req: any, res) => {
   try {
     await prisma.$executeRaw`DELETE FROM "NewsItem" WHERE id = ${req.params.id}`;
     res.json({ success: true });
@@ -61,7 +61,7 @@ router.delete('/:id', authenticate, async (req: any, res) => {
 /**
  * Szybkie promowanie/usuwanie z aktualności dla Eventów/Artykułów.
  */
-router.post('/toggle', authenticate, async (req: any, res) => {
+router.post('/toggle', authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { eventId, articleId, title, type } = req.body;
     

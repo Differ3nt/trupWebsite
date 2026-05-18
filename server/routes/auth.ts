@@ -20,7 +20,7 @@ const prisma = new PrismaClient();
 const oAuth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  'http://localhost:3001/api/auth/google/callback' // Adres zwrotny po zalogowaniu w Google
+  process.env.OAUTH_CALLBACK_URL || 'http://localhost:3001/api/auth/google/callback'
 );
 
 /**
@@ -65,7 +65,7 @@ router.get('/google/callback', async (req, res) => {
         code: code as string,
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirect_uri: 'http://localhost:3001/api/auth/google/callback',
+        redirect_uri: process.env.OAUTH_CALLBACK_URL || 'http://localhost:3001/api/auth/google/callback',
         grant_type: 'authorization_code',
       })
     });

@@ -44,6 +44,9 @@ router.get('/:id', async (req, res) => {
     const article = await prisma.wikiArticle.findUnique({
       where: { id: req.params.id }
     });
+    if (!article) {
+      return res.status(404).json({ error: 'Artykuł nie znaleziony' });
+    }
     const userId = getUserIdFromCookie(req);
     if (!userId) {
       return res.json({

@@ -127,7 +127,7 @@ router.get('/google/callback', async (req, res) => {
 
     res.cookie('token', token, {
       httpOnly: true, // Zabezpieczenie przed dostępem z JS (XSS)
-      secure: false,  // W środowisku produkcyjnym powinno być true (HTTPS)
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // Czas życia: 7 dni
     });
@@ -221,7 +221,7 @@ router.post('/make-admin', async (req, res) => {
     const newToken = generateToken(user.id, user.role);
     res.cookie('token', newToken, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });

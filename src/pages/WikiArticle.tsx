@@ -12,7 +12,10 @@ export default function WikiArticle() {
 
   useEffect(() => {
     fetch(`/api/wiki/${id}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) return null;
+        return res.json();
+      })
       .then(data => setArticle(data))
       .catch(err => console.error('Błąd wczytywania artykułu:', err))
       .finally(() => setLoading(false));

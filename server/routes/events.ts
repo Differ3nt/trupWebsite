@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma, GpxStatus } from '@prisma/client';
-import { authenticate, getUserIdFromCookie, getUserFromCookie } from '../middleware/auth';
+import { authenticate, requireAdmin, getUserIdFromCookie, getUserFromCookie } from '../middleware/auth';
 import { invalidateStatsCache } from './stats';
 import jwt from 'jsonwebtoken';
 
@@ -187,7 +187,7 @@ router.get('/:id', async (req: any, res) => {
 /**
  * Aktualizuje status faktycznej obecności użytkownika (tylko Admin).
  */
-router.patch('/:id/attendance', authenticate, async (req: any, res) => {
+router.patch('/:id/attendance', authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { userId, attended } = req.body;
     const eventId = req.params.id;
@@ -207,7 +207,7 @@ router.patch('/:id/attendance', authenticate, async (req: any, res) => {
  * Tworzy nowe wydarzenie.
  * Automatycznie generuje ID w formacie: RRRR_NR_KOD (np. 2024_05_WYP).
  */
-router.post('/', authenticate, async (req: any, res) => {
+router.post('/', authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { 
       title, description, transport, dateStart, dateEnd, location, mapLink, mapEmbed,
@@ -236,27 +236,32 @@ router.post('/', authenticate, async (req: any, res) => {
     const typeCode = typeMap[finalType] || 'INNE';
 
     // Generowanie kolejnego numeru wydarzenia w danym roku
+    // Używamy transakcji aby uniknąć race condition
     const year = finalDateStart.getFullYear();
-    const count: any = await prisma.$queryRaw`
-      SELECT COUNT(*)::int as total FROM "Event" WHERE EXTRACT(YEAR FROM "dateStart") = ${year}
-    `;
-    const nextNum = (count[0]?.total || 0) + 1;
-    const eventId = `${year}_${String(nextNum).padStart(2, '0')}_${typeCode}`;
+    const eventId = await prisma.$transaction(async (tx) => {
+      const count: any = await tx.$queryRaw`
+        SELECT COUNT(*)::int as total FROM "Event" WHERE EXTRACT(YEAR FROM "dateStart") = ${year}
+      `;
+      const nextNum = (count[0]?.total || 0) + 1;
+      const id = `${year}_${String(nextNum).padStart(2, '0')}_${typeCode}`;
 
-    await prisma.$executeRaw`
-      INSERT INTO "Event" (
-        id, title, description, transport, "dateStart", "dateEnd", location, "mapLink", "mapEmbed",
-        difficulty, spots, type, "gearRequired", "gearCritical", image, "isExpedition", 
-        featured, highlighted, "isDraft", organizer, "meetingPointName", "meetingPointLink", "meetingPointEmbed", "weatherInfo", "createdAt", "updatedAt"
-      ) VALUES (
-        ${eventId}, ${finalTitle}, ${description}, ${transport}, ${finalDateStart}, 
-        ${dateEnd ? new Date(dateEnd) : null}, ${location}, ${mapLink}, ${mapEmbed},
-        ${difficulty ? Number(difficulty) : null}, ${spots ? Number(spots) : null}, 
-        ${finalType}, ${gearRequired || []}, ${gearCritical || []}, ${image}, 
-        ${isExpedition === true}, ${featured === true}, ${highlighted === true}, 
-        ${isDraft === true}, ${organizer || null}, ${meetingPointName || null}, ${meetingPointLink || null}, ${meetingPointEmbed || null}, ${weatherInfo || null}, NOW(), NOW()
-      )
-    `;
+      await tx.$executeRaw`
+        INSERT INTO "Event" (
+          id, title, description, transport, "dateStart", "dateEnd", location, "mapLink", "mapEmbed",
+          difficulty, spots, type, "gearRequired", "gearCritical", image, "isExpedition",
+          featured, highlighted, "isDraft", organizer, "meetingPointName", "meetingPointLink", "meetingPointEmbed", "weatherInfo", "createdAt", "updatedAt"
+        ) VALUES (
+          ${id}, ${finalTitle}, ${description}, ${transport}, ${finalDateStart},
+          ${dateEnd ? new Date(dateEnd) : null}, ${location}, ${mapLink}, ${mapEmbed},
+          ${difficulty ? Number(difficulty) : null}, ${spots ? Number(spots) : null},
+          ${finalType}, ${gearRequired || []}, ${gearCritical || []}, ${image},
+          ${isExpedition === true}, ${featured === true}, ${highlighted === true},
+          ${isDraft === true}, ${organizer || null}, ${meetingPointName || null}, ${meetingPointLink || null}, ${meetingPointEmbed || null}, ${weatherInfo || null}, NOW(), NOW()
+        )
+      `;
+
+      return id;
+    });
 
     res.json({ success: true, eventId });
   } catch (error: any) {
@@ -268,7 +273,7 @@ router.post('/', authenticate, async (req: any, res) => {
 /**
  * Edytuje istniejące wydarzenie.
  */
-router.put('/:id', authenticate, async (req: any, res) => {
+router.put('/:id', authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -390,7 +395,7 @@ router.post('/:id/rsvp', authenticate, async (req: any, res) => {
 /**
  * Szybkie przełączanie statusów 'featured' i 'highlighted' (tylko Admin).
  */
-router.patch('/:id/featured', authenticate, async (req: any, res) => {
+router.patch('/:id/featured', authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { featured, highlighted } = req.body;
     
@@ -414,7 +419,7 @@ router.patch('/:id/featured', authenticate, async (req: any, res) => {
 /**
  * Usuwa wydarzenie wraz z powiązanymi danymi (uczestnictwo, zgłoszenia GPX).
  */
-router.delete('/:id', authenticate, async (req: any, res) => {
+router.delete('/:id', authenticate, requireAdmin, async (req: any, res) => {
   try {
     const { id } = req.params;
     // Ważne: najpierw usuwamy rekordy z tabel zależnych (Klucze obce)
@@ -431,10 +436,8 @@ router.delete('/:id', authenticate, async (req: any, res) => {
 /**
  * 4. Pobieranie kolejki rozliczeń dla admina (wydarzenia zakończone, niesfinalizowane).
  */
-router.get('/admin/completion-queue', authenticate, async (req: any, res) => {
+router.get('/admin/completion-queue', authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (user?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
 
     const startOfToday = new Date();
     startOfToday.setHours(0,0,0,0);
@@ -500,10 +503,8 @@ router.get('/admin/completion-queue', authenticate, async (req: any, res) => {
 /**
  * 5. Finalizacja rozliczenia wydarzenia przez admina.
  */
-router.post('/:id/finalize', authenticate, async (req: any, res) => {
+router.post('/:id/finalize', authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (user?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
 
     const { attendedUserIds, routesData } = req.body;
     // routesData: { id: string, participantIds: string[], isOfficial: boolean, label: string }[]

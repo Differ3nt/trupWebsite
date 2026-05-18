@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { authenticate, requireAdmin } from '../middleware/auth';
 import { analyzeGpxFile } from '../lib/gpxUtils';
 import { invalidateStatsCache } from './stats';
 import fs from 'fs';
@@ -24,24 +24,9 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /**
- * Middleware autoryzacyjny dla modułu GPX.
- */
-const requireAuth = (req: any, res: any, next: any) => {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
-    req.userId = decoded.userId;
-    next();
-  } catch (e) {
-    res.status(401).json({ error: 'Nieprawidłowy token' });
-  }
-};
-
-/**
  * 1. Przesyłanie i analiza pliku GPX.
  */
-router.post('/upload', requireAuth, upload.single('gpx'), async (req: any, res) => {
+router.post('/upload', authenticate, upload.single('gpx'), async (req: any, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Brak pliku GPX' });
     const { eventId, participantIds, label, duration: manualDuration } = req.body;
@@ -79,9 +64,7 @@ router.post('/upload', requireAuth, upload.single('gpx'), async (req: any, res) 
 /**
  * 2. Pobieranie kolejki tras oczekujących na zatwierdzenie (Tylko Admin).
  */
-router.get('/queue', requireAuth, async (req: any, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.userId } });
-  if (user?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
+router.get('/queue', authenticate, requireAdmin, async (req: any, res) => {
 
   const queue = await prisma.gpxSubmission.findMany({
     where: { status: 'PENDING' },
@@ -94,10 +77,7 @@ router.get('/queue', requireAuth, async (req: any, res) => {
 /**
  * 3. Zmiana statusu trasy (Akceptacja/Odrzucenie) przez Admina.
  */
-router.patch('/:id/status', requireAuth, async (req: any, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.userId } });
-  if (user?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
-
+router.patch('/:id/status', authenticate, requireAdmin, async (req: any, res) => {
   const { status } = req.body; // APPROVED lub REJECTED
   
   const updated = await prisma.gpxSubmission.update({

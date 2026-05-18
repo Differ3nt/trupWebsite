@@ -71,10 +71,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const confirmAction = (options: { 
-    title: string, 
-    message: string, 
-    variant?: 'danger' | 'primary' | 'warning', 
+  const confirmAction = (options: {
+    title: string,
+    message: string,
+    variant?: 'danger' | 'primary' | 'warning',
     onConfirm: () => void,
     onDiscard?: () => void,
     confirmText?: string,
@@ -82,6 +82,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     discardText?: string
   }) => {
     setModal(options);
+    setIsModalOpen(true);
   };
 
   /**

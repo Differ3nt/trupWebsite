@@ -15,7 +15,7 @@ export default function Layout() {
   const navRef = React.useRef<HTMLElement>(null);
   const linksRef = React.useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const { role, loginWithGoogle, logout, modal, setModal, isModalOpen } = useAppContext();
+  const { role, loginWithGoogle, logout, modal, setModal, isModalOpen, setIsModalOpen } = useAppContext();
   
   const handleLinkClick = (to: string) => {
     if (location.pathname === to) {
@@ -385,12 +385,12 @@ export default function Layout() {
       />
       
       {modal && (
-        <ConfirmationModal 
+        <ConfirmationModal
           title={modal.title}
           message={modal.message}
           variant={modal.variant}
           onConfirm={modal.onConfirm}
-          onClose={() => setModal(null)}
+          onClose={() => { setModal(null); setIsModalOpen(false); }}
           onDiscard={modal.onDiscard}
           confirmText={modal.confirmText}
           cancelText={modal.cancelText}

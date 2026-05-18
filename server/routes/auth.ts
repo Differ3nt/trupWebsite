@@ -58,8 +58,6 @@ router.get('/google/callback', async (req, res) => {
     if (!code) throw new Error('Brak kodu autoryzacyjnego');
 
     // Wymiana kodu na tokeny Google - Ręczna implementacja z powodu błędów gaxios
-    logError(`DEBUG: Manual token exchange starting...`, null);
-    
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

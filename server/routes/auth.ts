@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
-import { PrismaClient, GpxStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 

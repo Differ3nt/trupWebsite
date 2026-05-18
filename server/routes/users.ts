@@ -1,26 +1,9 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
-
-/**
- * Middleware autoryzacyjny (uproszczona wersja lokalna).
- * Sprawdza czy użytkownik posiada ważny token sesji.
- */
-const authenticate = async (req: any, res: any, next: any) => {
-  try {
-    const token = req.cookies.token;
-    if (!token) return res.status(401).json({ error: 'Brak aktywnej sesji' });
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
-    req.userId = decoded.userId;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Sesja wygasła lub jest nieprawidłowa' });
-  }
-};
 
 /**
  * Pobiera pełny profil zalogowanego użytkownika wraz z historią wydarzeń.
@@ -111,10 +94,8 @@ router.patch('/me', authenticate, async (req: any, res) => {
 /**
  * Pobiera listę wszystkich użytkowników (Tylko Admin).
  */
-router.get('/', authenticate, async (req: any, res) => {
+router.get('/', authenticate, requireAdmin, async (req: any, res) => {
   try {
-    const admin = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (admin?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
 
     const users = await prisma.user.findMany({
       select: { id: true, name: true, nickname: true, status: true },

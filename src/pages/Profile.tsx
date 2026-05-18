@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useBlocker, useBeforeUnload } from 'react-router-dom';
-import { User, Settings, Award, MapPin, UploadCloud, CheckCircle2, TrendingUp, Bell, Calendar, ChevronRight, Phone, Mail, Mountain, Compass, Map, LogOut, Clock, Users } from 'lucide-react';
+import { User, Settings, Award, MapPin, UploadCloud, CheckCircle2, TrendingUp, Bell, Calendar, ChevronRight, Phone, Mail, Mountain, Compass, Map, LogOut, Clock, Users, ArrowRight } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
 import ImageCropper from '../components/ImageCropper';
 import { motion, AnimatePresence } from 'motion/react';
@@ -8,9 +8,10 @@ import PageHeader from '../components/PageHeader';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { GpxUploadModal } from '../components/GpxUploadModal';
-import { Map as MapIcon, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ConfirmationModal from '../components/ConfirmationModal';
+
+const MapIcon = Map;
 
 export default function Profile() {
   const { role, user, loginWithGoogle, refreshUser, logout, showToast } = useAppContext();

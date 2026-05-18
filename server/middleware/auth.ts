@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 /**
  * Rozszerzony interfejs Request zawierający dane o zalogowanym użytkowniku.
@@ -29,11 +32,8 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
     // Jeśli w tokenie brakuje roli (stary token), pobieramy ją z bazy
     if (!req.userRole) {
-      const { PrismaClient } = await import('@prisma/client');
-      const prisma = new PrismaClient();
       const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
       if (user) req.userRole = user.role;
-      await prisma.$disconnect();
     }
     
     next();

@@ -149,6 +149,7 @@ async function runMigrations() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "isFinalized" BOOLEAN NOT NULL DEFAULT false`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "actualDistance" DOUBLE PRECISION`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "actualElevation" DOUBLE PRECISION`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "actualDuration" DOUBLE PRECISION`);
 
     // Sprawdzenie nazwy tabeli GpxSubmission
     const gpxCheck = await prisma.$queryRawUnsafe<any[]>(

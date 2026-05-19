@@ -39,7 +39,7 @@ export default function Home() {
       <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden bg-black -mt-24 md:-mt-32">
         <div className="absolute inset-0 z-0">
           <img 
-            src="/uploads/1777215737507-141412676.JPG" 
+            src="/hero.jpeg"
             alt="Tatry Zimą" 
             className="w-full h-full object-cover opacity-60 grayscale scale-105"
           />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Book, Zap, ArrowRight, Trophy } from 'lucide-react';
 import EventCountdown from './EventCountdown';
 import { Badge } from './ui/Badge';
+import { ImageLoader } from './ui/ImageLoader';
 import { cn } from '../lib/utils';
 
 interface NewsCardProps {
@@ -64,11 +65,20 @@ export default function NewsCard({ item }: NewsCardProps) {
         {/* Visual Identity (Image or Icon) */}
         <div className="overflow-hidden md:w-1/3 lg:w-1/4 h-24 md:h-auto shrink-0 border-r border-outline-variant/10 relative bg-surface-container">
           {image ? (
-            <img
+            <ImageLoader
               src={image}
-              alt={title}
-              className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
-            />
+              className="w-full h-full"
+              skeletonClassName="rounded-none"
+            >
+              {({ src, onLoad, className: imgCls }) => (
+                <img
+                  src={src}
+                  alt={title}
+                  className={cn(imgCls, 'grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500')}
+                  onLoad={onLoad}
+                />
+              )}
+            </ImageLoader>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-primary/20">
               {isUpdate ? <Zap size={64} strokeWidth={1} /> : isArticle ? <Book size={64} strokeWidth={1} /> : <Zap size={64} strokeWidth={1} />}

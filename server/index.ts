@@ -22,6 +22,7 @@ import usersRouter from './routes/users';
 import wikiRouter from './routes/wiki';
 import newsRouter from './routes/news';
 import statsRouter from './routes/stats';
+import { watermarkMiddleware } from './middleware/watermark';
 
 
 
@@ -149,6 +150,11 @@ async function runMigrations() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "isFinalized" BOOLEAN NOT NULL DEFAULT false`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "actualDistance" DOUBLE PRECISION`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "actualElevation" DOUBLE PRECISION`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "imageFocalX" DOUBLE PRECISION DEFAULT 50`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "imageFocalY" DOUBLE PRECISION DEFAULT 50`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "plannedDistance" DOUBLE PRECISION`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "plannedElevation" DOUBLE PRECISION`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "plannedDuration" DOUBLE PRECISION`);
 
     // Sprawdzenie nazwy tabeli GpxSubmission
     const gpxCheck = await prisma.$queryRawUnsafe<any[]>(
@@ -181,8 +187,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'TRUP API is running' });
 });
 
-// Udostępnianie folderu z wgranymi plikami (zdjęcia, trasy GPX) jako statycznych zasobów
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Images served via watermarkMiddleware (caches watermarked copies, originals untouched)
+// Non-image files (GPX etc.) fall through to static
+app.use('/uploads', watermarkMiddleware, express.static(path.join(process.cwd(), 'uploads')));
 
 // Rejestracja rutów API
 app.use('/api/auth', authRouter);     // Autoryzacja i użytkownicy Google
@@ -197,6 +204,15 @@ app.use('/api/wiki', wikiRouter);     // Baza wiedzy Wiki
 app.use('/api/news', newsRouter);     // System aktualności
 app.use('/api/stats', statsRouter);   // Statystyki grupy
 
+
+// Serve built frontend in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // Uruchomienie serwera
 app.listen(PORT, async () => {

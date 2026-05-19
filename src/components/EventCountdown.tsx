@@ -36,7 +36,10 @@ export default function EventCountdown({ targetDate, className = '', compact = f
 
   if (!timeLeft || timeLeft.total <= 0) return null;
 
-  const displayText = timeLeft.days > 0 ? `ZA ${timeLeft.days} DNI` : 'DZISIAJ';
+  const nowDay = new Date(); nowDay.setHours(0, 0, 0, 0);
+  const targetDay = new Date(targetDate); targetDay.setHours(0, 0, 0, 0);
+  const calendarDays = Math.round((targetDay.getTime() - nowDay.getTime()) / (1000 * 60 * 60 * 24));
+  const displayText = calendarDays === 0 ? 'DZISIAJ' : calendarDays === 1 ? 'JUTRO' : `ZA ${calendarDays} DNI`;
 
   if (compact) {
     return (

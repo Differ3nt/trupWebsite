@@ -200,18 +200,18 @@ export default function AdminGallery() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 md:gap-6">
           <AnimatePresence>
             {images.map((img) => (
-              <motion.div 
+              <motion.div
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                key={img.id} 
+                key={img.id}
                 className="group relative aspect-square bg-surface-container-low overflow-hidden shadow-lg cursor-pointer"
                 onClick={() => setSelectedImage(img)}
               >
-                <img 
-                  src={img.thumbnailUrl} 
-                  alt={img.name} 
+                <img
+                  src={img.thumbnailUrl}
+                  alt={img.name}
                   className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
                 />
                 

@@ -88,11 +88,15 @@ export default function Events() {
     >
       <div className="h-72 overflow-hidden relative">
         <img
-          src={event.image || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800'}
+          src={event.image ? `${event.image}?raw=1` : 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800'}
           alt={event.title}
           className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+          style={{ objectPosition: `${event.imageFocalX ?? 50}% ${event.imageFocalY ?? 50}%` }}
+          draggable={false}
           referrerPolicy="no-referrer"
         />
+        {/* Transparent overlay — right-click hits this div, not the img, so browser shows link menu instead of "Save image as" */}
+        <div className="absolute inset-0" />
         
         {/* Overlay Top Left: Countdown + Date */}
         <div className="absolute top-4 left-4 flex flex-col gap-1">
@@ -132,7 +136,7 @@ export default function Events() {
             event.spots !== null && event.spots > 0 ? (
               <div className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'bg-red-500' : 'bg-primary animate-pulse'}`} />
-                {Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'Brak miejsc' : `${Math.max(0, event.spots - (event.goingCount || 0))} wolnych miejsc`}
+                {Math.max(0, event.spots - (event.goingCount || 0)) === 0 ? 'Brak miejsc' : `Wolne miejsca: ${Math.max(0, event.spots - (event.goingCount || 0))}`}
               </div>
             ) : (
               <div className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant flex items-center gap-2">

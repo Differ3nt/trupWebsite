@@ -7,6 +7,7 @@ import ConfirmationModal from './ConfirmationModal';
 import { NavItem } from './ui/NavItem';
 import { Toaster } from 'sonner';
 import { cn } from '../lib/utils';
+import ScrollToTop from './ScrollToTop';
 
 export default function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -127,6 +128,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen selection:bg-primary selection:text-surface flex flex-col bg-surface relative">
+      <ScrollToTop />
       {/* iOS PWA Banner */}
       <AnimatePresence>
         {showIOSBanner && (

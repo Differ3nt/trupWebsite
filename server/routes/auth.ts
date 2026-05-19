@@ -20,7 +20,7 @@ const prisma = new PrismaClient();
 const oAuth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  'http://localhost:3001/api/auth/google/callback' // Adres zwrotny po zalogowaniu w Google
+  process.env.CALLBACK_URL || 'http://localhost:3001/api/auth/google/callback'
 );
 
 /**

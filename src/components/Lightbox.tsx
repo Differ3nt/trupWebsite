@@ -27,9 +27,7 @@ export function Lightbox({ images, initialIndex, albumTitle, onClose }: Lightbox
   const currentImage = images[currentIdx];
 
   const loadFullRes = useCallback(async (image: LightboxImage) => {
-    // Cancel any in-flight fetch
     if (abortRef.current) abortRef.current.abort();
-    // Revoke previous object URL
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
 
     setFullResUrl(null);
@@ -71,14 +69,12 @@ export function Lightbox({ images, initialIndex, albumTitle, onClose }: Lightbox
     return () => { abortRef.current?.abort(); };
   }, [currentIdx, loadFullRes]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') navigate(-1);
@@ -99,7 +95,6 @@ export function Lightbox({ images, initialIndex, albumTitle, onClose }: Lightbox
 
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-      {/* Progress bar — thin line at top, hidden when at 100% and full-res shown */}
       {progress < 100 && (
         <div className="absolute top-0 left-0 right-0 h-0.5 z-10 bg-white/10">
           <div
@@ -135,15 +130,14 @@ export function Lightbox({ images, initialIndex, albumTitle, onClose }: Lightbox
           <ChevronLeft size={48} strokeWidth={1} />
         </button>
 
-        <div className="flex-1 h-full flex items-center justify-center relative min-w-0">
-          {/* Thumbnail (always visible as backdrop until full-res ready) */}
+        <div className="flex-1 h-full flex items-center justify-center relative min-w-0" onContextMenu={e => e.preventDefault()}>
           <img
             src={currentImage.thumbnailUrl}
             alt={currentImage.alt || ''}
             className="max-h-full max-w-full object-contain absolute inset-0 m-auto"
             style={{ filter: fullResLoaded ? 'none' : 'blur(0px)' }}
+            draggable={false}
           />
-          {/* Full-res (fades in on top when ready) */}
           {fullResUrl && (
             <img
               src={fullResUrl}
@@ -151,8 +145,11 @@ export function Lightbox({ images, initialIndex, albumTitle, onClose }: Lightbox
               className="max-h-full max-w-full object-contain absolute inset-0 m-auto transition-opacity duration-500"
               style={{ opacity: fullResLoaded ? 1 : 0 }}
               onLoad={() => setFullResLoaded(true)}
+              draggable={false}
             />
           )}
+          {/* transparent overlay intercepts right-click */}
+          <div className="absolute inset-0" onContextMenu={e => e.preventDefault()} />
         </div>
 
         <button onClick={() => navigate(1)} className="p-2 md:p-4 text-white/60 hover:text-primary transition-colors shrink-0">

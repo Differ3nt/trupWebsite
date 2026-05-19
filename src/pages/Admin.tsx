@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ImagePicker from '../components/ImagePicker';
+import ImagePositionPicker from '../components/ImagePositionPicker';
 import { GpxUploadModal } from '../components/GpxUploadModal';
 import GpxPreview from '../components/GpxPreview';
 import { useAppContext } from '../contexts/AppContext';
@@ -35,7 +36,9 @@ const EMPTY_EVENT = {
   location: '', mapLink: '', mapEmbed: '', difficulty: 3 as number,
   spots: 12 as number, type: 'GÓRY', gearRequired: [] as string[], gearCritical: [] as string[], image: '',
   isExpedition: false, highlighted: false, featured: true, isDraft: false,
-  organizer: '', meetingPointName: '', meetingPointLink: '', meetingPointEmbed: '', transport: '', weatherInfo: ''
+  organizer: '', meetingPointName: '', meetingPointLink: '', meetingPointEmbed: '', transport: '', weatherInfo: '',
+  imageFocalX: 50 as number, imageFocalY: 50 as number,
+  plannedDistance: '' as any, plannedElevation: '' as any, plannedDuration: '' as any
 };
 
 
@@ -132,7 +135,12 @@ export default function Admin() {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(forceDraft ? 'Szkic zapisany!' : (editingId ? 'Wydarzenie zaktualizowane!' : 'Wydarzenie opublikowane!'), 'success');
+        showToast(
+          forceDraft === true ? 'Szkic zapisany!' :
+          forceDraft === false && editingId ? 'Wydarzenie opublikowane!' :
+          editingId ? 'Wydarzenie zaktualizowane!' : 'Wydarzenie opublikowane!',
+          'success'
+        );
         setNewEvent(EMPTY_EVENT);
         setEditingId(null);
         loadEvents();
@@ -161,11 +169,17 @@ export default function Admin() {
       return;
     }
 
+    // Publishing a draft forces isDraft:false; editing a published event keeps its current state
+    const publishingDraft = editingId && newEvent.isDraft;
+    const forceDraftArg = publishingDraft ? false : undefined;
+
     confirmAction({
-      title: editingId ? 'Potwierdź Edycję' : 'Potwierdź Utworzenie',
-      message: `Czy na pewno chcesz ${editingId ? 'zapisać zmiany w wydarzeniu' : 'stworzyć nowe wydarzenie'} "${newEvent.title || 'bez tytułu'}"?`,
+      title: publishingDraft ? 'Opublikuj Wydarzenie' : (editingId ? 'Potwierdź Edycję' : 'Potwierdź Utworzenie'),
+      message: publishingDraft
+        ? `Wydarzenie "${newEvent.title}" zostanie opublikowane i będzie widoczne dla wszystkich.`
+        : `Czy na pewno chcesz ${editingId ? 'zapisać zmiany w wydarzeniu' : 'stworzyć nowe wydarzenie'} "${newEvent.title || 'bez tytułu'}"?`,
       variant: 'primary',
-      onConfirm: executeCreateOrUpdate
+      onConfirm: () => executeCreateOrUpdate(forceDraftArg)
     });
   };
 
@@ -290,7 +304,12 @@ export default function Admin() {
       meetingPointLink: event.meetingPointLink || '',
       meetingPointEmbed: event.meetingPointEmbed || '',
       transport: event.transport || '',
-      weatherInfo: event.weatherInfo || ''
+      weatherInfo: event.weatherInfo || '',
+      imageFocalX: event.imageFocalX ?? 50,
+      imageFocalY: event.imageFocalY ?? 50,
+      plannedDistance: event.plannedDistance ?? '',
+      plannedElevation: event.plannedElevation ?? '',
+      plannedDuration: event.plannedDuration != null ? Math.round(event.plannedDuration / 60 * 10) / 10 : ''
     });
     setEditingId(event.id);
     setActiveTab('create');
@@ -808,6 +827,18 @@ export default function Admin() {
                       </FormField>
                     </div>
 
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField label="Planowany Dystans (km)">
+                        <Input type="number" min="0" step="0.1" placeholder="np. 12.5" value={newEvent.plannedDistance ?? ''} onChange={e => setNewEvent({ ...newEvent, plannedDistance: e.target.value })} />
+                      </FormField>
+                      <FormField label="Planowane Przewyższenie (m)">
+                        <Input type="number" min="0" step="1" placeholder="np. 800" value={newEvent.plannedElevation ?? ''} onChange={e => setNewEvent({ ...newEvent, plannedElevation: e.target.value })} />
+                      </FormField>
+                      <FormField label="Czas Trwania (godz.)">
+                        <Input type="number" min="0" step="0.5" placeholder="np. 6" value={newEvent.plannedDuration ?? ''} onChange={e => setNewEvent({ ...newEvent, plannedDuration: e.target.value })} />
+                      </FormField>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField label="Lokalizacja (Nazwa)" required>
                         <Input type="text" value={newEvent.location || ''} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })} />
@@ -877,7 +908,15 @@ export default function Admin() {
                         <Button type="button" variant="secondary" onClick={() => setShowImagePicker(true)} leftIcon={<ImageIcon size={16} />}>Wybierz</Button>
                         <Input type="url" placeholder="URL zdjęcia..." value={newEvent.image || ''} readOnly className="opacity-60" />
                       </div>
-                      {newEvent.image && <img src={newEvent.image} className="mt-4 h-48 w-full object-cover border border-outline-variant/30" />}
+                      {newEvent.image && (
+                        <ImagePositionPicker
+                          src={newEvent.image}
+                          focalX={newEvent.imageFocalX ?? 50}
+                          focalY={newEvent.imageFocalY ?? 50}
+                          onChange={(x, y) => setNewEvent(prev => ({ ...prev, imageFocalX: x, imageFocalY: y }))}
+                          className="mt-4"
+                        />
+                      )}
                     </FormField>
                   </div>
                 ) : (
@@ -925,7 +964,15 @@ export default function Admin() {
                         <Button type="button" variant="secondary" onClick={() => setShowImagePicker(true)} leftIcon={<ImageIcon size={16} />}>Wybierz</Button>
                         <Input type="url" value={newEvent.image || ''} readOnly className="opacity-60" />
                       </div>
-                      {newEvent.image && <img src={newEvent.image} className="mt-4 h-48 w-full object-cover border border-outline-variant/30" />}
+                      {newEvent.image && (
+                        <ImagePositionPicker
+                          src={newEvent.image}
+                          focalX={newEvent.imageFocalX ?? 50}
+                          focalY={newEvent.imageFocalY ?? 50}
+                          onChange={(x, y) => setNewEvent(prev => ({ ...prev, imageFocalX: x, imageFocalY: y }))}
+                          className="mt-4"
+                        />
+                      )}
                     </FormField>
                   </div>
                 )}
@@ -942,9 +989,9 @@ export default function Admin() {
                     type="submit"
                     isLoading={loading}
                     className="flex-1 py-4 text-lg"
-                    leftIcon={editingId ? <Edit3 size={20} /> : <Plus size={20} />}
+                    leftIcon={editingId && newEvent.isDraft ? <Plus size={20} /> : editingId ? <Edit3 size={20} /> : <Plus size={20} />}
                   >
-                    {editingId ? 'Zapisz Zmiany' : 'Opublikuj Wydarzenie'}
+                    {editingId && newEvent.isDraft ? 'Opublikuj' : editingId ? 'Zapisz Zmiany' : 'Opublikuj Wydarzenie'}
                   </Button>
                   
                   <Button

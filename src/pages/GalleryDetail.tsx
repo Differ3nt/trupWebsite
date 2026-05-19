@@ -146,7 +146,11 @@ function PhotoTile({ img, idx, albumTitle, onClick }: { img: any; idx: number; a
         className={`w-full h-full object-cover hover:scale-105 transition-all duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setLoaded(true)}
         loading="lazy"
+        draggable={false}
+        onContextMenu={e => e.preventDefault()}
       />
+      {/* transparent overlay blocks right-click on the image element */}
+      {loaded && <div className="absolute inset-0" onContextMenu={e => e.preventDefault()} />}
       {loaded && (
         <div className="absolute inset-0 bg-surface/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <Maximize2 className="text-white" size={32} />

@@ -211,14 +211,19 @@ router.post('/', authenticate, async (req: any, res) => {
   try {
     const { 
       title, description, transport, dateStart, dateEnd, location, mapLink, mapEmbed,
-      difficulty, spots, type, gearRequired, gearCritical, 
+      difficulty, spots, type, gearRequired, gearCritical,
       image, isExpedition, featured, highlighted, isDraft,
-      organizer, meetingPointName, meetingPointLink, meetingPointEmbed, weatherInfo
+      organizer, meetingPointName, meetingPointLink, meetingPointEmbed, weatherInfo,
+      imageFocalX, imageFocalY,
+      plannedDistance, plannedElevation, plannedDuration
     } = req.body;
 
     if (!isDraft && (!title || !dateStart || !type)) {
       return res.status(400).json({ error: 'Brak wymaganych pól (tytuł, data startu, typ)' });
     }
+
+    // plannedDuration comes in as hours from the frontend — convert to minutes
+    const plannedDurationMin = plannedDuration ? parseFloat(plannedDuration) * 60 : null;
 
     // Default values for drafts
     const finalTitle = title || `Szkic ${new Date().toLocaleDateString()}`;
@@ -246,15 +251,18 @@ router.post('/', authenticate, async (req: any, res) => {
     await prisma.$executeRaw`
       INSERT INTO "Event" (
         id, title, description, transport, "dateStart", "dateEnd", location, "mapLink", "mapEmbed",
-        difficulty, spots, type, "gearRequired", "gearCritical", image, "isExpedition", 
-        featured, highlighted, "isDraft", organizer, "meetingPointName", "meetingPointLink", "meetingPointEmbed", "weatherInfo", "createdAt", "updatedAt"
+        difficulty, spots, type, "gearRequired", "gearCritical", image, "isExpedition",
+        featured, highlighted, "isDraft", organizer, "meetingPointName", "meetingPointLink", "meetingPointEmbed", "weatherInfo",
+        "imageFocalX", "imageFocalY", "plannedDistance", "plannedElevation", "plannedDuration", "createdAt", "updatedAt"
       ) VALUES (
-        ${eventId}, ${finalTitle}, ${description}, ${transport}, ${finalDateStart}, 
+        ${eventId}, ${finalTitle}, ${description}, ${transport}, ${finalDateStart},
         ${dateEnd ? new Date(dateEnd) : null}, ${location}, ${mapLink}, ${mapEmbed},
-        ${difficulty ? Number(difficulty) : null}, ${spots ? Number(spots) : null}, 
-        ${finalType}, ${gearRequired || []}, ${gearCritical || []}, ${image}, 
-        ${isExpedition === true}, ${featured === true}, ${highlighted === true}, 
-        ${isDraft === true}, ${organizer || null}, ${meetingPointName || null}, ${meetingPointLink || null}, ${meetingPointEmbed || null}, ${weatherInfo || null}, NOW(), NOW()
+        ${difficulty ? Number(difficulty) : null}, ${spots ? Number(spots) : null},
+        ${finalType}, ${gearRequired || []}, ${gearCritical || []}, ${image},
+        ${isExpedition === true}, ${featured === true}, ${highlighted === true},
+        ${isDraft === true}, ${organizer || null}, ${meetingPointName || null}, ${meetingPointLink || null}, ${meetingPointEmbed || null}, ${weatherInfo || null},
+        ${imageFocalX != null ? Number(imageFocalX) : 50}, ${imageFocalY != null ? Number(imageFocalY) : 50},
+        ${plannedDistance ? Number(plannedDistance) : null}, ${plannedElevation ? Number(plannedElevation) : null}, ${plannedDurationMin}, NOW(), NOW()
       )
     `;
 
@@ -273,40 +281,49 @@ router.put('/:id', authenticate, async (req: any, res) => {
     const { id } = req.params;
     const { 
       title, description, transport, dateStart, dateEnd, location, mapLink, mapEmbed,
-      difficulty, spots, type, gearRequired, gearCritical, 
+      difficulty, spots, type, gearRequired, gearCritical,
       image, isExpedition, featured, highlighted, isDraft,
-      organizer, meetingPointName, meetingPointLink, meetingPointEmbed, weatherInfo
+      organizer, meetingPointName, meetingPointLink, meetingPointEmbed, weatherInfo,
+      imageFocalX, imageFocalY,
+      plannedDistance, plannedElevation, plannedDuration
     } = req.body;
 
     if (!isDraft && (!title || !dateStart || !type)) {
       return res.status(400).json({ error: 'Brak wymaganych pól (tytuł, data startu, typ)' });
     }
 
+    const plannedDurationMin = plannedDuration ? parseFloat(plannedDuration) * 60 : null;
+
     await prisma.$executeRaw`
-      UPDATE "Event" SET 
-        title = ${title || 'Szkic bez tytułu'}, 
-        description = ${description}, 
+      UPDATE "Event" SET
+        title = ${title || 'Szkic bez tytułu'},
+        description = ${description},
         transport = ${transport},
-        "dateStart" = ${dateStart ? new Date(dateStart) : new Date()}, 
-        "dateEnd" = ${dateEnd ? new Date(dateEnd) : null}, 
-        location = ${location}, 
-        "mapLink" = ${mapLink}, 
+        "dateStart" = ${dateStart ? new Date(dateStart) : new Date()},
+        "dateEnd" = ${dateEnd ? new Date(dateEnd) : null},
+        location = ${location},
+        "mapLink" = ${mapLink},
         "mapEmbed" = ${mapEmbed},
-        difficulty = ${difficulty ? Number(difficulty) : null}, 
-        spots = ${spots ? Number(spots) : null}, 
-        type = ${type || 'GÓRY'}, 
-        "gearRequired" = ${gearRequired || []}, 
+        difficulty = ${difficulty ? Number(difficulty) : null},
+        spots = ${spots ? Number(spots) : null},
+        type = ${type || 'GÓRY'},
+        "gearRequired" = ${gearRequired || []},
         "gearCritical" = ${gearCritical || []},
-        image = ${image}, 
-        "isExpedition" = ${isExpedition === true}, 
-        featured = ${featured === true}, 
-        highlighted = ${highlighted === true}, 
+        image = ${image},
+        "isExpedition" = ${isExpedition === true},
+        featured = ${featured === true},
+        highlighted = ${highlighted === true},
         "isDraft" = ${isDraft === true},
         organizer = ${organizer || null},
         "meetingPointName" = ${meetingPointName || null},
         "meetingPointLink" = ${meetingPointLink || null},
         "meetingPointEmbed" = ${meetingPointEmbed || null},
         "weatherInfo" = ${weatherInfo || null},
+        "imageFocalX" = ${imageFocalX != null ? Number(imageFocalX) : 50},
+        "imageFocalY" = ${imageFocalY != null ? Number(imageFocalY) : 50},
+        "plannedDistance" = ${plannedDistance ? Number(plannedDistance) : null},
+        "plannedElevation" = ${plannedElevation ? Number(plannedElevation) : null},
+        "plannedDuration" = ${plannedDurationMin},
         "updatedAt" = NOW()
       WHERE id = ${id}
     `;

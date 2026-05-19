@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Upload, Grid, Loader2, Check } from 'lucide-react';
-import ImageCropper from './ImageCropper';
 import { Button } from './ui/Button';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../contexts/AppContext';
@@ -48,45 +47,47 @@ export default function ImagePicker({ onSelect, onClose }: ImagePickerProps) {
     }
   };
 
-  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Sprawdzenie rozmiaru pliku (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Plik jest zbyt duży. Maksymalny rozmiar to 5MB.');
+    if (file.size > 20 * 1024 * 1024) {
+      alert('Plik jest zbyt duży. Maksymalny rozmiar to 20MB.');
       return;
     }
 
+    setOriginalFile(file);
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setCropSrc(event.target?.result as string);
-    };
+    reader.onload = (ev) => setPreviewSrc(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
-  const handleCropComplete = async (blob: Blob) => {
-    setCropSrc(null);
+  const handleConfirm = async () => {
+    if (!originalFile) return;
+    setPreviewSrc(null);
     setUploading(true);
     const formData = new FormData();
-    formData.append('image', blob, 'event-bg.jpg');
+    formData.append('image', originalFile, originalFile.name);
 
     try {
-      const res = await fetch('/api/images/upload-simple', {
+      const res = await fetch('/api/images/upload-asset', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
       const data = await res.json();
       if (data.success) {
-        onSelect(data.url);
+        onSelect(data.image.originalUrl);
         onClose();
       }
     } catch (err) {
       console.error(err);
     } finally {
       setUploading(false);
+      setOriginalFile(null);
     }
   };
 
@@ -196,13 +197,32 @@ export default function ImagePicker({ onSelect, onClose }: ImagePickerProps) {
         </div>
       </div>
 
-      {cropSrc && (
-        <ImageCropper 
-          image={cropSrc} 
-          aspect={16/9} 
-          onCropComplete={handleCropComplete} 
-          onCancel={() => setCropSrc(null)} 
-        />
+      {previewSrc && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-black border border-white/10 w-full max-w-lg flex flex-col gap-0 shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <span className="text-white font-black text-sm uppercase tracking-widest">Podgląd zdjęcia</span>
+              <button onClick={() => { setPreviewSrc(null); setOriginalFile(null); }} className="text-white/40 hover:text-white transition-colors p-1">
+                <X size={18} />
+              </button>
+            </div>
+            <img src={previewSrc} alt="podgląd" className="w-full aspect-video object-cover" />
+            <div className="flex">
+              <button
+                onClick={() => { setPreviewSrc(null); setOriginalFile(null); }}
+                className="flex-1 py-4 text-white/50 hover:text-white font-bold text-[10px] uppercase tracking-widest border-r border-white/10 transition-colors"
+              >
+                Wybierz inne
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="flex-1 py-4 bg-primary text-surface font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
+              >
+                Użyj tego zdjęcia
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>,
     document.body

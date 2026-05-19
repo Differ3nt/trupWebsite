@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
+import { invalidateWatermarkCache } from '../middleware/watermark';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -327,6 +328,9 @@ router.delete('/:id', async (req, res) => {
 
     if (fs.existsSync(fullOriginalPath)) fs.unlinkSync(fullOriginalPath);
     if (fullThumbPath && fs.existsSync(fullThumbPath)) fs.unlinkSync(fullThumbPath);
+
+    invalidateWatermarkCache(image.originalUrl);
+    if (image.thumbnailUrl) invalidateWatermarkCache(image.thumbnailUrl);
 
     await prisma.image.delete({ where: { id } });
 

@@ -423,10 +423,10 @@ export default function EventDetail() {
     };
 
     return (
-      <section className="mb-20 space-y-12">
-        <h2 className="font-display font-black text-4xl uppercase mb-10 flex items-center gap-4">
-          Lokalizacja i trasy
-        </h2>
+      <div className="mt-12 border-t border-outline-variant/20 pt-10 space-y-12">
+        <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-4">
+          Trasa
+        </h3>
         
         {/* Render Official GPX Tracks */}
         {officialGpx.length > 0 ? (
@@ -487,24 +487,41 @@ export default function EventDetail() {
         {(event.mapEmbed || event.mapLink) && officialGpx.length === 0 && (
           <div className="space-y-8">
             {event.mapEmbed ? (
-               <div key="embed" className="space-y-4">
-                 <div className="flex items-center gap-3">
-                   <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                   <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Mapa Główna</h4>
-                 </div>
-                 <div className="bg-[#121212] border-4 border-white/5 p-2 overflow-hidden shadow-xl relative group">
-                   <div 
-                     className="aspect-video w-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-0 grayscale-[20%] brightness-[0.85] hover:grayscale-0 transition-all duration-700"
-                     dangerouslySetInnerHTML={{ __html: event.mapEmbed }}
-                   />
-                 </div>
+               <div className="bg-[#121212] border-4 border-white/5 p-2 overflow-hidden shadow-xl relative group">
+                 <div
+                   className="aspect-video w-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-0 grayscale-[20%] brightness-[0.85] hover:grayscale-0 transition-all duration-700"
+                   dangerouslySetInnerHTML={{ __html: event.mapEmbed }}
+                 />
                </div>
-            ) : renderMap(event.mapLink, "Mapa Główna")}
+            ) : renderMap(event.mapLink)}
           </div>
         )}
-      </section>
+      </div>
     );
   }, [event?.mapLink, event?.mapEmbed, event?.location]);
+
+  const meetingPointSection = useMemo(() => {
+    if (!event?.meetingPointName) return null;
+    return (
+      <div className="mt-12 border-t border-outline-variant/20 pt-10">
+        <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-4">Miejsce Zbiórki</h3>
+        <p className="font-bold uppercase tracking-widest text-on-surface-variant text-sm mb-6">
+          {event.meetingPointName}
+        </p>
+        {event.meetingPointLink && (
+          <MapyLink url={event.meetingPointLink} className="mb-4" />
+        )}
+        {event.meetingPointEmbed && (
+          <div className="bg-[#121212] border-4 border-white/5 p-2 overflow-hidden shadow-xl">
+            <div
+              className="h-48 md:h-64 w-full relative [&>iframe]:absolute [&>iframe]:inset-0 [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-0 grayscale-[20%] brightness-[0.85] hover:grayscale-0 transition-all duration-700"
+              dangerouslySetInnerHTML={{ __html: event.meetingPointEmbed }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }, [event?.meetingPointName, event?.meetingPointLink, event?.meetingPointEmbed]);
 
   if (loading) return (
     <div className="min-h-screen bg-surface">
@@ -560,7 +577,7 @@ export default function EventDetail() {
       {/* Hero Header */}
       <div className="relative h-[70vh] min-h-[500px] flex items-end pb-16 overflow-hidden -mt-24 md:-mt-32">
         <div className="absolute inset-0 bg-[#121212]">
-          <img src={event.image || ''} alt="" className="w-full h-full object-cover opacity-80" />
+          <img src={event.image ? `${event.image}?raw=1` : ''} alt="" className="w-full h-full object-cover opacity-80" style={{ objectPosition: `${event.imageFocalX ?? 50}% ${event.imageFocalY ?? 50}%` }} draggable={false} onContextMenu={e => e.preventDefault()} />
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/20 to-transparent"></div>
         </div>
         <div className="container mx-auto px-6 md:px-8 relative z-10">
@@ -582,25 +599,21 @@ export default function EventDetail() {
                 ))}
               </div>
               
-              {event.isFinalized && (event.actualDistance || event.actualElevation) && (
-                <div className="flex gap-3 border-l border-white/10 pl-6">
-                  {event.actualDistance > 0 && (
-                    <Badge variant="primary" className="py-2 px-4 text-xs">
-                      {event.actualDistance} KM
-                    </Badge>
-                  )}
-                  {event.actualElevation > 0 && (
-                    <Badge variant="warning" className="py-2 px-4 text-xs">
-                      {event.actualElevation}M UP
-                    </Badge>
-                  )}
-                  {event.actualDuration > 0 && (
-                    <Badge variant="secondary" className="py-2 px-4 text-xs bg-white/10 text-white border-white/20">
-                      {formatDuration(event.actualDuration)}
-                    </Badge>
-                  )}
-                </div>
-              )}
+              {event.type === 'GÓRY' && (() => {
+                const showActual = event.isFinalized && (event.actualDistance || event.actualElevation);
+                const dist = showActual ? event.actualDistance : event.plannedDistance;
+                const elev = showActual ? event.actualElevation : event.plannedElevation;
+                const dur  = showActual ? event.actualDuration  : event.plannedDuration;
+                if (!dist && !elev && !dur) return null;
+                return (
+                  <div className="flex flex-wrap gap-3 border-l border-white/10 pl-6 items-center">
+                    {!showActual && <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">Plan:</span>}
+                    {dist > 0 && <Badge variant="primary" className="py-2 px-4 text-xs">{dist} KM</Badge>}
+                    {elev > 0 && <Badge variant="warning" className="py-2 px-4 text-xs">{elev}M UP</Badge>}
+                    {dur  > 0 && <Badge variant="secondary" className="py-2 px-4 text-xs bg-white/10 text-white border-white/20">{formatDuration(dur)}</Badge>}
+                  </div>
+                );
+              })()}
             </div>
           )}
           
@@ -616,7 +629,7 @@ export default function EventDetail() {
                   </div>
                   <div className="px-6 flex items-center">
                     <p className="text-[12px] font-black uppercase tracking-[0.2em] text-white">
-                      {goingList.length >= event.spots ? 'BRAK MIEJSC' : `${event.spots - goingList.length} WOLNYCH MIEJSC`}
+                      {goingList.length >= event.spots ? 'BRAK MIEJSC' : `WOLNE MIEJSCA: ${event.spots - goingList.length}`}
                     </p>
                   </div>
                 </div>
@@ -653,17 +666,33 @@ export default function EventDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-20">
           <div className="lg:col-span-2">
             <section className="mb-20">
-              <h2 className="font-display font-black text-4xl uppercase mb-10 flex items-center gap-4">O wydarzeniu</h2>
-              <div className="text-on-surface-variant text-xl leading-relaxed font-medium max-w-3xl markdown-content">
+              <h2 className="font-display font-black text-4xl uppercase mb-10 flex items-center gap-4">Opis</h2>
+              <div className="text-on-surface-variant text-base leading-relaxed font-medium max-w-3xl markdown-content">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {event.description || 'Brak opisu.'}
                 </ReactMarkdown>
               </div>
+              {event.weatherInfo && (
+                <div className="mt-12 border-t border-outline-variant/20 pt-10">
+                  <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-4">Pogoda</h3>
+                  <p className="text-on-surface-variant text-base leading-relaxed font-medium max-w-3xl whitespace-pre-line">
+                    {event.weatherInfo}
+                  </p>
+                </div>
+              )}
+              {event.transport && (
+                <div className="mt-12 border-t border-outline-variant/20 pt-10">
+                  <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-4">Dojazd</h3>
+                  <p className="text-on-surface-variant text-base leading-relaxed font-medium max-w-3xl whitespace-pre-line">
+                    {event.transport}
+                  </p>
+                </div>
+              )}
+              {meetingPointSection}
+              {mapSection}
             </section>
-            
-            {mapSection}
           </div>
-          
+
           {/* Panel Boczny - Logistyka */}
           <aside>
             <div ref={sidebarRef} style={stickyStyle} className="bg-surface-container-low border border-outline-variant/30 p-8 text-on-surface shadow-2xl">
@@ -787,17 +816,49 @@ export default function EventDetail() {
                       <p className="font-black uppercase text-[9px] tracking-widest text-on-surface-variant mb-0.5">Trudność</p>
                       <div className="flex gap-1.5">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star 
-                            key={i} 
-                            size={18} 
-                            className={i < event.difficulty ? 'text-primary' : 'text-on-surface-variant/20'} 
-                            fill={i < event.difficulty ? 'currentColor' : 'none'} 
+                          <Star
+                            key={i}
+                            size={18}
+                            className={i < event.difficulty ? 'text-primary' : 'text-on-surface-variant/20'}
+                            fill={i < event.difficulty ? 'currentColor' : 'none'}
                           />
                         ))}
                       </div>
                     </div>
                   </div>
                 )}
+
+                {/* Meeting Point Tile */}
+                {event.meetingPointName && (
+                  <a
+                    href={event.meetingPointLink || undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`group flex items-start gap-4 bg-surface p-4 border border-outline-variant/20 shadow-sm transition-all hover:border-primary ${!event.meetingPointLink ? 'pointer-events-none' : ''}`}
+                  >
+                    <div className="w-12 h-12 bg-primary/10 flex items-center justify-center shrink-0">
+                      <Users className="text-primary group-hover:scale-110 transition-transform" size={24} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black uppercase text-[9px] tracking-widest text-on-surface-variant mb-0.5">Miejsce Zbiórki</p>
+                      <p className="font-display font-black text-sm uppercase leading-tight">{event.meetingPointName}</p>
+                    </div>
+                  </a>
+                )}
+
+                {/* Organizer Tile */}
+                {event.organizer && (
+                  <div className="group flex items-center gap-4 bg-surface p-4 border border-outline-variant/20 shadow-sm">
+                    <div className="w-12 h-12 bg-primary/10 flex items-center justify-center shrink-0">
+                      <UserIcon className="text-primary" size={24} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black uppercase text-[9px] tracking-widest text-on-surface-variant mb-0.5">Organizator</p>
+                      <p className="font-display font-black text-sm uppercase truncate">{event.organizer}</p>
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* Wymagania Section */}

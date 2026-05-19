@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { Plus, Lock } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
 import PageHeader from '../components/PageHeader';
+import { ImageLoader } from '../components/ui/ImageLoader';
+import { Skeleton } from '../components/ui/Skeleton';
+import { cn } from '../lib/utils';
 
 export default function Gallery() {
   const { role } = useAppContext();
@@ -23,7 +26,29 @@ export default function Gallery() {
   // Bez zalogowania pokazujemy tylko pierwszy album
   const visibleAlbums = showLoginPrompt ? albums.slice(0, 1) : albums;
 
-  if (loading) return <div className="pt-32 text-center text-on-surface font-bold uppercase tracking-widest">Wczytywanie archiwum...</div>;
+  if (loading) return (
+    <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+      {/* Reuse existing PageHeader area */}
+      <div className="mb-20 h-24" /> {/* placeholder for header */}
+      <div className="flex flex-col gap-20">
+        {[0, 1].map(i => (
+          <div key={i}>
+            <div className="flex justify-between items-end mb-6 border-b border-outline-variant/30 pb-4">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-8 w-64" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {Array.from({ length: 8 }).map((_, j) => (
+                <Skeleton key={j} className="aspect-square rounded-none" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
@@ -64,14 +89,20 @@ export default function Gallery() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {(album.images || []).map((img: any, idx: number) => (
-                <div key={img.id} className="aspect-square overflow-hidden bg-surface-variant">
-                  <img 
-                    src={img.thumbnailUrl} 
-                    alt={`${album.title} - photo ${idx + 1}`} 
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
-                  />
-                </div>
+                <ImageLoader
+                  key={img.id}
+                  className="aspect-square overflow-hidden bg-surface-variant"
+                  src={img.thumbnailUrl}
+                >
+                  {({ src, onLoad, className: imgCls }) => (
+                    <img
+                      src={src}
+                      alt={`${album.title} - photo ${idx + 1}`}
+                      className={cn(imgCls, 'hover:scale-105 transition-transform duration-500')}
+                      onLoad={onLoad}
+                    />
+                  )}
+                </ImageLoader>
               ))}
               
               {!showLoginPrompt && (

@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Activity, Clock, Upload, Download, Maximize2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ArrowLeft, MapPin, Upload, Maximize2 } from 'lucide-react';
 import { useAppContext } from '../contexts/AppContext';
+import { Lightbox } from '../components/Lightbox';
 
 export default function GalleryDetail() {
   const { id } = useParams<{ id: string }>();
   const { role } = useAppContext();
-  
+
   const [album, setAlbum] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [showFullDesc, setShowFullDesc] = useState(false);
 
   React.useEffect(() => {
@@ -23,7 +23,23 @@ export default function GalleryDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="pt-40 text-center font-bold uppercase tracking-widest text-on-surface">Wczytywanie albumu...</div>;
+  if (loading) return (
+    <div className="pt-32 pb-24 bg-surface min-h-screen">
+      <div className="max-w-7xl mx-auto px-6 md:px-12">
+        <div className="h-8 w-24 animate-pulse bg-white/5 mb-12" />
+        <div className="border-l-4 border-primary pl-6 mb-12 space-y-4">
+          <div className="h-3 w-32 animate-pulse bg-white/5" />
+          <div className="h-14 w-2/3 animate-pulse bg-white/5" />
+          <div className="h-3 w-48 animate-pulse bg-white/5" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="aspect-square animate-pulse bg-white/5" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   if (!album) {
     return (
@@ -37,10 +53,6 @@ export default function GalleryDetail() {
   }
 
   const allImages = album.images || [];
-
-  const handleDownload = (imageId: string) => {
-    window.location.href = `/api/images/${imageId}/download`;
-  };
 
   return (
     <div className="pt-32 pb-24 bg-surface min-h-screen">
@@ -91,54 +103,54 @@ export default function GalleryDetail() {
         {/* Full Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {allImages.map((img: any, idx: number) => (
-            <div key={img.id} className="aspect-square overflow-hidden bg-surface-variant relative group cursor-pointer" onClick={() => { setCurrentImageIdx(idx); setLightboxOpen(true); }}>
-              <img 
-                src={img.thumbnailUrl} 
-                alt={`${album.title} - photo ${idx + 1}`} 
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-surface/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                 <Maximize2 className="text-white" size={32} />
-              </div>
-            </div>
+            <PhotoTile
+              key={img.id}
+              img={img}
+              idx={idx}
+              albumTitle={album.title}
+              onClick={() => setLightboxIdx(idx)}
+            />
           ))}
         </div>
       </div>
 
-      {/* Lightbox Modal */}
-      {lightboxOpen && (
-         <div className="fixed inset-0 z-[100] bg-surface flex flex-col">
-            <div className="flex justify-between items-center p-6 text-on-surface">
-               <div className="font-bold text-xs tracking-widest uppercase">{album.title} ({currentImageIdx + 1} / {allImages.length})</div>
-               <div className="flex items-center gap-6">
-                  <button 
-                    onClick={() => handleDownload(allImages[currentImageIdx].id)}
-                    className="hover:text-primary flex items-center gap-2 font-bold text-xs tracking-widest uppercase transition-colors"
-                  >
-                     <Download size={18} /> <span className="hidden sm:inline">Pobierz (ZnakTRUP)</span>
-                  </button>
-                  <button onClick={() => setLightboxOpen(false)} className="hover:text-primary transition-colors p-2"><X size={32} /></button>
-               </div>
-            </div>
-            <div className="flex-1 flex items-center justify-between px-2 md:px-8 pb-8">
-               <button 
-                  onClick={() => setCurrentImageIdx((prev) => prev > 0 ? prev - 1 : allImages.length - 1)}
-                  className="p-2 md:p-4 text-on-surface hover:text-primary transition-colors"
-               >
-                  <ChevronLeft size={48} strokeWidth={1} />
-               </button>
-               <div className="h-full flex-1 flex items-center justify-center p-4">
-                  <img src={allImages[currentImageIdx].thumbnailUrl} alt="Full view" className="max-h-full max-w-full object-contain drop-shadow-2xl" />
-               </div>
-               <button 
-                  onClick={() => setCurrentImageIdx((prev) => prev < allImages.length - 1 ? prev + 1 : 0)}
-                  className="p-2 md:p-4 text-on-surface hover:text-primary transition-colors"
-               >
-                  <ChevronRight size={48} strokeWidth={1} />
-               </button>
-            </div>
-         </div>
+      {lightboxIdx !== null && (
+        <Lightbox
+          images={allImages.map((img: any, i: number) => ({
+            id: img.id,
+            thumbnailUrl: img.thumbnailUrl,
+            originalUrl: img.originalUrl,
+            alt: `${album.title} - photo ${i + 1}`
+          }))}
+          initialIndex={lightboxIdx}
+          albumTitle={album.title}
+          onClose={() => setLightboxIdx(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function PhotoTile({ img, idx, albumTitle, onClick }: { img: any; idx: number; albumTitle: string; onClick: () => void }) {
+  const [loaded, setLoaded] = React.useState(false);
+
+  return (
+    <div
+      className="aspect-square overflow-hidden bg-surface-variant relative group cursor-pointer"
+      onClick={loaded ? onClick : undefined}
+    >
+      {!loaded && <div className="absolute inset-0 animate-pulse bg-white/5" />}
+      <img
+        src={img.thumbnailUrl}
+        alt={`${albumTitle} - photo ${idx + 1}`}
+        className={`w-full h-full object-cover hover:scale-105 transition-all duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={() => setLoaded(true)}
+        loading="lazy"
+      />
+      {loaded && (
+        <div className="absolute inset-0 bg-surface/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <Maximize2 className="text-white" size={32} />
+        </div>
       )}
     </div>
   );

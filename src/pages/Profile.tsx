@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { GpxUploadModal } from '../components/GpxUploadModal';
 import { Map as MapIcon, ArrowRight } from 'lucide-react';
+import { Skeleton } from '../components/ui/Skeleton';
 import { cn } from '../lib/utils';
 import ConfirmationModal from '../components/ConfirmationModal';
 
@@ -113,6 +114,27 @@ export default function Profile() {
           <button onClick={() => loginWithGoogle()} className="btn btn-primary px-8 py-4">
             ZALOGUJ SIĘ PRZEZ GOOGLE
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state when user data is being fetched
+  if (!user) {
+    return (
+      <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+          <div className="space-y-3 flex-1">
+            <Skeleton className="h-12 w-48" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+        </div>
+        <div className="relative flex flex-col md:flex-row items-center gap-8 mb-16 p-8 bg-surface-container-low border border-outline-variant/30">
+          <Skeleton className="w-32 h-32 md:w-40 md:h-40 rounded-sm shrink-0" />
+          <div className="flex-1 text-center md:text-left">
+            <Skeleton className="h-12 w-64 mb-3 mx-auto md:mx-0" />
+            <Skeleton className="h-4 w-48 mx-auto md:mx-0" />
+          </div>
         </div>
       </div>
     );

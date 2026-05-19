@@ -19,12 +19,12 @@ const ALL_TYPES = ['Wszystkie', 'GÓRY', 'INTEGRACJA', 'KULTURA'];
 function EventSkeleton() {
   return (
     <div className="bg-surface-container-low border border-outline-variant/30 overflow-hidden animate-pulse">
-      <div className="h-64 bg-surface-container-highest" />
+      <div className="h-64 bg-white/5" />
       <div className="p-6 space-y-3">
-        <div className="h-3 w-20 bg-surface-container-highest rounded" />
-        <div className="h-6 w-3/4 bg-surface-container-highest rounded" />
-        <div className="h-3 w-1/2 bg-surface-container-highest rounded" />
-        <div className="h-3 w-2/5 bg-surface-container-highest rounded" />
+        <div className="h-3 w-20 bg-white/5 rounded" />
+        <div className="h-6 w-3/4 bg-white/5 rounded" />
+        <div className="h-3 w-1/2 bg-white/5 rounded" />
+        <div className="h-3 w-2/5 bg-white/5 rounded" />
       </div>
     </div>
   );
@@ -199,8 +199,11 @@ export default function Events() {
       <AuthGate message="Zaloguj się, aby zobaczyć szczegóły wypraw, wolne miejsca i zapisać się na wyjazd.">
         <div className="space-y-24">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {Array.from({ length: 3 }).map((_, i) => <EventSkeleton key={i} />)}
+            <div className="max-w-7xl mx-auto">
+              <div className="h-24 mb-12" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {Array.from({ length: 6 }).map((_, i) => <EventSkeleton key={i} />)}
+              </div>
             </div>
           ) : sortedFiltered.length > 0 ? (
             <>

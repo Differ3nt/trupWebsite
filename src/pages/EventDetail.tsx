@@ -5,6 +5,7 @@ import { Calendar, MapPin, Users, ArrowLeft, CheckCircle2, AlertTriangle, Extern
 import { Tooltip } from '../components/ui/Tooltip';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { Skeleton } from '../components/ui/Skeleton';
 import { useAppContext } from '../contexts/AppContext';
 import { cn } from '../lib/utils';
 import MapyLink from '../components/MapyLink';
@@ -505,7 +506,34 @@ export default function EventDetail() {
     );
   }, [event?.mapLink, event?.mapEmbed, event?.location]);
 
-  if (loading) return <div className="pb-24 animate-pulse"><div className="h-[50vh] bg-surface-container-low" /></div>;
+  if (loading) return (
+    <div className="min-h-screen bg-surface">
+      <Skeleton className="w-full h-[50vh] rounded-none" />
+      <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12">
+          <div className="space-y-6">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-12 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+            <div className="flex gap-3 mt-4">
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+            <div className="space-y-2 mt-8">
+              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
   if (!event) return <div className="pt-40 text-center font-bold">Nie znaleziono wydarzenia.</div>;
 
 

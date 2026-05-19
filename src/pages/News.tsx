@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Component, ArrowRight } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
@@ -6,8 +6,41 @@ import { AuthGate } from '../components/ui/AuthGate';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 
 export default function News() {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading state for news (can be replaced with actual API call later)
+    const timer = setTimeout(() => setLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+        <div className="h-24 mb-12" />
+        <div className="space-y-12">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="flex gap-4 md:gap-8">
+              <div className="w-12 pt-1 flex flex-col items-center">
+                <Skeleton className="w-12 h-12 rounded-full mb-2" />
+                <div className="w-[1px] h-32 bg-outline-variant/30"></div>
+              </div>
+              <div className="flex-1 p-6 md:p-8 space-y-4 bg-surface-container-low border border-outline-variant/30">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-8 w-2/3" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/4" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
       <PageHeader 

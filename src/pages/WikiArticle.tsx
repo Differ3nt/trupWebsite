@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, User, Book, Loader2, Tag as TagIcon } from 'lucide
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import { Skeleton } from '../components/ui/Skeleton';
 
 export default function WikiArticle() {
   const { id } = useParams();
@@ -20,8 +21,20 @@ export default function WikiArticle() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface">
-        <Loader2 size={48} className="animate-spin text-primary" />
+      <div className="min-h-screen bg-surface pb-24">
+        <div className="max-w-4xl mx-auto px-6 md:px-12 pt-16">
+          <Skeleton className="h-6 w-24 mb-12" />
+          <div className="mb-12 border-b border-outline-variant/30 pb-12 space-y-4">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-14 w-3/4" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className={`h-3 ${i % 4 === 3 ? 'w-2/3' : 'w-full'}`} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

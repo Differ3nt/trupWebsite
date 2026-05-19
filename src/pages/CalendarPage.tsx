@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Users, MapPin, Star, Calendar } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
+import { Skeleton } from '../components/ui/Skeleton';
 import { cn } from '../lib/utils';
 
 export default function CalendarPage() {
@@ -131,10 +132,14 @@ export default function CalendarPage() {
           </div>
 
       {loading ? (
-        <div className="grid grid-cols-7 gap-px bg-outline-variant/20 border border-outline-variant/30 animate-pulse mt-8">
-          {Array.from({ length: 35 }).map((_, i) => (
-            <div key={i} className="aspect-square bg-surface-container-low"></div>
-          ))}
+        <div className="max-w-7xl mx-auto mt-8">
+          <Skeleton className="h-8 w-48 mb-8 mx-auto" />
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-6" />)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 35 }).map((_, i) => <Skeleton key={i} className="h-16 md:h-24" />)}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-7 gap-px bg-outline-variant/30 border border-outline-variant/30 shadow-2xl mt-8">

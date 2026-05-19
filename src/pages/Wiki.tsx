@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, BookOpen, Star, FileText, Loader2, Tag as TagIcon } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
+import { Skeleton } from '../components/ui/Skeleton';
 
 
 const CATEGORY_MAP: Record<string, { icon: React.ReactNode }> = {
@@ -60,8 +61,20 @@ export default function Wiki() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-24">
-            <Loader2 size={48} className="animate-spin text-primary" />
+          <div className="max-w-7xl mx-auto">
+            <Skeleton className="h-8 w-64 mb-4" />
+            <Skeleton className="h-4 w-96 mb-12" />
+            <div className="flex flex-col gap-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="border border-outline-variant/30 p-6 space-y-3">
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <>

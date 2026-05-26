@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
+import { invalidateStatsCache } from './stats';
 
 const router = Router();
 
@@ -143,6 +144,7 @@ router.patch('/:id/status', authenticate, async (req: any, res) => {
       data: { status }
     });
 
+    invalidateStatsCache();
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ error: 'Błąd aktualizacji statusu użytkownika' });

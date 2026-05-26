@@ -1,14 +1,13 @@
-import nodeFetch from 'isomorphic-fetch';
-(global as any).fetch = nodeFetch;
-(globalThis as any).fetch = nodeFetch;
 import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './lib/prisma';
 
 // Importy ruterów (obsługa poszczególnych modułów API)
 import authRouter from './routes/auth';
@@ -28,7 +27,6 @@ import { watermarkMiddleware } from './middleware/watermark';
 
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
 /**
@@ -39,14 +37,14 @@ const PORT = process.env.PORT || 3001;
 async function runMigrations() {
   try {
     // Sprawdzamy czy tabele używają wielkich czy małych liter (zależne od środowiska)
-    const tableCheck = await prisma.$queryRawUnsafe<any[]>(
+    const tableCheck = await prisma.$queryRawUnsafe(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('Event', 'event')`
-    );
+    ) as any[];
     const actualTableName = tableCheck.length > 0 ? tableCheck[0].table_name : 'Event';
 
-    const partCheck = await prisma.$queryRawUnsafe<any[]>(
+    const partCheck = await prisma.$queryRawUnsafe(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('EventParticipation', 'event_participation')`
-    );
+    ) as any[];
     const actualPartName = partCheck.length > 0 ? partCheck[0].table_name : 'EventParticipation';
 
     // Dodawanie nowych kolumn do tabeli Event (jeśli nie istnieją)
@@ -56,9 +54,9 @@ async function runMigrations() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualPartName}" ADD COLUMN IF NOT EXISTS "notifyDaysBefore" INTEGER`);
 
     // Zmiana typów danych dla trudności i miejsc na liczby (INTEGER)
-    const columnsCheck = await prisma.$queryRawUnsafe<any[]>(
+    const columnsCheck = await prisma.$queryRawUnsafe(
       `SELECT column_name, data_type FROM information_schema.columns WHERE table_name='${actualTableName}' AND column_name IN ('difficulty', 'spots')`
-    );
+    ) as any[];
     for (const col of columnsCheck) {
       if (col.data_type !== 'integer') {
         await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" DROP COLUMN "${col.column_name}"`);
@@ -157,9 +155,9 @@ async function runMigrations() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualTableName}" ADD COLUMN IF NOT EXISTS "plannedDuration" DOUBLE PRECISION`);
 
     // Sprawdzenie nazwy tabeli GpxSubmission
-    const gpxCheck = await prisma.$queryRawUnsafe<any[]>(
+    const gpxCheck = await prisma.$queryRawUnsafe(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('GpxSubmission', 'gpx_submission')`
-    );
+    ) as any[];
     const actualGpxName = gpxCheck.length > 0 ? gpxCheck[0].table_name : 'GpxSubmission';
 
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualGpxName}" ADD COLUMN IF NOT EXISTS "elevationGain" DOUBLE PRECISION`);
@@ -181,6 +179,21 @@ app.use(cors({
 }));
 app.use(express.json()); // Parsowanie body w formacie JSON
 app.use(cookieParser()); // Parsowanie ciasteczek
+app.use(helmet());
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Testowy punkt końcowy (Healthcheck)
 app.get('/api/health', (req, res) => {
@@ -192,9 +205,9 @@ app.get('/api/health', (req, res) => {
 app.use('/uploads', watermarkMiddleware, express.static(path.join(process.cwd(), 'uploads')));
 
 // Rejestracja rutów API
-app.use('/api/auth', authRouter);     // Autoryzacja i użytkownicy Google
+app.use('/api/auth', authLimiter, authRouter);     // Autoryzacja i użytkownicy Google
 app.use('/api/push', pushRouter);     // Powiadomienia Web Push
-app.use('/api/images', uploadRouter); // Wgrywanie i zarządzanie obrazami
+app.use('/api/images', uploadLimiter, uploadRouter); // Wgrywanie i zarządzanie obrazami
 app.use('/api/gpx', gpxRouter);       // Przesyłanie i analiza tras GPX
 app.use('/api/search', searchRouter); // Wyszukiwarka globalna
 app.use('/api/events', eventsRouter); // Wydarzenia i wyjazdy

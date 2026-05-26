@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import webpush from 'web-push';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Konfiguracja Web Push VAPID (identyfikacja serwera wysyłającego)
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {

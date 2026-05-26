@@ -22,20 +22,21 @@ import CalendarPage from './pages/CalendarPage';
  * Używa React Router do mapowania adresów URL na odpowiednie komponenty stron.
  */
 import { createBrowserRouter, RouterProvider, createRoutesFromElements } from 'react-router-dom';
+import ComingSoon from './components/ComingSoon';
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<Layout />}>
       <Route index element={<Home />} />
-      <Route path="aktualnosci" element={<News />} />
-      <Route path="o-nas" element={<About />} />
+      <Route path="aktualnosci" element={<ComingSoon title="Aktualności" />} />
+      <Route path="o-nas" element={<ComingSoon title="O nas" />} />
       <Route path="wydarzenia" element={<Events />} />
       <Route path="wydarzenia/:id" element={<EventDetail />} />
       <Route path="kalendarz" element={<CalendarPage />} />
-      <Route path="galeria" element={<Gallery />} />
-      <Route path="galeria/:id" element={<GalleryDetail />} />
-      <Route path="wiki" element={<Wiki />} />
-      <Route path="wiki/:id" element={<WikiArticle />} />
+      <Route path="galeria" element={<ComingSoon title="Galeria" />} />
+      <Route path="galeria/:id" element={<ComingSoon title="Galeria" />} />
+      <Route path="wiki" element={<ComingSoon title="Wiki" />} />
+      <Route path="wiki/:id" element={<ComingSoon title="Wiki" />} />
 
       {/* Chronione ścieżki - wymagają zalogowania */}
       <Route path="profil" element={<ProtectedRoute requiredRole="user"><Profile /></ProtectedRoute>} />

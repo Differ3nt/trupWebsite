@@ -1,14 +1,13 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { analyzeGpxFile } from '../lib/gpxUtils';
 import { invalidateStatsCache } from './stats';
 import fs from 'fs';
 import path from 'path';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Konfiguracja multer do zapisu plików GPX na dysku
 const storage = multer.diskStorage({

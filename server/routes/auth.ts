@@ -1,20 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
-import { PrismaClient, GpxStatus } from '@prisma/client';
-import fs from 'fs';
-import path from 'path';
+import { prisma } from '../lib/prisma';
 
-function logError(msg: string, err: any) {
-  const logPath = path.join(process.cwd(), 'server_errors.log');
-  const timestamp = new Date().toISOString();
-  const errorData = `[${timestamp}] ${msg}\n${err?.stack || err}\n${err?.response?.data ? JSON.stringify(err.response.data) : ''}\n\n`;
-  fs.appendFileSync(logPath, errorData);
-  console.error(msg, err);
-}
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Inicjalizacja klienta Google OAuth2
 const oAuth2Client = new OAuth2Client(
@@ -28,7 +20,7 @@ const oAuth2Client = new OAuth2Client(
  * Token wygasa po 7 dniach.
  */
 const generateToken = (userId: string, role: string) => {
-  return jwt.sign({ userId, role }, process.env.JWT_SECRET || 'secret', {
+  return jwt.sign({ userId, role }, JWT_SECRET, {
     expiresIn: '7d',
   });
 };
@@ -58,8 +50,6 @@ router.get('/google/callback', async (req, res) => {
     if (!code) throw new Error('Brak kodu autoryzacyjnego');
 
     // Wymiana kodu na tokeny Google - Ręczna implementacja z powodu błędów gaxios
-    logError(`DEBUG: Manual token exchange starting...`, null);
-    
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -74,7 +64,7 @@ router.get('/google/callback', async (req, res) => {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      logError('Manual Token Exchange Failed:', errorText);
+      console.error('Manual Token Exchange Failed:', errorText);
       throw new Error(`Google Token Exchange failed: ${errorText}`);
     }
 
@@ -88,7 +78,7 @@ router.get('/google/callback', async (req, res) => {
 
     if (!userRes.ok) {
       const errorText = await userRes.text();
-      logError('Manual User Info Fetch Failed:', errorText);
+      console.error('Manual User Info Fetch Failed:', errorText);
       throw new Error(`Google User Info fetch failed: ${errorText}`);
     }
 
@@ -118,7 +108,7 @@ router.get('/google/callback', async (req, res) => {
         }
       });
     } catch (dbError: any) {
-      logError('CRITICAL DATABASE ERROR DURING AUTH:', dbError);
+      console.error('CRITICAL DATABASE ERROR DURING AUTH:', dbError);
       throw dbError;
     }
 
@@ -127,7 +117,7 @@ router.get('/google/callback', async (req, res) => {
 
     res.cookie('token', token, {
       httpOnly: true, // Zabezpieczenie przed dostępem z JS (XSS)
-      secure: false,  // W środowisku produkcyjnym powinno być true (HTTPS)
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // Czas życia: 7 dni
     });
@@ -135,7 +125,7 @@ router.get('/google/callback', async (req, res) => {
     // Powrót do aplikacji frontendowej
     res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
   } catch (error: any) {
-    logError('Błąd autoryzacji Google [SERVER]:', error);
+    console.error('Błąd autoryzacji Google [SERVER]:', error);
     res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/?error=auth_failed`);
   }
 });
@@ -150,7 +140,7 @@ router.get('/me', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
 
     // Weryfikacja tokena JWT
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     
     // Pobranie danych użytkownika z bazy
     const user = await prisma.user.findUnique({
@@ -204,7 +194,7 @@ router.post('/make-admin', async (req, res) => {
     const token = req.cookies.token;
     if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
 
     // Pozwalamy na nadanie admina tylko jeśli w systemie nie ma jeszcze żadnego admina
     const existingAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
@@ -221,7 +211,7 @@ router.post('/make-admin', async (req, res) => {
     const newToken = generateToken(user.id, user.role);
     res.cookie('token', newToken, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });

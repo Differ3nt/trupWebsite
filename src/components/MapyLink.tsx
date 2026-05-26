@@ -4,9 +4,10 @@ import { MapPin, ExternalLink } from 'lucide-react';
 interface MapyLinkProps {
   url: string;
   locationName?: string;
+  className?: string;
 }
 
-export default function MapyLink({ url, locationName }: MapyLinkProps) {
+export default function MapyLink({ url, locationName, className }: MapyLinkProps) {
   if (!url) return null;
 
   const getPeakName = (mapUrl: string) => {
@@ -35,7 +36,7 @@ export default function MapyLink({ url, locationName }: MapyLinkProps) {
       href={url} 
       target="_blank" 
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 group bg-surface-container-highest border border-outline-variant/30 hover:border-primary px-4 py-2 transition-all"
+      className={`inline-flex items-center gap-2 group bg-surface-container-highest border border-outline-variant/30 hover:border-primary px-4 py-2 transition-all${className ? ` ${className}` : ''}`}
     >
       <div className="bg-primary/10 p-1.5 rounded-sm text-primary group-hover:bg-primary group-hover:text-surface transition-colors">
         <MapPin size={16} />

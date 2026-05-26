@@ -120,10 +120,10 @@ export default function Layout() {
   const navLinks = [
     { to: '/', label: 'Strona główna' },
     { to: '/wydarzenia', label: 'Wydarzenia' },
-    { to: '/aktualnosci', label: 'Aktualności' },
-    { to: '/wiki', label: 'Wiki' },
-    { to: '/galeria', label: 'Galeria' },
-    { to: '/o-nas', label: 'O nas' },
+    { to: '/aktualnosci', label: 'Aktualności', badge: 'soon' as const },
+    { to: '/wiki', label: 'Wiki', badge: 'soon' as const },
+    { to: '/galeria', label: 'Galeria', badge: 'soon' as const },
+    { to: '/o-nas', label: 'O nas', badge: 'soon' as const },
   ];
 
   return (
@@ -182,10 +182,11 @@ export default function Layout() {
           )}
         >
           {navLinks.map((link) => (
-            <NavItem 
-              key={link.to} 
-              to={link.to} 
+            <NavItem
+              key={link.to}
+              to={link.to}
               label={link.label}
+              badge={link.badge}
               active={location.pathname === link.to}
               onClick={() => handleLinkClick(link.to)}
             />
@@ -322,10 +323,15 @@ export default function Layout() {
                 <Link
                   key={link.to}
                   to={link.to}
-                  className="text-2xl font-display font-black uppercase text-on-surface hover:text-primary transition-colors"
+                  className="flex items-center gap-2 text-2xl font-display font-black uppercase text-on-surface hover:text-primary transition-colors"
                   onClick={() => handleLinkClick(link.to)}
                 >
                   {link.label}
+                  {link.badge && (
+                    <span className="text-[9px] font-sans font-black tracking-widest text-primary border border-primary/40 px-1.5 py-0.5 rounded">
+                      SOON
+                    </span>
+                  )}
                 </Link>
               ))}
               <div className="w-12 h-0.5 bg-outline-variant/30 my-4"></div>

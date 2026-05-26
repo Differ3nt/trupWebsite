@@ -1,11 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient, Prisma, GpxStatus } from '@prisma/client';
 import { authenticate, getUserIdFromCookie, getUserFromCookie } from '../middleware/auth';
 import { invalidateStatsCache } from './stats';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 /**
  * Pobiera listę wszystkich wydarzeń.
@@ -128,11 +127,12 @@ router.get('/:id', async (req: any, res) => {
     // Jeśli admin lub event nie jest sfinalizowany, pobieramy wszystkich uczestników
     // Jeśli sfinalizowany (dla gościa), pobieramy tylko tych, co byli (attended)
     const isAdminRequest = userSession?.role === 'ADMIN';
-    const participants: any = await prisma.$queryRaw`
-      SELECT p.*, (SELECT json_build_object('id', u.id, 'name', u.name, 'avatarUrl', u."avatarUrl") FROM "User" u WHERE u.id = p."userId") as user
-      FROM "EventParticipation" p WHERE p."eventId" = ${req.params.id}
-      ${(event.isFinalized && !isAdminRequest) ? Prisma.sql`AND p.attended = true` : Prisma.empty}
-    `;
+    const attendedFilter = (event.isFinalized && !isAdminRequest) ? 'AND p.attended = true' : '';
+    const participants: any = await prisma.$queryRawUnsafe(
+      `SELECT p.*, (SELECT json_build_object('id', u.id, 'name', u.name, 'avatarUrl', u."avatarUrl") FROM "User" u WHERE u.id = p."userId") as user
+      FROM "EventParticipation" p WHERE p."eventId" = $1 ${attendedFilter}`,
+      req.params.id
+    );
 
     // Pobranie wszystkich tras GPX dla wydarzenia (jeśli sfinalizowane lub admin)
     // Pobieramy trasy GPX przypisane do wydarzenia
@@ -141,7 +141,7 @@ router.get('/:id', async (req: any, res) => {
     const gpxRoutes = await prisma.gpxSubmission.findMany({
       where: { 
         eventId: req.params.id,
-        ...(event.isFinalized ? { status: GpxStatus.APPROVED } : {})
+        ...(event.isFinalized ? { status: 'APPROVED' } : {})
       },
       include: { user: { select: { id: true, name: true, avatarUrl: true } } },
       orderBy: { order: 'asc' }
@@ -566,7 +566,7 @@ router.post('/:id/finalize', authenticate, async (req: any, res) => {
             participantIds: route.participantIds,
             label: route.label,
             order: route.order || 0,
-            status: GpxStatus.APPROVED,
+            status: 'APPROVED',
             duration: route.duration || 0
           }
         });

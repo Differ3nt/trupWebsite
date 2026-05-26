@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma';
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 
 /**
  * Rozszerzony interfejs Request zawierający dane o zalogowanym użytkowniku.
@@ -21,7 +25,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     // Weryfikacja tokenu przy użyciu klucza JWT_SECRET
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role?: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role?: string };
     
     // Przypisanie danych do obiektu request
     req.userId = decoded.userId;
@@ -29,11 +33,8 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
     // Jeśli w tokenie brakuje roli (stary token), pobieramy ją z bazy
     if (!req.userRole) {
-      const { PrismaClient } = await import('@prisma/client');
-      const prisma = new PrismaClient();
       const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
       if (user) req.userRole = user.role;
-      await prisma.$disconnect();
     }
     
     next();
@@ -64,7 +65,7 @@ export function getUserFromCookie(req: any): { userId: string; role: string } | 
   try {
     const token = req.cookies?.token;
     if (!token) return null;
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const decoded: any = jwt.verify(token, JWT_SECRET);
     return { userId: decoded.userId, role: decoded.role };
   } catch {
     return null;

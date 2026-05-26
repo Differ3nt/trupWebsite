@@ -3,11 +3,11 @@ import multer from 'multer';
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
+import { authenticate, requireAdmin } from '../middleware/auth';
 import { invalidateWatermarkCache } from '../middleware/watermark';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Konfiguracja multer — zwiększony limit do 20MB dla obrazów wysokiej jakości
 const storage = multer.memoryStorage();
@@ -45,7 +45,7 @@ async function processTags(tagNames: string[] | string) {
 /**
  * 1. Upload zdjęcia do galerii (albumu).
  */
-router.post('/image', upload.single('image'), async (req: any, res) => {
+router.post('/image', authenticate, requireAdmin, upload.single('image'), async (req: any, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Brak pliku' });
 
@@ -147,7 +147,7 @@ router.get('/:id/download', async (req, res) => {
 /**
  * 3. Zaawansowany upload zdjęcia (jako asset strony).
  */
-router.post('/upload-asset', upload.single('image'), async (req: any, res) => {
+router.post('/upload-asset', authenticate, requireAdmin, upload.single('image'), async (req: any, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Brak pliku' });
 
@@ -316,7 +316,7 @@ router.put('/:id', async (req, res) => {
 /**
  * 7. Usuwanie zdjęcia.
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const image = await prisma.image.findUnique({ where: { id } });

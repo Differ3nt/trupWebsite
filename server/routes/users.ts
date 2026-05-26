@@ -134,7 +134,7 @@ router.patch('/:id/status', authenticate, async (req: any, res) => {
     if (admin?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
 
     const { status } = req.body;
-    if (!['ACTIVE', 'INACTIVE', 'FLAGGED'].includes(status)) {
+    if (!['ACTIVE', 'INACTIVE'].includes(status)) {
       return res.status(400).json({ error: 'Nieprawidłowy status' });
     }
 

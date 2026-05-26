@@ -151,4 +151,45 @@ router.patch('/:id/status', authenticate, async (req: any, res) => {
   }
 });
 
+/**
+ * Zmienia rolę użytkownika (Tylko Admin).
+ */
+router.patch('/:id/role', authenticate, async (req: any, res) => {
+  try {
+    const admin = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (admin?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
+    if (req.params.id === req.userId) return res.status(400).json({ error: 'Nie możesz zmienić własnej roli' });
+
+    const { role } = req.body;
+    if (!['ADMIN', 'USER'].includes(role)) return res.status(400).json({ error: 'Nieprawidłowa rola' });
+
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { role, status: role === 'ADMIN' ? 'ACTIVE' : undefined }
+    });
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd aktualizacji roli użytkownika' });
+  }
+});
+
+/**
+ * Usuwa użytkownika (Tylko Admin).
+ */
+router.delete('/:id', authenticate, async (req: any, res) => {
+  try {
+    const admin = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (admin?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
+    if (req.params.id === req.userId) return res.status(400).json({ error: 'Nie możesz usunąć własnego konta' });
+
+    await prisma.user.delete({ where: { id: req.params.id } });
+
+    invalidateStatsCache();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd usuwania użytkownika' });
+  }
+});
+
 export default router;

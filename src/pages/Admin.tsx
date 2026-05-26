@@ -225,7 +225,7 @@ export default function Admin() {
         body: JSON.stringify({ status })
       });
       if (res.ok) {
-        showToast(status === 'ACTIVE' ? 'Członek zatwierdzony' : 'Status zaktualizowany', 'success');
+        showToast(status === 'ACTIVE' ? 'Użytkownik aktywowany' : 'Użytkownik dezaktywowany', 'success');
         loadAllUsers();
       } else {
         showToast('Błąd aktualizacji statusu', 'error');
@@ -233,6 +233,47 @@ export default function Admin() {
     } catch {
       showToast('Błąd połączenia', 'error');
     }
+  };
+
+  const updateUserRole = async (userId: string, role: string) => {
+    try {
+      const res = await fetch(`/api/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role })
+      });
+      if (res.ok) {
+        showToast(role === 'ADMIN' ? 'Użytkownik został adminem' : 'Uprawnienia admina cofnięte', 'success');
+        loadAllUsers();
+      } else {
+        showToast('Błąd aktualizacji roli', 'error');
+      }
+    } catch {
+      showToast('Błąd połączenia', 'error');
+    }
+  };
+
+  const deleteUser = (userId: string, name: string) => {
+    confirmAction({
+      title: 'Usuń użytkownika',
+      message: `Czy na pewno chcesz trwale usunąć użytkownika "${name}"? Tej operacji nie można cofnąć.`,
+      variant: 'danger',
+      confirmText: 'USUŃ',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/users/${userId}`, { method: 'DELETE', credentials: 'include' });
+          if (res.ok) {
+            showToast('Użytkownik usunięty', 'success');
+            loadAllUsers();
+          } else {
+            showToast('Błąd usuwania użytkownika', 'error');
+          }
+        } catch {
+          showToast('Błąd połączenia', 'error');
+        }
+      }
+    });
   };
 
   useEffect(() => {
@@ -1381,9 +1422,10 @@ export default function Admin() {
                             <p className="font-bold text-sm text-on-surface truncate">{u.name || '—'}</p>
                             <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
                           </div>
-                          <Button size="sm" onClick={() => updateUserStatus(u.id, 'ACTIVE')} leftIcon={<CheckCircle size={14} />}>
-                            Aktywuj
-                          </Button>
+                          <div className="flex gap-2 shrink-0">
+                            <Button size="sm" onClick={() => updateUserStatus(u.id, 'ACTIVE')} leftIcon={<CheckCircle size={14} />}>Aktywuj</Button>
+                            <Button size="sm" variant="danger" onClick={() => deleteUser(u.id, u.name || u.email)}><Trash2 size={14} /></Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1407,14 +1449,19 @@ export default function Admin() {
                           </p>
                           <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           {u.role === 'ADMIN' ? (
-                            <Badge variant="primary" className="text-[9px]">ADMIN</Badge>
+                            <>
+                              <Badge variant="primary" className="text-[9px]">ADMIN</Badge>
+                              <Button size="sm" variant="secondary" onClick={() => updateUserRole(u.id, 'USER')}>Cofnij admina</Button>
+                            </>
                           ) : (
-                            <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'INACTIVE')} leftIcon={<Trash2 size={14} />}>
-                              Dezaktywuj
-                            </Button>
+                            <>
+                              <Button size="sm" variant="secondary" onClick={() => updateUserRole(u.id, 'ADMIN')}>Zrób adminem</Button>
+                              <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'INACTIVE')} leftIcon={<Trash2 size={14} />}>Dezaktywuj</Button>
+                            </>
                           )}
+                          <Button size="sm" variant="danger" onClick={() => deleteUser(u.id, u.name || u.email)}><Trash2 size={14} /></Button>
                         </div>
                       </div>
                     ))}

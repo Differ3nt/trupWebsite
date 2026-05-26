@@ -39,8 +39,8 @@ const router = createBrowserRouter(
 
       {/* Chronione ścieżki - wymagają zalogowania */}
       <Route path="profil" element={<ProtectedRoute requiredRole="user"><Profile /></ProtectedRoute>} />
-      <Route path="admin" element={<ProtectedRoute requiredRole="user"><Admin /></ProtectedRoute>} />
-      <Route path="admin/galeria" element={<ProtectedRoute requiredRole="user"><AdminGallery /></ProtectedRoute>} />
+      <Route path="admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
+      <Route path="admin/galeria" element={<ProtectedRoute requiredRole="admin"><AdminGallery /></ProtectedRoute>} />
     </Route>
   )
 );

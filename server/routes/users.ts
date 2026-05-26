@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
+import { invalidateStatsCache } from './stats';
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.get('/me', authenticate, async (req: any, res) => {
       where: { id: req.userId },
       include: {
         participations: {
-          include: { 
+          include: {
             event: {
               include: {
                 participants: {
@@ -43,9 +44,9 @@ router.get('/me', authenticate, async (req: any, res) => {
         gpxSubmissions: true
       }
     });
-    
+
     if (!user) return res.status(404).json({ error: 'Użytkownik nie został znaleziony w bazie' });
-    
+
     // Obliczanie statystyk osobistych (trasy zatwierdzone, gdzie użytkownik był uczestnikiem)
     const personalStats = await prisma.gpxSubmission.aggregate({
       where: {
@@ -60,8 +61,8 @@ router.get('/me', authenticate, async (req: any, res) => {
 
     // Zapewnienie, że pole hardware zawsze jest tablicą (nawet jeśli w bazie jest null)
     const hardware = Array.isArray(user.hardware) ? user.hardware : [];
-    
-    res.json({ 
+
+    res.json({
       user: { ...user, hardware },
       stats: {
         distance: parseFloat((personalStats._sum.distance || 0).toFixed(1)),
@@ -80,7 +81,7 @@ router.get('/me', authenticate, async (req: any, res) => {
 router.patch('/me', authenticate, async (req: any, res) => {
   try {
     const { name, nickname, hardware, avatarUrl, phoneNumber } = req.body;
-    
+
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: {
@@ -91,7 +92,7 @@ router.patch('/me', authenticate, async (req: any, res) => {
         phoneNumber
       }
     });
-    
+
     res.json({ success: true, user });
   } catch (error: any) {
     console.error('Błąd aktualizacji profilu [SERVER]:', error);
@@ -100,9 +101,9 @@ router.patch('/me', authenticate, async (req: any, res) => {
       console.error('Prisma Error Code:', error.code);
       console.error('Prisma Error Meta:', error.meta);
     }
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Nie udało się zapisać zmian w profilu',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -119,7 +120,8 @@ router.get('/', authenticate, async (req: any, res) => {
       select: { id: true, name: true, nickname: true, email: true, avatarUrl: true, status: true, role: true, createdAt: true },
       orderBy: [{ status: 'asc' }, { name: 'asc' }]
     });
-    res.json(users);
+    const ownerEmail = process.env.OWNER_EMAIL;
+    res.json(users.map(u => ({ ...u, isOwner: ownerEmail ? u.email === ownerEmail : false })));
   } catch (error) {
     res.status(500).json({ error: 'Błąd pobierania użytkowników' });
   }
@@ -143,9 +145,61 @@ router.patch('/:id/status', authenticate, async (req: any, res) => {
       data: { status }
     });
 
+    invalidateStatsCache();
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ error: 'Błąd aktualizacji statusu użytkownika' });
+  }
+});
+
+/**
+ * Zmienia rolę użytkownika (Tylko Admin).
+ */
+router.patch('/:id/role', authenticate, async (req: any, res) => {
+  try {
+    const admin = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (admin?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
+    if (req.params.id === req.userId) return res.status(400).json({ error: 'Nie możesz zmienić własnej roli' });
+
+    const { role } = req.body;
+    if (!['ADMIN', 'USER'].includes(role)) return res.status(400).json({ error: 'Nieprawidłowa rola' });
+
+    const target = await prisma.user.findUnique({ where: { id: req.params.id }, select: { email: true } });
+    if (process.env.OWNER_EMAIL && target?.email === process.env.OWNER_EMAIL) {
+      return res.status(403).json({ error: 'Nie można zmienić roli właściciela' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { role, status: role === 'ADMIN' ? 'ACTIVE' : undefined }
+    });
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd aktualizacji roli użytkownika' });
+  }
+});
+
+/**
+ * Usuwa użytkownika (Tylko Admin).
+ */
+router.delete('/:id', authenticate, async (req: any, res) => {
+  try {
+    const admin = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (admin?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
+    if (req.params.id === req.userId) return res.status(400).json({ error: 'Nie możesz usunąć własnego konta' });
+
+    const targetDel = await prisma.user.findUnique({ where: { id: req.params.id }, select: { email: true } });
+    if (process.env.OWNER_EMAIL && targetDel?.email === process.env.OWNER_EMAIL) {
+      return res.status(403).json({ error: 'Nie można usunąć właściciela' });
+    }
+
+    await prisma.user.delete({ where: { id: req.params.id } });
+
+    invalidateStatsCache();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd usuwania użytkownika' });
   }
 });
 

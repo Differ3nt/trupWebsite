@@ -45,7 +45,7 @@ const EMPTY_EVENT = {
 // Removed local InputField
 
 export default function Admin() {
-  const { role, logout, showToast, confirmAction } = useAppContext();
+  const { role, logout, showToast, confirmAction, user } = useAppContext();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('create');
   const [gpxQueue, setGpxQueue] = useState<any[]>([]);
@@ -1409,11 +1409,20 @@ export default function Admin() {
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           {u.role === 'ADMIN' ? (
-                            <Badge variant="primary" className="text-[9px]">ADMIN</Badge>
+                            <>
+                              <Badge variant="primary" className="text-[9px]">{u.isOwner ? 'WŁAŚCICIEL' : 'ADMIN'}</Badge>
+                              {!u.isOwner && u.id !== user?.id && (
+                                <Button size="sm" variant="secondary" onClick={() => updateUserRole(u.id, 'USER')}>Cofnij admina</Button>
+                              )}
+                            </>
                           ) : (
-                            <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'INACTIVE')} leftIcon={<Trash2 size={14} />}>
-                              Dezaktywuj
-                            </Button>
+                            <>
+                              <Button size="sm" variant="secondary" onClick={() => updateUserRole(u.id, 'ADMIN')}>Zrób adminem</Button>
+                              <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'INACTIVE')} leftIcon={<Trash2 size={14} />}>Dezaktywuj</Button>
+                            </>
+                          )}
+                          {!u.isOwner && u.id !== user?.id && (
+                            <Button size="sm" variant="danger" onClick={() => deleteUser(u.id, u.name || u.email)}><Trash2 size={14} /></Button>
                           )}
                         </div>
                       </div>

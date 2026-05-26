@@ -28,9 +28,11 @@ export default function ProtectedRoute({ children, requiredRole = 'user' }: Prot
     return <Navigate to="/" replace />;
   }
 
-  // Logged in but not yet approved by admin — send to pending screen
-  if (role !== 'guest' && role !== 'admin' && user?.status !== 'ACTIVE') {
-    return <Navigate to="/pending" replace />;
+  if (role !== 'guest' && role !== 'admin') {
+    // Pending (never approved) → show pending screen
+    if (user?.status === 'INACTIVE') return <Navigate to="/pending" replace />;
+    // Revoked → back to public home, browse as guest
+    if (user?.status === 'FLAGGED') return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

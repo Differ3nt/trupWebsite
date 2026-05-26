@@ -1363,11 +1363,13 @@ export default function Admin() {
             {/* === CZŁONKOWIE === */}
             {activeTab === 'members' && (
               <div className="space-y-8">
-                {/* Pending */}
+
+                {/* Pending approval */}
                 {allUsers.filter((u: any) => u.status === 'INACTIVE').length > 0 && (
                   <div className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8">
                     <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4 text-on-surface flex items-center gap-3">
-                      Oczekują na zatwierdzenie <span className="bg-primary text-surface text-xs font-black px-2 py-0.5">{allUsers.filter((u: any) => u.status === 'INACTIVE').length}</span>
+                      Oczekują na zatwierdzenie
+                      <span className="bg-primary text-surface text-xs font-black px-2 py-0.5">{allUsers.filter((u: any) => u.status === 'INACTIVE').length}</span>
                     </h2>
                     <div className="space-y-3">
                       {allUsers.filter((u: any) => u.status === 'INACTIVE').map((u: any) => (
@@ -1379,51 +1381,69 @@ export default function Admin() {
                             <p className="font-bold text-sm text-on-surface truncate">{u.name || '—'}</p>
                             <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
                           </div>
-                          <div className="flex gap-2 shrink-0">
-                            <Button size="sm" onClick={() => updateUserStatus(u.id, 'ACTIVE')} leftIcon={<CheckCircle size={14} />}>
-                              Zatwierdź
-                            </Button>
-                            <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'FLAGGED')} leftIcon={<Trash2 size={14} />}>
-                              Odrzuć
-                            </Button>
-                          </div>
+                          <Button size="sm" onClick={() => updateUserStatus(u.id, 'ACTIVE')} leftIcon={<CheckCircle size={14} />}>
+                            Zatwierdź
+                          </Button>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* All members */}
-                <div className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8">
-                  <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4 text-on-surface">
-                    Wszyscy użytkownicy ({allUsers.length})
-                  </h2>
-                  <div className="space-y-2">
-                    {allUsers.map((u: any) => {
-                      const statusColor = u.status === 'ACTIVE' ? 'text-green-500' : u.status === 'FLAGGED' ? 'text-red-500' : 'text-yellow-500';
-                      const statusLabel = u.status === 'ACTIVE' ? 'Aktywny' : u.status === 'FLAGGED' ? 'Zablokowany' : 'Oczekujący';
-                      return (
-                        <div key={u.id} className="flex items-center gap-4 p-3 bg-surface-container border border-outline-variant/20">
-                          <div className="w-8 h-8 bg-surface-container-highest overflow-hidden shrink-0">
-                            {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <User size={16} className="m-auto mt-1 text-on-surface-variant" />}
+                {/* Suspended */}
+                {allUsers.filter((u: any) => u.status === 'FLAGGED').length > 0 && (
+                  <div className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8">
+                    <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4 text-on-surface flex items-center gap-3">
+                      Zawieszeni
+                      <span className="bg-red-500/20 text-red-500 text-xs font-black px-2 py-0.5">{allUsers.filter((u: any) => u.status === 'FLAGGED').length}</span>
+                    </h2>
+                    <div className="space-y-3">
+                      {allUsers.filter((u: any) => u.status === 'FLAGGED').map((u: any) => (
+                        <div key={u.id} className="flex items-center gap-4 p-4 bg-surface-container border border-red-500/20">
+                          <div className="w-10 h-10 bg-surface-container-highest overflow-hidden shrink-0">
+                            {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover opacity-50" /> : <User size={20} className="m-auto mt-2.5 text-on-surface-variant/40" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-bold text-sm text-on-surface truncate">{u.name || '—'} {u.nickname && <span className="text-primary">"{u.nickname}"</span>}</p>
-                            <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
+                            <p className="font-bold text-sm text-on-surface/60 truncate">{u.name || '—'}</p>
+                            <p className="text-xs text-on-surface-variant/60 truncate">{u.email}</p>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            {u.role === 'ADMIN' && <Badge variant="primary" className="text-[9px]">ADMIN</Badge>}
-                            <span className={cn("text-[10px] font-black uppercase tracking-widest", statusColor)}>{statusLabel}</span>
-                            {u.status !== 'ACTIVE' && u.role !== 'ADMIN' && (
-                              <Button size="sm" variant="secondary" onClick={() => updateUserStatus(u.id, 'ACTIVE')}>Zatwierdź</Button>
-                            )}
-                            {u.status === 'ACTIVE' && u.role !== 'ADMIN' && (
-                              <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'INACTIVE')}>Dezaktywuj</Button>
-                            )}
-                          </div>
+                          <Button size="sm" variant="secondary" onClick={() => updateUserStatus(u.id, 'ACTIVE')} leftIcon={<CheckCircle size={14} />}>
+                            Przywróć dostęp
+                          </Button>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Active members */}
+                <div className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8">
+                  <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4 text-on-surface">
+                    Aktywni członkowie ({allUsers.filter((u: any) => u.status === 'ACTIVE').length})
+                  </h2>
+                  <div className="space-y-2">
+                    {allUsers.filter((u: any) => u.status === 'ACTIVE').map((u: any) => (
+                      <div key={u.id} className="flex items-center gap-4 p-3 bg-surface-container border border-outline-variant/20">
+                        <div className="w-8 h-8 bg-surface-container-highest overflow-hidden shrink-0">
+                          {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <User size={16} className="m-auto mt-1 text-on-surface-variant" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-on-surface truncate">
+                            {u.name || '—'}{u.nickname && <span className="text-primary ml-2">"{u.nickname}"</span>}
+                          </p>
+                          <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {u.role === 'ADMIN' ? (
+                            <Badge variant="primary" className="text-[9px]">ADMIN</Badge>
+                          ) : (
+                            <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'FLAGGED')} leftIcon={<Trash2 size={14} />}>
+                              Zawieś
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

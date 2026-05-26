@@ -19,8 +19,8 @@ const oAuth2Client = new OAuth2Client(
  * Generuje token JWT dla danego użytkownika.
  * Token wygasa po 7 dniach.
  */
-const generateToken = (userId: string, role: string) => {
-  return jwt.sign({ userId, role }, JWT_SECRET, {
+const generateToken = (userId: string, role: string, status: string) => {
+  return jwt.sign({ userId, role, status }, JWT_SECRET, {
     expiresIn: '7d',
   });
 };
@@ -104,7 +104,7 @@ router.get('/google/callback', async (req, res) => {
           name: data.name,
           avatarUrl: data.picture,
           role: 'USER',
-          status: 'ACTIVE'
+          status: 'INACTIVE'
         }
       });
     } catch (dbError: any) {
@@ -113,7 +113,7 @@ router.get('/google/callback', async (req, res) => {
     }
 
     // Generowanie naszego tokena sesji i zapisanie go w ciasteczku
-    const token = generateToken(user.id, user.role);
+    const token = generateToken(user.id, user.role, user.status);
 
     res.cookie('token', token, {
       httpOnly: true, // Zabezpieczenie przed dostępem z JS (XSS)
@@ -164,6 +164,18 @@ router.get('/me', async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
 
+    // Re-issue token if role or status changed since last login
+    const decoded = jwt.decode(token) as any;
+    if (decoded?.status !== user.status || decoded?.role !== user.role) {
+      const newToken = generateToken(user.id, user.role, user.status);
+      res.cookie('token', newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      });
+    }
+
     // Fetch GPX submissions where user is in participantIds array (PostgreSQL specific query)
     const participatedTracks = await prisma.gpxSubmission.findMany({
       where: {
@@ -204,11 +216,11 @@ router.post('/make-admin', async (req, res) => {
 
     const user = await prisma.user.update({
       where: { id: decoded.userId },
-      data: { role: 'ADMIN' }
+      data: { role: 'ADMIN', status: 'ACTIVE' }
     });
 
     // Odświeżamy token, aby zawierał nową rolę
-    const newToken = generateToken(user.id, user.role);
+    const newToken = generateToken(user.id, user.role, user.status);
     res.cookie('token', newToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

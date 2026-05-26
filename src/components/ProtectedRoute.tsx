@@ -8,9 +8,8 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requiredRole = 'user' }: ProtectedRouteProps) {
-  const { role, loading } = useAppContext();
+  const { role, user, loading } = useAppContext();
 
-  // Czekamy na weryfikację sesji przed decyzją o przekierowaniu
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -27,6 +26,11 @@ export default function ProtectedRoute({ children, requiredRole = 'user' }: Prot
 
   if (!hasAccess) {
     return <Navigate to="/" replace />;
+  }
+
+  // Logged in but not yet approved by admin — send to pending screen
+  if (role !== 'guest' && role !== 'admin' && user?.status !== 'ACTIVE') {
+    return <Navigate to="/pending" replace />;
   }
 
   return <>{children}</>;

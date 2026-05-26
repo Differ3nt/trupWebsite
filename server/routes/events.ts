@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticate, getUserIdFromCookie, getUserFromCookie } from '../middleware/auth';
+import { authenticate, requireMember, getUserIdFromCookie, getUserFromCookie } from '../middleware/auth';
 import { invalidateStatsCache } from './stats';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
@@ -14,15 +14,12 @@ const router = Router();
 router.get('/', async (req: any, res) => {
   try {
     const { upcoming } = req.query;
-    const userId = getUserIdFromCookie(req);
-    const uid = userId || null;
-    
+    const userSession = getUserFromCookie(req);
+    const uid = userSession?.userId || null;
+    const isMember = !!(uid && (userSession?.role === 'ADMIN' || userSession?.status === 'ACTIVE'));
+
     // Determine if requester is Admin to show drafts
-    let isAdmin = false;
-    if (uid) {
-      const user = await prisma.user.findUnique({ where: { id: uid }, select: { role: true } });
-      isAdmin = user?.role === 'ADMIN';
-    }
+    let isAdmin = userSession?.role === 'ADMIN';
 
     const draftFilter = isAdmin ? '' : 'AND e."isDraft" = false';
     
@@ -44,9 +41,8 @@ router.get('/', async (req: any, res) => {
     
     const events = (await prisma.$queryRawUnsafe(query, uid, startOfToday)) as any[];
     
-    // Data Masking for public access
     const maskedEvents = events.map((event: any) => {
-      if (!uid) {
+      if (!isMember) {
         const { mapLink, mapEmbed, gearRequired, gearCritical, transport, ...publicData } = event;
         return { ...publicData, isMasked: true };
       }
@@ -107,8 +103,9 @@ router.get('/highlighted', async (req, res) => {
  */
 router.get('/:id', async (req: any, res) => {
   try {
-    let userSession = getUserFromCookie(req);
-    let userId = userSession?.userId ?? null;
+    const userSession = getUserFromCookie(req);
+    const userId = userSession?.userId ?? null;
+    const isMember = !!(userId && (userSession?.role === 'ADMIN' || userSession?.status === 'ACTIVE'));
 
     const events: any = await prisma.$queryRaw`SELECT * FROM "Event" WHERE id = ${req.params.id}`;
 
@@ -158,16 +155,15 @@ router.get('/:id', async (req: any, res) => {
       myNotifyDays = participations[0]?.notifyDaysBefore ?? null;
     }
 
-    if (!userId) {
-      // Return masked event details for guests
+    if (!isMember) {
       const { mapLink, mapEmbed, gearRequired, gearCritical, transport, ...publicEvent } = event;
-      return res.json({ 
-        ...publicEvent, 
-        participants: [], 
+      return res.json({
+        ...publicEvent,
+        participants: [],
         gpxSubmissions: gpxRoutes || [],
-        myRsvp: null, 
+        myRsvp: null,
         myNotifyDays: null,
-        isMasked: true 
+        isMasked: true
       });
     }
 
@@ -339,7 +335,7 @@ router.put('/:id', authenticate, async (req: any, res) => {
  * Obsługuje deklarację udziału (RSVP) przez użytkownika.
  * status: 'GOING' (jadę), 'INTERESTED' (zainteresowany) lub null (usuń rsvp).
  */
-router.post('/:id/rsvp', authenticate, async (req: any, res) => {
+router.post('/:id/rsvp', authenticate, requireMember, async (req: any, res) => {
   try {
     const { status, notifyDaysBefore } = req.body;
     const eventId = req.params.id;

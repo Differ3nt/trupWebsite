@@ -145,6 +145,29 @@ router.get('/:id/download', async (req, res) => {
 });
 
 /**
+ * 2b. Upload avatara użytkownika (bez uprawnień admina).
+ */
+router.post('/upload-simple', authenticate, upload.single('image'), async (req: any, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Brak pliku' });
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const filename = `avatar-${uniqueSuffix}.jpg`;
+    const filepath = path.join(UPLOADS_DIR, filename);
+
+    await sharp(req.file.buffer)
+      .resize({ width: 400, height: 400, fit: 'cover' })
+      .jpeg({ quality: 85 })
+      .toFile(filepath);
+
+    res.json({ success: true, url: `/uploads/${filename}` });
+  } catch (err) {
+    console.error('[UPLOAD] Błąd uploadu avatara:', err);
+    res.status(500).json({ error: 'Błąd przesyłania avatara' });
+  }
+});
+
+/**
  * 3. Zaawansowany upload zdjęcia (jako asset strony).
  */
 router.post('/upload-asset', authenticate, requireAdmin, upload.single('image'), async (req: any, res) => {

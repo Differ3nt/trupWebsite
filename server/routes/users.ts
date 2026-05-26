@@ -116,12 +116,36 @@ router.get('/', authenticate, async (req: any, res) => {
     if (admin?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
 
     const users = await prisma.user.findMany({
-      select: { id: true, name: true, nickname: true, status: true },
-      orderBy: { name: 'asc' }
+      select: { id: true, name: true, nickname: true, email: true, avatarUrl: true, status: true, role: true, createdAt: true },
+      orderBy: [{ status: 'asc' }, { name: 'asc' }]
     });
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: 'Błąd pobierania użytkowników' });
+  }
+});
+
+/**
+ * Zmienia status użytkownika (Tylko Admin).
+ */
+router.patch('/:id/status', authenticate, async (req: any, res) => {
+  try {
+    const admin = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (admin?.role !== 'ADMIN') return res.status(403).json({ error: 'Brak uprawnień' });
+
+    const { status } = req.body;
+    if (!['ACTIVE', 'INACTIVE', 'FLAGGED'].includes(status)) {
+      return res.status(400).json({ error: 'Nieprawidłowy status' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { status }
+    });
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd aktualizacji statusu użytkownika' });
   }
 });
 

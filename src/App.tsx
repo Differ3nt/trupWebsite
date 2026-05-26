@@ -15,6 +15,7 @@ import Admin from './pages/Admin';
 import AdminGallery from './pages/AdminGallery';
 import News from './pages/News';
 import CalendarPage from './pages/CalendarPage';
+import PendingApproval from './pages/PendingApproval';
 
 /**
  * Główny komponent aplikacji definiujący strukturę nawigacji (Routing).
@@ -36,6 +37,8 @@ const router = createBrowserRouter(
       <Route path="galeria/:id" element={<ComingSoon title="Galeria" />} />
       <Route path="wiki" element={<ComingSoon title="Wiki" />} />
       <Route path="wiki/:id" element={<ComingSoon title="Wiki" />} />
+
+      <Route path="pending" element={<PendingApproval />} />
 
       {/* Chronione ścieżki - wymagają zalogowania */}
       <Route path="profil" element={<ProtectedRoute requiredRole="user"><Profile /></ProtectedRoute>} />

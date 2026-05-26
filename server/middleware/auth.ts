@@ -9,8 +9,9 @@ if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
  * Rozszerzony interfejs Request zawierający dane o zalogowanym użytkowniku.
  */
 export interface AuthRequest extends Request {
-  userId?: string;   // ID użytkownika z bazy danych
-  userRole?: string; // Rola użytkownika (np. USER, ADMIN)
+  userId?: string;
+  userRole?: string;
+  userStatus?: string;
 }
 
 /**
@@ -25,16 +26,19 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     // Weryfikacja tokenu przy użyciu klucza JWT_SECRET
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role?: string };
-    
-    // Przypisanie danych do obiektu request
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role?: string; status?: string };
+
     req.userId = decoded.userId;
     req.userRole = decoded.role;
+    req.userStatus = decoded.status;
 
-    // Jeśli w tokenie brakuje roli (stary token), pobieramy ją z bazy
-    if (!req.userRole) {
-      const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
-      if (user) req.userRole = user.role;
+    // Fetch from DB if token is missing role or status (old tokens)
+    if (!req.userRole || req.userStatus === undefined) {
+      const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true, status: true } });
+      if (user) {
+        if (!req.userRole) req.userRole = user.role;
+        if (req.userStatus === undefined) req.userStatus = user.status;
+      }
     }
     
     next();
@@ -56,17 +60,25 @@ export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction
   next();
 }
 
+export function requireMember(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.userRole === 'ADMIN') return next();
+  if (req.userStatus !== 'ACTIVE') {
+    return res.status(403).json({ error: 'Twoje konto oczekuje na zatwierdzenie przez administratora', code: 'PENDING_APPROVAL' });
+  }
+  next();
+}
+
 export function getUserIdFromCookie(req: any): string | null {
   const user = getUserFromCookie(req);
   return user?.userId ?? null;
 }
 
-export function getUserFromCookie(req: any): { userId: string; role: string } | null {
+export function getUserFromCookie(req: any): { userId: string; role: string; status?: string } | null {
   try {
     const token = req.cookies?.token;
     if (!token) return null;
     const decoded: any = jwt.verify(token, JWT_SECRET);
-    return { userId: decoded.userId, role: decoded.role };
+    return { userId: decoded.userId, role: decoded.role, status: decoded.status };
   } catch {
     return null;
   }

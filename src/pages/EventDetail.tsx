@@ -116,7 +116,7 @@ function NotifyModal({ event, initialNotify, onConfirm, onClose }: { event: any;
 
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant mb-6">Powiadom mnie przed wyprawą:</p>
 
-        <div className="grid grid-cols-2 gap-3 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
           <button 
             onClick={() => setNotifyDays(null)}
             className={`py-4 font-black text-xs uppercase tracking-widest border-2 transition-all ${notifyDays === null ? 'bg-primary text-surface border-primary' : 'border-outline-variant/50 text-on-surface-variant hover:border-primary'}`}
@@ -1009,7 +1009,7 @@ export default function EventDetail() {
                       </button>
                     </div>
                   ) : participants.length > 0 ? (
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                       {participants.map((p: any) => (
                         <div key={p.userId} className="group relative" title={`${formatName(p.user?.name || '')} (${p.status})`}>
                           <div className={cn(

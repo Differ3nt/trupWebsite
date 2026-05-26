@@ -115,6 +115,16 @@ export default function Layout() {
     }
   };
 
+  const dismissNotification = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/push/${id}`, { method: 'DELETE' });
+      setNotifications(notifications.filter(n => n.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const navLinks = [
@@ -197,9 +207,9 @@ export default function Layout() {
         <div className="flex-1 flex justify-end items-center gap-4 md:gap-5">
           {role !== 'guest' ? (
             <div className="flex items-center gap-4 md:gap-5">
-              {!useMobileNav && (
-                <NavItem 
-                  to="/admin" 
+              {!useMobileNav && role === 'admin' && (
+                <NavItem
+                  to="/admin"
                   label="Panel"
                   active={location.pathname === '/admin'}
                 />
@@ -251,17 +261,23 @@ export default function Layout() {
                         
                         <div className="max-h-64 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-primary/20">
                           {notifications.length > 0 ? notifications.map((n) => (
-                            <div 
-                              key={n.id} 
+                            <div
+                              key={n.id}
                               onClick={() => {
                                 if (!n.isRead) markAsRead(n.id);
                                 if (n.url) window.location.href = n.url;
                               }}
-                              className={`p-3 border-l-2 transition-colors cursor-pointer ${n.isRead ? 'border-outline-variant/30 bg-surface' : 'border-primary bg-primary/5 hover:bg-primary/10'}`}
+                              className={`relative p-3 pr-7 border-l-2 transition-colors cursor-pointer ${n.isRead ? 'border-outline-variant/30 bg-surface' : 'border-primary bg-primary/5 hover:bg-primary/10'}`}
                             >
-                               <p className="text-[10px] font-bold uppercase tracking-tight text-on-surface">{n.title}</p>
-                               <p className="text-[10px] text-on-surface-variant leading-tight mt-1">{n.message}</p>
-                               <p className="text-[8px] text-on-surface-variant/50 mt-1 uppercase tracking-widest">{new Date(n.createdAt).toLocaleDateString()}</p>
+                              <button
+                                onClick={(e) => dismissNotification(e, n.id)}
+                                className="absolute top-2 right-2 text-on-surface-variant/40 hover:text-on-surface transition-colors"
+                              >
+                                <X size={12} />
+                              </button>
+                              <p className="text-[10px] font-bold uppercase tracking-tight text-on-surface">{n.title}</p>
+                              <p className="text-[10px] text-on-surface-variant leading-tight mt-1">{n.message}</p>
+                              <p className="text-[8px] text-on-surface-variant/50 mt-1 uppercase tracking-widest">{new Date(n.createdAt).toLocaleDateString()}</p>
                             </div>
                           )) : (
                             <p className="text-center py-8 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant italic">Brak nowych alertów</p>
@@ -337,14 +353,16 @@ export default function Layout() {
               <div className="w-12 h-0.5 bg-outline-variant/30 my-4"></div>
               {role !== 'guest' ? (
                 <div className="flex flex-col items-center gap-6">
-                  <Link
-                    to="/admin"
-                    className="flex items-center gap-3 text-xl font-display font-black uppercase tracking-tighter text-on-surface hover:text-primary transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <Menu size={24} strokeWidth={3} />
-                    Panel Admina
-                  </Link>
+                  {role === 'admin' && (
+                    <Link
+                      to="/admin"
+                      className="flex items-center gap-3 text-xl font-display font-black uppercase tracking-tighter text-on-surface hover:text-primary transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Menu size={24} strokeWidth={3} />
+                      Panel Admina
+                    </Link>
+                  )}
                   <Link
                     to="/profil"
                     className="flex items-center gap-3 text-xl font-display font-black uppercase tracking-tighter text-on-surface hover:text-primary transition-colors"

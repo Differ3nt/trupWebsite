@@ -62,7 +62,22 @@ router.patch('/:id/read', requireAuth, async (req: any, res) => {
 });
 
 /**
- * 3. Rejestracja subskrypcji Web Push z przeglądarki użytkownika.
+ * 3. Usunięcie powiadomienia.
+ */
+router.delete('/:id', requireAuth, async (req: any, res) => {
+  try {
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM "Notification" WHERE id = $1 AND "userId" = $2`,
+      req.params.id, req.userId
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Błąd usuwania powiadomienia' });
+  }
+});
+
+/**
+ * 4. Rejestracja subskrypcji Web Push z przeglądarki użytkownika.
  */
 router.post('/subscribe', requireAuth, async (req: any, res) => {
   try {

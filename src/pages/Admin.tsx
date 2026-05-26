@@ -1364,11 +1364,11 @@ export default function Admin() {
             {activeTab === 'members' && (
               <div className="space-y-8">
 
-                {/* Pending approval */}
+                {/* Inactive — awaiting or deactivated */}
                 {allUsers.filter((u: any) => u.status === 'INACTIVE').length > 0 && (
                   <div className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8">
                     <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4 text-on-surface flex items-center gap-3">
-                      Oczekują na zatwierdzenie
+                      Nieaktywni
                       <span className="bg-primary text-surface text-xs font-black px-2 py-0.5">{allUsers.filter((u: any) => u.status === 'INACTIVE').length}</span>
                     </h2>
                     <div className="space-y-3">
@@ -1382,33 +1382,7 @@ export default function Admin() {
                             <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
                           </div>
                           <Button size="sm" onClick={() => updateUserStatus(u.id, 'ACTIVE')} leftIcon={<CheckCircle size={14} />}>
-                            Zatwierdź
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Suspended */}
-                {allUsers.filter((u: any) => u.status === 'FLAGGED').length > 0 && (
-                  <div className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8">
-                    <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4 text-on-surface flex items-center gap-3">
-                      Zawieszeni
-                      <span className="bg-red-500/20 text-red-500 text-xs font-black px-2 py-0.5">{allUsers.filter((u: any) => u.status === 'FLAGGED').length}</span>
-                    </h2>
-                    <div className="space-y-3">
-                      {allUsers.filter((u: any) => u.status === 'FLAGGED').map((u: any) => (
-                        <div key={u.id} className="flex items-center gap-4 p-4 bg-surface-container border border-red-500/20">
-                          <div className="w-10 h-10 bg-surface-container-highest overflow-hidden shrink-0">
-                            {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover opacity-50" /> : <User size={20} className="m-auto mt-2.5 text-on-surface-variant/40" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-sm text-on-surface/60 truncate">{u.name || '—'}</p>
-                            <p className="text-xs text-on-surface-variant/60 truncate">{u.email}</p>
-                          </div>
-                          <Button size="sm" variant="secondary" onClick={() => updateUserStatus(u.id, 'ACTIVE')} leftIcon={<CheckCircle size={14} />}>
-                            Przywróć dostęp
+                            Aktywuj
                           </Button>
                         </div>
                       ))}
@@ -1437,8 +1411,8 @@ export default function Admin() {
                           {u.role === 'ADMIN' ? (
                             <Badge variant="primary" className="text-[9px]">ADMIN</Badge>
                           ) : (
-                            <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'FLAGGED')} leftIcon={<Trash2 size={14} />}>
-                              Zawieś
+                            <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'INACTIVE')} leftIcon={<Trash2 size={14} />}>
+                              Dezaktywuj
                             </Button>
                           )}
                         </div>

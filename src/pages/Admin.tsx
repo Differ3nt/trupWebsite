@@ -225,7 +225,7 @@ export default function Admin() {
         body: JSON.stringify({ status })
       });
       if (res.ok) {
-        showToast(status === 'ACTIVE' ? 'Członek zatwierdzony' : 'Status zaktualizowany', 'success');
+        showToast(status === 'ACTIVE' ? 'Użytkownik aktywowany' : 'Użytkownik dezaktywowany', 'success');
         loadAllUsers();
       } else {
         showToast('Błąd aktualizacji statusu', 'error');
@@ -233,6 +233,47 @@ export default function Admin() {
     } catch {
       showToast('Błąd połączenia', 'error');
     }
+  };
+
+  const updateUserRole = async (userId: string, role: string) => {
+    try {
+      const res = await fetch(`/api/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role })
+      });
+      if (res.ok) {
+        showToast(role === 'ADMIN' ? 'Użytkownik został adminem' : 'Uprawnienia admina cofnięte', 'success');
+        loadAllUsers();
+      } else {
+        showToast('Błąd aktualizacji roli', 'error');
+      }
+    } catch {
+      showToast('Błąd połączenia', 'error');
+    }
+  };
+
+  const deleteUser = (userId: string, name: string) => {
+    confirmAction({
+      title: 'Usuń użytkownika',
+      message: `Czy na pewno chcesz trwale usunąć użytkownika "${name}"? Tej operacji nie można cofnąć.`,
+      variant: 'danger',
+      confirmText: 'USUŃ',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/users/${userId}`, { method: 'DELETE', credentials: 'include' });
+          if (res.ok) {
+            showToast('Użytkownik usunięty', 'success');
+            loadAllUsers();
+          } else {
+            showToast('Błąd usuwania użytkownika', 'error');
+          }
+        } catch {
+          showToast('Błąd połączenia', 'error');
+        }
+      }
+    });
   };
 
   useEffect(() => {

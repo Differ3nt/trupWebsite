@@ -140,8 +140,8 @@ router.get('/me', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'Nieautoryzowany' });
 
     // Weryfikacja tokena JWT
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role?: string; status?: string };
+
     // Pobranie danych użytkownika z bazy
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -165,7 +165,6 @@ router.get('/me', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
 
     // Re-issue token if role or status changed since last login
-    const decoded = jwt.decode(token) as any;
     if (decoded?.status !== user.status || decoded?.role !== user.role) {
       const newToken = generateToken(user.id, user.role, user.status);
       res.cookie('token', newToken, {

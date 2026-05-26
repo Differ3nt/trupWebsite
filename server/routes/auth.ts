@@ -57,7 +57,7 @@ router.get('/google/callback', async (req, res) => {
         code: code as string,
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirect_uri: 'http://localhost:3001/api/auth/google/callback',
+        redirect_uri: process.env.CALLBACK_URL || 'http://localhost:3001/api/auth/google/callback',
         grant_type: 'authorization_code',
       })
     });

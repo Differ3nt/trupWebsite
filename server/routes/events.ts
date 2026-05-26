@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticate, getUserIdFromCookie, getUserFromCookie } from '../middleware/auth';
+import { authenticate, requireMember, getUserIdFromCookie, getUserFromCookie } from '../middleware/auth';
 import { invalidateStatsCache } from './stats';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
@@ -14,39 +14,35 @@ const router = Router();
 router.get('/', async (req: any, res) => {
   try {
     const { upcoming } = req.query;
-    const userId = getUserIdFromCookie(req);
-    const uid = userId || null;
-    
-    // Determine if requester is Admin to show drafts
-    let isAdmin = false;
-    if (uid) {
-      const user = await prisma.user.findUnique({ where: { id: uid }, select: { role: true } });
-      isAdmin = user?.role === 'ADMIN';
-    }
+    const userSession = getUserFromCookie(req);
+    const uid = userSession?.userId || null;
+    const isAdmin = userSession?.role === 'ADMIN';
+    const isMember = !!(uid && (isAdmin || userSession?.status === 'ACTIVE'));
 
     const draftFilter = isAdmin ? '' : 'AND e."isDraft" = false';
-    
-    // Logika dat: wydarzenie jest "przyszłe" jeśli kończy się dzisiaj lub później
     const startOfToday = new Date();
     startOfToday.setHours(0,0,0,0);
 
-    const query = upcoming === 'true' 
-      ? `SELECT e.*, 
+    // isParticipant lets inactive users see events they've been added to or attended
+    const query = upcoming === 'true'
+      ? `SELECT e.*,
           (SELECT COUNT(*)::int FROM "EventParticipation" p WHERE p."eventId" = e.id AND p.status = 'GOING') as "goingCount",
           (SELECT status FROM "EventParticipation" p WHERE p."eventId" = e.id AND p."userId" = $1) as "userStatus",
+          EXISTS(SELECT 1 FROM "EventParticipation" p WHERE p."eventId" = e.id AND p."userId" = $1) as "isParticipant",
           EXISTS(SELECT 1 FROM "NewsItem" n WHERE n."eventId" = e.id) as "featured"
         FROM "Event" e WHERE (e."dateEnd" >= $2 OR (e."dateEnd" IS NULL AND e."dateStart" >= $2)) ${draftFilter} ORDER BY e."dateStart" ASC`
-      : `SELECT e.*, 
+      : `SELECT e.*,
           (SELECT COUNT(*)::int FROM "EventParticipation" p WHERE p."eventId" = e.id AND p.status = 'GOING') as "goingCount",
           (SELECT status FROM "EventParticipation" p WHERE p."eventId" = e.id AND p."userId" = $1) as "userStatus",
+          EXISTS(SELECT 1 FROM "EventParticipation" p WHERE p."eventId" = e.id AND p."userId" = $1) as "isParticipant",
           EXISTS(SELECT 1 FROM "NewsItem" n WHERE n."eventId" = e.id) as "featured"
         FROM "Event" e WHERE 1=1 ${draftFilter} ORDER BY e."dateStart" ASC`;
-    
+
     const events = (await prisma.$queryRawUnsafe(query, uid, startOfToday)) as any[];
-    
-    // Data Masking for public access
+
     const maskedEvents = events.map((event: any) => {
-      if (!uid) {
+      // Active members see everything; inactive users see full detail for their own events
+      if (!isMember && !event.isParticipant) {
         const { mapLink, mapEmbed, gearRequired, gearCritical, transport, ...publicData } = event;
         return { ...publicData, isMasked: true };
       }
@@ -107,8 +103,19 @@ router.get('/highlighted', async (req, res) => {
  */
 router.get('/:id', async (req: any, res) => {
   try {
-    let userSession = getUserFromCookie(req);
-    let userId = userSession?.userId ?? null;
+    const userSession = getUserFromCookie(req);
+    const userId = userSession?.userId ?? null;
+    const isMember = !!(userId && (userSession?.role === 'ADMIN' || userSession?.status === 'ACTIVE'));
+
+    // Inactive logged-in users can see full detail for events they're part of
+    let inactiveCanSee = false;
+    if (userId && !isMember) {
+      const participation = await prisma.eventParticipation.findUnique({
+        where: { userId_eventId: { userId, eventId: req.params.id } },
+        select: { id: true }
+      });
+      inactiveCanSee = participation !== null;
+    }
 
     const events: any = await prisma.$queryRaw`SELECT * FROM "Event" WHERE id = ${req.params.id}`;
 
@@ -158,16 +165,15 @@ router.get('/:id', async (req: any, res) => {
       myNotifyDays = participations[0]?.notifyDaysBefore ?? null;
     }
 
-    if (!userId) {
-      // Return masked event details for guests
+    if (!isMember && !inactiveCanSee) {
       const { mapLink, mapEmbed, gearRequired, gearCritical, transport, ...publicEvent } = event;
-      return res.json({ 
-        ...publicEvent, 
-        participants: [], 
+      return res.json({
+        ...publicEvent,
+        participants: [],
         gpxSubmissions: gpxRoutes || [],
-        myRsvp: null, 
+        myRsvp: null,
         myNotifyDays: null,
-        isMasked: true 
+        isMasked: true
       });
     }
 
@@ -339,7 +345,7 @@ router.put('/:id', authenticate, async (req: any, res) => {
  * Obsługuje deklarację udziału (RSVP) przez użytkownika.
  * status: 'GOING' (jadę), 'INTERESTED' (zainteresowany) lub null (usuń rsvp).
  */
-router.post('/:id/rsvp', authenticate, async (req: any, res) => {
+router.post('/:id/rsvp', authenticate, requireMember, async (req: any, res) => {
   try {
     const { status, notifyDaysBefore } = req.body;
     const eventId = req.params.id;

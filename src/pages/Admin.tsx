@@ -216,6 +216,25 @@ export default function Admin() {
     } catch { /* ignore */ }
   };
 
+  const updateUserStatus = async (userId: string, status: string) => {
+    try {
+      const res = await fetch(`/api/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        showToast(status === 'ACTIVE' ? 'Członek zatwierdzony' : 'Status zaktualizowany', 'success');
+        loadAllUsers();
+      } else {
+        showToast('Błąd aktualizacji statusu', 'error');
+      }
+    } catch {
+      showToast('Błąd połączenia', 'error');
+    }
+  };
+
   useEffect(() => {
     loadAllUsers();
   }, []);
@@ -406,6 +425,9 @@ export default function Admin() {
     }
     if (activeTab === 'news') {
       loadNews();
+    }
+    if (activeTab === 'members') {
+      loadAllUsers();
     }
   }, [activeTab]);
 
@@ -702,6 +724,18 @@ export default function Admin() {
             </div>
 
             <div className="mt-6 space-y-1">
+              <p className="px-5 text-[9px] font-black uppercase tracking-[0.2em] text-on-surface-variant/40 mb-2">Ludzie:</p>
+              <Button
+                onClick={() => handleTabChange('members')}
+                variant={activeTab === 'members' ? 'primary' : 'secondary'}
+                className="!justify-start gap-3 w-full"
+                leftIcon={<User size={14} className={cn("transition-colors", activeTab === 'members' ? "text-black" : "text-green-500")} />}
+              >
+                Członkowie{allUsers.filter((u: any) => u.status === 'INACTIVE').length > 0 ? ` (${allUsers.filter((u: any) => u.status === 'INACTIVE').length})` : ''}
+              </Button>
+            </div>
+
+            <div className="mt-6 space-y-1">
               {/* Kalendarz */}
               <Button
                 asChild
@@ -720,7 +754,7 @@ export default function Admin() {
 
             {/* === NOWA WYPRAWA === */}
             {activeTab === 'create' && (
-              <form noValidate onSubmit={handleCreateEvent} className="bg-surface-container-low border border-outline-variant/30 p-8 space-y-6">
+              <form noValidate onSubmit={handleCreateEvent} className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8 space-y-6">
                 <div className="flex justify-between items-center border-b border-outline-variant/30 pb-4 mb-6">
                   <h2 className="font-display font-black text-2xl uppercase text-on-surface">
                     {editingId ? 'Edycja Wydarzenia' : 'Kreator Wydarzenia'}
@@ -827,7 +861,7 @@ export default function Admin() {
                       </FormField>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <FormField label="Planowany Dystans (km)">
                         <Input type="number" min="0" step="0.1" placeholder="np. 12.5" value={newEvent.plannedDistance ?? ''} onChange={e => setNewEvent({ ...newEvent, plannedDistance: e.target.value })} />
                       </FormField>
@@ -1326,6 +1360,69 @@ export default function Admin() {
                 </div>
               </div>
             )}
+            {/* === CZŁONKOWIE === */}
+            {activeTab === 'members' && (
+              <div className="space-y-8">
+
+                {/* Inactive — awaiting or deactivated */}
+                {allUsers.filter((u: any) => u.status === 'INACTIVE').length > 0 && (
+                  <div className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8">
+                    <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4 text-on-surface flex items-center gap-3">
+                      Nieaktywni
+                      <span className="bg-primary text-surface text-xs font-black px-2 py-0.5">{allUsers.filter((u: any) => u.status === 'INACTIVE').length}</span>
+                    </h2>
+                    <div className="space-y-3">
+                      {allUsers.filter((u: any) => u.status === 'INACTIVE').map((u: any) => (
+                        <div key={u.id} className="flex items-center gap-4 p-4 bg-surface-container border border-outline-variant/20">
+                          <div className="w-10 h-10 bg-surface-container-highest overflow-hidden shrink-0">
+                            {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <User size={20} className="m-auto mt-2.5 text-on-surface-variant" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm text-on-surface truncate">{u.name || '—'}</p>
+                            <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
+                          </div>
+                          <Button size="sm" onClick={() => updateUserStatus(u.id, 'ACTIVE')} leftIcon={<CheckCircle size={14} />}>
+                            Aktywuj
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Active members */}
+                <div className="bg-surface-container-low border border-outline-variant/30 p-4 sm:p-8">
+                  <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4 text-on-surface">
+                    Aktywni członkowie ({allUsers.filter((u: any) => u.status === 'ACTIVE').length})
+                  </h2>
+                  <div className="space-y-2">
+                    {allUsers.filter((u: any) => u.status === 'ACTIVE').map((u: any) => (
+                      <div key={u.id} className="flex items-center gap-4 p-3 bg-surface-container border border-outline-variant/20">
+                        <div className="w-8 h-8 bg-surface-container-highest overflow-hidden shrink-0">
+                          {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <User size={16} className="m-auto mt-1 text-on-surface-variant" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-on-surface truncate">
+                            {u.name || '—'}{u.nickname && <span className="text-primary ml-2">"{u.nickname}"</span>}
+                          </p>
+                          <p className="text-xs text-on-surface-variant truncate">{u.email}</p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {u.role === 'ADMIN' ? (
+                            <Badge variant="primary" className="text-[9px]">ADMIN</Badge>
+                          ) : (
+                            <Button size="sm" variant="danger" onClick={() => updateUserStatus(u.id, 'INACTIVE')} leftIcon={<Trash2 size={14} />}>
+                              Dezaktywuj
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* === ROZLICZENIA I KOLEJKA GPX === */}
             {activeTab === 'gpx' && (
               <div className="space-y-8">

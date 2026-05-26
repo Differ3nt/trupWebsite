@@ -8,9 +8,8 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requiredRole = 'user' }: ProtectedRouteProps) {
-  const { role, loading } = useAppContext();
+  const { role, user, loading } = useAppContext();
 
-  // Czekamy na weryfikację sesji przed decyzją o przekierowaniu
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -26,6 +25,11 @@ export default function ProtectedRoute({ children, requiredRole = 'user' }: Prot
   const hasAccess = roleHierarchy[role] >= roleHierarchy[requiredRole];
 
   if (!hasAccess) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Inactive users browse in guest mode — no access to protected pages
+  if (role !== 'guest' && role !== 'admin' && user?.status !== 'ACTIVE') {
     return <Navigate to="/" replace />;
   }
 

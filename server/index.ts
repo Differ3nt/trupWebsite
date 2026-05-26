@@ -179,7 +179,20 @@ app.use(cors({
 }));
 app.use(express.json()); // Parsowanie body w formacie JSON
 app.use(cookieParser()); // Parsowanie ciasteczek
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://lh3.googleusercontent.com', 'https://*.googleusercontent.com', 'https://*.tile.openstreetmap.org'],
+      connectSrc: ["'self'"],
+      frameSrc: ["'self'", 'https://*.mapy.cz', 'https://frame.mapy.cz'],
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+    }
+  }
+}));
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

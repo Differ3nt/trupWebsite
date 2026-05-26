@@ -118,8 +118,8 @@ export default function Layout() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const navLinks = [
-    { to: '/', label: 'Strona główna' },
-    { to: '/wydarzenia', label: 'Wydarzenia' },
+    { to: '/', label: 'Strona główna', badge: 'alpha' as const },
+    { to: '/wydarzenia', label: 'Wydarzenia', badge: 'alpha' as const },
     { to: '/aktualnosci', label: 'Aktualności', badge: 'soon' as const },
     { to: '/wiki', label: 'Wiki', badge: 'soon' as const },
     { to: '/galeria', label: 'Galeria', badge: 'soon' as const },
@@ -328,8 +328,8 @@ export default function Layout() {
                 >
                   {link.label}
                   {link.badge && (
-                    <span className="text-[9px] font-sans font-black tracking-widest text-primary border border-primary/40 px-1.5 py-0.5 rounded">
-                      SOON
+                    <span className={`text-[9px] font-sans font-black tracking-widest px-1.5 py-0.5 rounded border ${link.badge === 'alpha' ? 'text-blue-400 border-blue-400/40' : 'text-primary border-primary/40'}`}>
+                      {link.badge.toUpperCase()}
                     </span>
                   )}
                 </Link>

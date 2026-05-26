@@ -35,7 +35,7 @@ export function NavItem({ label, icon, to, onClick, active, badge, className, no
           className={cn(
             "absolute flex items-center justify-center font-black text-surface z-20 shadow-sm",
             typeof badge === 'string'
-              ? "h-[13px] rounded px-1 text-[7px] tracking-wider bg-primary"
+              ? cn("h-[13px] rounded px-1 text-[7px] tracking-wider", badge === 'alpha' ? "bg-blue-500" : "bg-primary")
               : "min-w-[14px] h-[14px] rounded-full px-1 text-[7px] bg-primary",
             icon ? "-top-1 -right-1" : "-top-2 -right-2"
           )}

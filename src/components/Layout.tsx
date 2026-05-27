@@ -134,6 +134,7 @@ export default function Layout() {
     { to: '/wiki', label: 'Wiki', badge: 'soon' as const },
     { to: '/galeria', label: 'Galeria', badge: 'soon' as const },
     { to: '/o-nas', label: 'O nas', badge: 'soon' as const },
+    { to: 'https://docs.google.com/forms/d/e/1FAIpQLSdAk4YCNbdwcx8zbxCSXJYhQUWf3y1P7E__Ld8_On3aemc2gw/viewform?usp=dialog', label: 'Zgłoś problem', external: true },
   ];
 
   return (
@@ -192,14 +193,26 @@ export default function Layout() {
           )}
         >
           {navLinks.map((link) => (
-            <NavItem
-              key={link.to}
-              to={link.to}
-              label={link.label}
-              badge={link.badge}
-              active={location.pathname === link.to}
-              onClick={() => handleLinkClick(link.to)}
-            />
+            link.external ? (
+              <a
+                key={link.to}
+                href={link.to}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-black uppercase tracking-widest text-on-surface/60 hover:text-primary transition-colors"
+              >
+                {link.label}
+              </a>
+            ) : (
+              <NavItem
+                key={link.to}
+                to={link.to}
+                label={link.label}
+                badge={link.badge}
+                active={location.pathname === link.to}
+                onClick={() => handleLinkClick(link.to)}
+              />
+            )
           ))}
         </div>
 
@@ -336,19 +349,32 @@ export default function Layout() {
           >
             <div className="flex flex-col items-center gap-6">
               {navLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className="flex items-center gap-2 text-2xl font-display font-black uppercase text-on-surface hover:text-primary transition-colors"
-                  onClick={() => handleLinkClick(link.to)}
-                >
-                  {link.label}
-                  {link.badge && (
-                    <span className={`text-[9px] font-sans font-black tracking-widest px-1.5 py-0.5 rounded border ${link.badge === 'alpha' ? 'text-blue-400 border-blue-400/40' : 'text-primary border-primary/40'}`}>
-                      {link.badge.toUpperCase()}
-                    </span>
-                  )}
-                </Link>
+                link.external ? (
+                  <a
+                    key={link.to}
+                    href={link.to}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-2xl font-display font-black uppercase text-on-surface/60 hover:text-primary transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className="flex items-center gap-2 text-2xl font-display font-black uppercase text-on-surface hover:text-primary transition-colors"
+                    onClick={() => handleLinkClick(link.to)}
+                  >
+                    {link.label}
+                    {link.badge && (
+                      <span className={`text-[9px] font-sans font-black tracking-widest px-1.5 py-0.5 rounded border ${link.badge === 'alpha' ? 'text-blue-400 border-blue-400/40' : 'text-primary border-primary/40'}`}>
+                        {link.badge.toUpperCase()}
+                      </span>
+                    )}
+                  </Link>
+                )
               ))}
               <div className="w-12 h-0.5 bg-outline-variant/30 my-4"></div>
               {role !== 'guest' ? (

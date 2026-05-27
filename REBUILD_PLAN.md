@@ -122,6 +122,7 @@ These apply to every phase:
 4. **Branch `rewrite/nextjs`.** All rebuild work lives here. Merge to `main` only after the user approves a completed, verified phase.
 5. **Phase gate.** Do not start a phase without the user saying "go" for that phase. Report at the end of each phase with what to verify.
 6. **Tests are part of "done."** A feature isn't done until it has at least a smoke test. No more "there is no test suite."
+7. **Feature parity is the bar.** The rebuilt site must do everything §14 lists. §14 is the canonical specification — when a phase ports a page or route, check it against §14 and tick the parity box. Nothing in §14 may silently disappear.
 
 ---
 
@@ -584,6 +585,7 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 
 ## 13. Definition of Done (whole project)
 
+- [ ] **Every item in the §14 feature specification works identically** (the parity bar)
 - [ ] All current live pages work identically in Next.js
 - [ ] All ComingSoon pages unhidden and functional
 - [ ] Every API endpoint validates input with Zod; mutations use Server Actions
@@ -601,6 +603,134 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 - [ ] Error monitoring (Sentry) + structured logging (`pino`) in production
 - [ ] Uploads migrated to Cloudflare R2; watermarked variants pre-generated
 - [ ] Old app retired after stable cutover
+
+---
+
+## 14. Feature Specification (parity checklist)
+
+This is the **canonical inventory of everything the live site does today**, captured from a full read of every page, component, and route. The rebuild is not "done" until every item here works identically. Organized so each phase can tick off the parts it owns. Polish UI labels are preserved verbatim.
+
+### 14.1 Cross-cutting concepts (apply everywhere)
+
+- **Roles:** `guest` (not logged in), `user` (logged in; `ACTIVE` = full member, `INACTIVE` = limited), `admin`. DB enum is `USER | ADMIN`; status is `ACTIVE | INACTIVE | FLAGGED`.
+- **Three-layer visibility:** guest masking → inactive-user filtering → admin full access. A guest sees masked/limited data; an inactive user sees full data **only for events they participate in**; an admin always sees everything.
+- **Auth:** Google OAuth → session. `AuthGate` component wraps login-required content with a prompt. Owner account (`OWNER_EMAIL`) can never be demoted/deleted; no user can demote/delete themselves.
+- **Toasts (Sonner):** success / error / info; **delete actions offer a 6-second UNDO**.
+- **Confirmation modal:** title + message + variant (danger/primary/warning), confirm/discard/cancel; used for deletes, dirty-form guards, role changes.
+- **Dirty-form guards:** Profile and Admin event creator block navigation (React Router `useBlocker` + browser `beforeunload`) when there are unsaved changes; compare via serialized state; hardware arrays compared order-insensitively.
+
+### 14.2 Home (`/`)
+
+- Hero: TRUP logo + title + tagline "Robimy to czego innym się nie chce"; animated scroll-to-explore indicator.
+- **Animated stat counters** (Framer Motion, 0→target over ~2.5s when scrolled into view): expeditions, total distance (km), total elevation (m), total time in mountains (h), active members. From `GET /api/stats`.
+- **Aktualności** (news) section behind `AuthGate`; cumulative pagination in groups of 3 ("show more"); skeleton while loading; empty state links to events. From `GET /api/news`.
+- **Nasze Osiągnięcia** (achievements): 3-col grid of highlighted past events; renders only if any exist. From `GET /api/events/highlighted`.
+- Three slanted content strips: GÓRY, PLANSZÓWKI, LUDZIE (image overlays).
+- Contact footer: Instagram, Facebook, Discord, Newsletter buttons.
+
+### 14.3 Events list (`/wydarzenia`)
+
+- Entire list behind `AuthGate`. Active members see all published; admins also see drafts; inactive users see only events they participate in.
+- Filters: "Wszystkie", "GÓRY", "INTEGRACJA", "KULTURA".
+- Event cards: focal-point hero image, type badge, countdown+date (hidden when archived), title over gradient, 2-line description snippet, location, difficulty stars (GÓRY only), spots counter or registered count, status dot (animated pulse if spots free, red "BRAK MIEJSC" when full, hidden if no limit).
+- Two sections: **Nadchodzące** (upcoming) and **Archiwalne** (past; grayscale, desaturate on hover); archived section only if any exist.
+- From `GET /api/events`.
+
+### 14.4 Event detail (`/wydarzenia/:id`)
+
+- Hero: title, difficulty stars (GÓRY), distance/elevation/duration badges; countdown if upcoming; spots widget (or "WYPRAWA ROZLICZONA" if finalized).
+- **Sticky sidebar** (smart sticking based on viewport vs sidebar height):
+  - RSVP button — **disabled/grayed if the user is missing any `gearCritical` item** (gating applies before RSVP, not after).
+  - Notification button (bell + day count).
+  - TLDR metadata tiles: date (→ calendar), location (→ map if present), difficulty (GÓRY), meeting point, organizer.
+  - Equipment: "Wymagany" (critical, red) + "Sugerowany" (recommended, orange); items sorted owned-first; help tooltip legend.
+  - Participants grid (avatars + status indicators); login wall for guests.
+  - Completed routes section — only if finalized.
+- Main: Markdown description; weather / transport / meeting-point-with-embed sections (each only if provided); map/GPX section — official GPX tracks with preview + distance/elevation/duration, embeds (Google Maps / Mapy.cz / fallback link), participant avatars per track.
+- **Two modals:** Status ("Idę" GOING / "Zainteresowany" INTERESTED; "Rezygnuję z wyprawy" if already RSVP'd) and Notifications (none / 1 / 2 / 3 / 7 / 14 / 30 days, options filtered to ≤ days-until-event).
+- Participant display: not finalized → all GOING+INTERESTED; finalized → only `attended=true` (guests); admin/creator always see all.
+- Guest gets masked event (no `mapLink`, `mapEmbed`, `gearRequired`, `gearCritical`, `transport`).
+- From `GET /api/events/:id`, `POST /api/events/:id/rsvp`, `PATCH /api/events/:id/attendance` (admin).
+
+### 14.5 Calendar (`/kalendarz`)
+
+- Public. Month grid (Monday-start), prev/next nav, today highlighted; `?date=` initializes the month.
+- Events as blocks colored by type (GÓRY=primary, INTEGRACJA=yellow, other=gray); multi-day events span cells, title+location shown only on start day; blocks link to detail; legend at bottom; padding days from adjacent months grayed.
+- From `GET /api/events`.
+
+### 14.6 Profile (`/profil`, protected)
+
+- **Overview tab:** avatar (hover-to-upload via `upload-simple`, cropped 400×400), name/nickname/email, stats sidebar (expeditions attended, distance, elevation, time), "Ready for more?" CTA → calendar, upcoming expeditions, **"Do Rozliczenia"** (past unfinalized GÓRY events the user joined, with "Wgraj GPX" button), past expeditions history grid (image+date, type, title, attendee count + location, distance/elevation for GÓRY if GPX approved).
+- **Settings tab:** full name, nickname (optional), email (read-only, Google-synced), phone (optional), **hardware checkboxes (20 items)**, save, logout.
+- Dirty-form guard with discard/save confirmation.
+- Pending-settlement filter: `dateStart < today AND not finalized AND type=GÓRY AND not draft`.
+- Stats sum approved GPX where user is submitter or in `participantIds`. `formatTime` → days/hours/minutes.
+- From `GET /api/auth/me`, `GET /api/events`, `PATCH /api/users/me`, `POST /api/images/upload-simple`, `POST /api/gpx/upload`.
+
+### 14.7 Gallery (`/galeria`) + detail (`/galeria/:id`)
+
+- List: header "Archiwum Wizualne"; guests see a "Prywatna Galeria" lock banner and **only the first album**; logged-in users see all + "PEŁNY ALBUM" button; 2×4 thumbnail preview per album (title, location, year, image count); skeleton loader; empty state "Archiwum jest puste".
+- Detail: back button, header (year, title, location, expandable description "Pokaż więcej"), "Dodaj swoje ujęcia" (non-guests), responsive photo grid with lazy-load skeletons + hover magnify, **Lightbox** (large image, prev/next, count, close, album title).
+- From `GET /api/albums`, `GET /api/albums/:id`.
+
+### 14.8 News (`/aktualnosci`) + Wiki (`/wiki`, `/wiki/:id`)
+
+- News: header "Aktualności"; behind `AuthGate`; CTA → events; timeline cards (icon by type, date/category badge, title, description, type-specific "learn more"). From `GET /api/news`.
+- Wiki list: header "Baza Wiedzy"; search; category cards (icon, name, count, sorted by count); article list (category badge, tag badges, title, date) filtered live by title/category/tags; empty state. **Guests see first 100 chars only**; logged-in see full.
+- Wiki article: back button, header (category, title, date/author/tags), Markdown (GFM + line breaks), feedback CTA (email). Guest truncation + login prompt.
+- From `GET /api/wiki`, `GET /api/wiki/:id`.
+- *(All four routed as `<ComingSoon>` today — Phase 4 unhides them.)*
+
+### 14.9 Admin panel (`/admin`, protected)
+
+- Sidebar sections: Kreator wydarzeń, Rozliczenia (finalization queue), Wyślij powiadomienie, database lists (Wydarzenia, Wiedza, Aktualności, Grafiki → `/admin/galeria`), Członkowie, Kalendarz link.
+- **Bootstrap banner** "Zostań Administratorem" only when `user.role==='user'` → `POST /api/auth/make-admin`.
+- **Event creator form:** title (req), category (GÓRY/INTEGRACJA/KULTURA), start (req)/end dates, spots checkbox+number; **GÓRY-only**: difficulty picker (1–5 hover stars), organizer, planned distance/elevation/duration, location (req), map link, map embed (iframe), meeting point name+link/embed, transport, weather, description (Markdown), **equipment selector with 3-state toggle** (none → "Warto mieć"/required → "Trzeba mieć"/critical → none), image picker + focal-point picker. Non-GÓRY: simplified (organizer, location, map, description, image). Buttons: "Opublikuj Wydarzenie" / "Zapisz Szkic".
+- **Event ID auto-generated** `YYYY_NN_TYPE_CODE`; `plannedDuration` hours→minutes.
+- **Event list tab:** drafts (edit/delete, draft badge) + published (star=featured toggle, trophy=highlighted toggle, edit, refresh/re-finalize, delete). Edit mode pre-fills form; button text switches Opublikuj/Zapisz Zmiany/Zaktualizuj Szkic.
+- **Completion/GPX queue:** past unfinalized events; GPX route management (prioritize/order, edit label, assign participants, official flag); finalize button.
+- **Finalize flow** (`POST /api/events/:id/finalize`): reset all `attended=false` → set `attended=true` for selected → update GPX rows with route data + `APPROVED` → set `isFinalized`, `actualDistance/Elevation/Duration`.
+- **News tab:** create (title, content, type, image), list+delete, toggle featured for event/article (`POST /api/news/toggle`).
+- **Wiki tab:** editor (title, content, category, tags, author), list edit/delete.
+- **User management:** table (name, email, status, role, actions); status toggle ACTIVE/INACTIVE; role toggle ADMIN/USER; delete; owner protected, self-change blocked; sorted status then name.
+- **Push broadcast:** message textarea → `POST /api/push/send` to all subscriptions.
+- Dirty-form guard on tab switch. Delete offers UNDO.
+- APIs: events CRUD + `/featured` + `/admin/completion-queue` + `/finalize`, gpx `/queue` + status, wiki CRUD, news CRUD + toggle, users list/status/role/delete, push send, make-admin.
+
+### 14.10 Admin gallery (`/admin/galeria`, protected)
+
+- Header "Baza Grafik"; search (tag/name); multi-file upload (spinner while uploading); 8-col image grid (grayscale→hover color, resolution badge on hover, maximize+edit overlay, name+≤2 tags).
+- Detail modal: large preview, edit name, tags (comma-separated → trimmed, empties filtered), save, stats (resolution, file size via byte→KB/MB), delete, "Pełny rozmiar" link. Images sorted `createdAt` DESC. Delete UNDO.
+- From `GET /api/images/all`, `GET /api/images/search`, `POST /api/images/upload-asset`, `PUT /api/images/:id`, `DELETE /api/images/:id`.
+
+### 14.11 Layout / global chrome
+
+- Fixed navbar with backdrop blur, scroll-style change, **ResizeObserver overflow → switch to mobile menu** (<1024px); logo, nav links, right actions.
+- **iOS PWA banner** (dismissible) prompting add-to-home-screen for notifications.
+- Mobile slide-in menu (nav + profile/logout + admin link if admin); body scroll locked when open; overlays close on route change.
+- **Notification dropdown:** last 20, unread count badge, mark-read on click, individual dismiss, **auto-refresh every 60s**. From `GET /api/push`, `PATCH /api/push/:id/read`, `DELETE /api/push/:id`.
+- Footer: branding, Instagram/Facebook/Kontakt/Prywatność, copyright year.
+- Guest sees "Zaloguj się"; logged-in see profile + notifications (+ admin link if admin).
+
+### 14.12 Backend behaviors that must be preserved
+
+- **Events list** filtering by role (drafts for admin, participation-only for inactive), `goingCount`/`userStatus`/featured flags, sorted ASC by `dateStart`.
+- **`/featured`** returns 6 upcoming featured (home news), **`/highlighted`** returns 6 achievements, both DESC.
+- **RSVP rules:** statuses GOING/INTERESTED/null; reject past-dated events; enforce spot limits (block GOING when full unless upgrading from INTERESTED); null status removes the participation row; `notifyDaysBefore` stored separately.
+- **GPX upload:** parse distance/elevation/duration (manual duration override), status `PENDING`; admin queue + approve/reject; **approval/rejection invalidates stats cache**.
+- **Image pipeline (sharp):** originals JPEG 90%, thumbnails WebP, avatar cropped 400×400, asset uploads keep format; TRUP watermark on download. *(Rebuild moves processing to the R2-triggered Cloudflare Worker per §2.1 — same outputs.)*
+- **Push:** subscribe stores endpoint+keys; send broadcasts and **auto-cleans `410 Gone`** subscriptions.
+- **Stats** (cached): expeditions = count of published GÓRY; distance/elevation/duration = sum of approved GPX; members = ACTIVE users. **Invalidated on** finalize, user-status change, GPX approve/reject.
+- **Search** (min 3 chars): ACTIVE users (≤10), events by title/id (≤10), albums by title/description (≤10); unified results with type/url/description.
+- **News**: ordered priority DESC then createdAt DESC; joins event/article data; toggle adds/removes featured.
+- **Users `/auth/me`**: profile + participations (with full event + participants) + GPX + computed personal stats.
+
+### 14.13 Per-phase parity ownership
+
+- **Phase 1** ports and verifies §14.12 (all backend behaviors) + the API contracts in §14.2–14.11.
+- **Phase 2** ports and verifies the UI of §14.2–14.7, §14.9–14.11 (live pages) against the old site.
+- **Phase 4** unhides and verifies §14.8 (News, Wiki, Gallery were `<ComingSoon>`).
+- Final sign-off: every subsection of §14 demonstrably works in the new app.
 
 ---
 

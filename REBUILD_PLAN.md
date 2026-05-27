@@ -32,7 +32,7 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 |---|---|---|---|
 | 3 routes bypass session revocation (`gpx.ts`, `push.ts`, `users.ts` local `authenticate`) | HIGH | Phase 1 | Single shared `requireUser()`/`requireAdmin()` helper; no local copies |
 | OAuth missing CSRF `state` param | MEDIUM | Phase 0 | NextAuth handles `state`/PKCE automatically |
-| Weak CSP (`unsafe-inline`) | MEDIUM | Phase 3 | Nonce-based CSP via SSR |
+| Weak CSP (`unsafe-inline`) | MEDIUM | Phase 0 | Nonce infrastructure scaffolded in Phase 0 foundation; Phases 1 and 2 build against it; Phase 3 audits and hardens |
 | No server-side input validation | MEDIUM | Phase 1 | Zod schema on every handler |
 | Duplicated button styling (component + CSS) | LOW | Phase 2 | One variant source via the design system (§6.2) |
 | `prisma.$queryRawUnsafe` fragility | LOW | Phase 3 | Replace with typed Prisma queries |
@@ -49,17 +49,18 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 |---|---|---|---|
 | Framework | React 19 SPA + Express | **Next.js 15 (App Router)** | One framework, SSR, RSC, file-based routing, API routes |
 | Auth | Custom JWT + manual OAuth fetch | **NextAuth.js v5 (Auth.js)** | Handles OAuth `state`/PKCE, session management, CSRF for free |
+| Auth (⚠ edge caveat) | — | — | NextAuth v5's `auth()` **cannot be called directly in Edge Runtime** (used by `middleware.ts`). Required pattern: split into `auth.config.ts` (providers + JWT callbacks, no DB adapter — safe for edge) and `auth.ts` (full config with Prisma adapter — used in RSCs and Route Handlers only). Middleware imports only `auth.config.ts`. Must be validated in Phase 0. |
 | DB access | Prisma (raw startup SQL) | **Prisma + Prisma Migrate** | Versioned, reviewable, reversible migrations |
 | Validation | None | **Zod** | Typed schemas at every API boundary; shared client/server types |
-| Server state | `fetch` + AppContext | **TanStack Query (React Query)** | Caching, revalidation, loading/error states |
-| UI state | AppContext | Small **Zustand** store (or React context, kept minimal) | Decouple UI state from server state |
+| Server state | `fetch` + AppContext | **RSC + Server Actions** | Next.js 15 App Router natively handles server data via RSC and mutations via Server Actions; React Query adds redundant abstraction over what the framework already provides |
+| UI state | AppContext | **Zustand** (minimal, UI-only) | Only for pure client UI state: toast queue, modal open/close, mobile drawer. Nothing that the server already owns. |
 | Styling | Tailwind v4 | **Tailwind v4** (unchanged) | Already good; tokens port directly |
 | Component variants | Hand-written variant maps + duplicate CSS | **CVA (class-variance-authority)** | One typed source of truth for variants/sizes |
 | Icons | `lucide-react` imported ad-hoc | **`lucide-react` via a central registry** | Consistent icon vocabulary; one-file library swap |
-| CSP | `unsafe-inline` | **Nonce-based CSP** | Real XSS protection, enabled by SSR |
+| CSP | `unsafe-inline` | **Nonce-based CSP** | Real XSS protection, enabled by SSR — scaffolded Phase 0, not deferred |
 | Forms | react-hook-form | **react-hook-form + Zod resolver** | Validation shared with the API |
 | Images | multer + sharp on Express | **Next.js Route Handler + sharp** | Same processing, integrated |
-| Hosting | Self/VPS (tsx) | **VPS or Vercel** (decide Phase 0) | Either works; Vercel simplifies CSP nonces + edge |
+| Hosting | Self/VPS (tsx) | **Vercel** (required — see §11) | VPS + Next.js 15 is a significant operational burden; Vercel is the correct hosting target for this stack |
 
 **Kept as-is** (well-built, port directly): all `src/components/` UI primitives, Leaflet GPX rendering, sharp image pipeline, watermark logic, gpxUtils parsing, the Tailwind design tokens.
 
@@ -94,7 +95,7 @@ Concrete mapping so nothing is lost in translation.
 | `wiki.ts` | 124 | `app/api/wiki/route.ts` + `[id]/` | |
 | `gpx.ts` | 112 | `app/api/gpx/route.ts` | Drop local `authenticate`; keep gpxUtils parsing |
 | `news.ts` | 103 | `app/api/news/route.ts` | |
-| `stats.ts` | 59 | `app/api/stats/route.ts` | In-memory cache → React Query cache or `unstable_cache` |
+| `stats.ts` | 59 | `app/api/stats/route.ts` | In-memory cache → `unstable_cache` (Next.js built-in) |
 | `albums.ts` | 49 | `app/api/albums/route.ts` + `[id]/` | |
 | `search.ts` | 48 | `app/api/search/route.ts` | |
 
@@ -127,8 +128,8 @@ UI primitives (`Badge`, `Button`, `Card`, `Checkbox`, `FormField`, `Input`, `Mod
 |---|---|
 | `server/lib/prisma.ts` | `lib/prisma.ts` — singleton with global guard for dev hot-reload |
 | `server/lib/gpxUtils.ts` | `lib/gpx.ts` — unchanged logic |
-| `server/middleware/auth.ts` | `lib/auth.ts` (NextAuth config) + `auth()` session helper |
-| `server/middleware/watermark.ts` | `app/uploads/[...path]/route.ts` or kept as a custom server route |
+| `server/middleware/auth.ts` | `lib/auth.ts` (NextAuth full config) + `lib/auth.config.ts` (edge-safe config) |
+| `server/middleware/watermark.ts` | `app/uploads/[...path]/route.ts` — or pre-generate on upload (see §11) |
 
 ---
 
@@ -166,9 +167,9 @@ trup/
 │   └── icons.ts                   # central icon registry (§6.3)
 ├── lib/
 │   ├── prisma.ts
-│   ├── auth.ts                    # NextAuth config + session helpers
+│   ├── auth.ts                    # NextAuth full config (Prisma adapter) — RSCs and Route Handlers only
+│   ├── auth.config.ts             # NextAuth JWT config (no Prisma adapter) — safe for Edge Runtime / middleware.ts
 │   ├── gpx.ts
-│   ├── cva.ts                     # shared CVA variant helpers (optional)
 │   ├── validations/               # Zod schemas, one file per resource
 │   │   ├── event.ts
 │   │   ├── gpx.ts
@@ -178,9 +179,9 @@ trup/
 │   ├── schema.prisma              # reconciled, single source of truth
 │   ├── migrations/                # versioned migrations
 │   └── seed.ts
-├── middleware.ts                  # route protection + CSP nonce
+├── middleware.ts                  # route protection + CSP nonce (imports auth.config.ts only — never auth.ts)
 ├── public/
-└── uploads/                       # (or move to object storage — decide Phase 0)
+└── uploads/                       # local only in dev; Cloudflare R2 in production (see §11)
 ```
 
 **Modularity rule:** one resource = one folder under `app/api/`, one Zod file under `lib/validations/`, one set of pages. Adding a feature touches a predictable, isolated set of files. Every reusable visual element lives in `components/ui` and is consumed, never re-styled inline.
@@ -268,7 +269,7 @@ Plan, formalized:
 - **External links:** consistent `target="_blank" rel="noopener noreferrer"` pattern (the "Zgłoś problem" form), visually marked with `ExternalLink`.
 - **Breadcrumbs** on detail pages (event, album, wiki article) — a small reusable `Breadcrumbs` component.
 - **Admin sub-navigation:** a tabbed layout shared by `/admin` and `/admin/galeria`.
-- **User menu:** profile, notifications (bell + dropdown), logout — gated by session; admin entry only shown to admins (the bug we already fixed in the current app — keep it fixed here).
+- **User menu:** profile, notifications (bell + dropdown), logout — gated by session; admin entry only shown to admins.
 - **Footer:** secondary nav + club info, reusing `link-underline-footer`.
 - **Accessibility:** keyboard navigable, focus trap in the mobile drawer, ESC to close, visible focus rings.
 - Next.js handles scroll restoration (drops the current `ScrollToTop`).
@@ -304,7 +305,7 @@ This removes ad-hoc per-page handling and guarantees consistent UX.
 ### 6.9 Imagery & media
 
 - `ImageLoader` (lazy + spinner) for album/gallery photos; `Lightbox` for full-screen viewing; `PageHeader` for hero images.
-- Watermark + sharp pipeline preserved. **Note:** the on-the-fly watermark complicates `next/image`; plan to pre-generate watermarked variants on upload (see §11) and serve them as plain images, or keep a custom image route.
+- Watermark + sharp pipeline preserved. **Note:** the on-the-fly watermark is incompatible with `next/image`; pre-generate watermarked variants on upload (see §11).
 - Leaflet maps (`GpxPreview`) stay client-only (dynamic import, no SSR).
 
 ### 6.10 Motion & animation
@@ -330,7 +331,7 @@ This removes ad-hoc per-page handling and guarantees consistent UX.
 
 ### 6.14 Living catalog (`/styleguide`)
 
-- A **dev-only** `/styleguide` route renders every primitive with all variants/sizes, the color tokens, and the icon set. Lighter than Storybook and good enough for a small project — it makes "same style, customisable" verifiable at a glance and onboards future contributors fast.
+- A **dev-only** `/styleguide` route renders every primitive with all variants/sizes, the color tokens, and the icon set. Lighter than Storybook and good enough for a small project — it makes "same style, customisable" verifiable at a glance.
 
 ### 6.15 Design-system deliverables checklist
 
@@ -351,86 +352,91 @@ Every phase: branch off `rewrite/nextjs`, build, self-verify, report to user, aw
 
 ### Phase 0 — Foundation & De-risking *(needs blessing)*
 
-Goal: prove the riskiest pieces work before committing to the full port.
+Goal: prove the riskiest pieces work before committing to the full port. This phase is **intentionally front-loaded with the hardest problems** — CSP architecture, NextAuth edge runtime, and schema baseline — so that every subsequent phase builds on proven ground rather than discovering structural issues mid-port.
 
 1. **Reconcile the schema first** (do this in the *current* repo, see §8) so we baseline from truth.
-2. Decide hosting (Vercel vs VPS) and file storage (local `uploads/` vs S3-compatible object storage). Recommendation in §11.
+2. Confirm hosting (Vercel) and file storage (Cloudflare R2 for production) — see §11. No decisions deferred.
 3. Scaffold Next.js 15 + TypeScript (strict) + Tailwind v4 + App Router in `rewrite/nextjs`.
 4. Point Prisma at the **existing production-shaped DB** (a clone/staging copy, never prod directly).
 5. `prisma migrate diff` + `prisma migrate resolve` to create a **baseline migration** matching the current DB exactly (no data change).
 6. Configure NextAuth v5 with Google provider. Verify full login → session → logout against a test Google account.
 7. Render a single trivial page that reads one row from the DB via Prisma in an RSC.
+8. **Scaffold nonce-based CSP infrastructure**: generate a per-request nonce in `middleware.ts`, set the `Content-Security-Policy` response header (no `unsafe-inline`), and propagate the nonce to `app/layout.tsx`. Document the nonce propagation pattern — every `<Script>` tag and inline script written in Phases 1 and 2 **must** receive this nonce. Deferring CSP to Phase 3 guarantees expensive backtracking; doing it now means the foundation is correct.
+9. **Validate the NextAuth v5 edge-split pattern**: implement `lib/auth.config.ts` (JWT strategy + Google provider, **no Prisma adapter** — Edge Runtime safe) and `lib/auth.ts` (full NextAuth config with Prisma adapter, used in RSCs and API Route Handlers only). `middleware.ts` imports **only** `auth.config.ts`. NextAuth v5 crashes in Edge Runtime when the Prisma adapter is loaded; this split is non-negotiable. Prototype route protection (`/profil` redirects unauthenticated users to `/`) before proceeding.
 
-**Exit criteria:** Can log in with Google, see a session, read from DB, log out. Schema and DB are in sync via a real migration. Nothing else exists yet.
+**Exit criteria:** Google login → session → logout works. DB read from RSC works. Schema and DB are in sync via a real Prisma migration. CSP nonce infrastructure is in place with no `unsafe-inline` from day one. Protected route redirects unauthenticated users correctly via `auth.config.ts` in middleware. Nothing else exists yet.
 
-**Effort:** ~1–2 focused sessions. This is the highest-uncertainty phase.
+**Effort: ~3–4 sessions** (was 1–2; the CSP scaffold, NextAuth edge validation, and baseline migration each carry real uncertainty; this is the highest-risk phase).
 
 ### Phase 1 — API Layer
 
-1. Port each Express route to a Next.js Route Handler (see §4.1 mapping). Start with read-only (`events` list, `albums`, `stats`), then mutations.
+1. Port each Express route to a Next.js Route Handler (see §4.1 mapping). Start with read-only (`events` list, `albums`, `stats`), then mutations. Budget roughly one session per major route file.
 2. Write a Zod schema for every request body and query param in `lib/validations/`.
 3. Create one shared session/authorization helper (`requireUser()`, `requireAdmin()`, `requireOwnerSafe()`) — used by **every** handler. No local auth copies, ever.
 4. Port owner-protection and self-demotion guards from `users.ts`.
-5. Re-implement rate limiting (Next.js middleware or hosting-level).
-6. Port watermark image serving.
-7. Smoke test: hit every endpoint with valid + invalid payloads; invalid must be rejected by Zod with 400.
+5. Re-implement rate limiting via Next.js middleware (or Vercel's built-in rate limiting).
+6. Port watermark image serving (or switch to pre-generated variants per §11).
+7. All mutations use **Server Actions** where appropriate; Route Handlers for external API consumers. No React Query — the framework handles caching.
+8. Smoke test: hit every endpoint with valid + invalid payloads; invalid must be rejected by Zod with a 400.
 
-**Exit criteria:** Every API endpoint responds correctly and rejects bad input. Verified against the still-running old frontend if practical, or via a test script.
+**Exit criteria:** Every API endpoint responds correctly and rejects bad input. Verified against the still-running old frontend if practical, or via a request test script.
 
-**Effort:** ~3–4 sessions (events.ts alone is 608 lines).
+**Effort: ~7–10 sessions** (was 3–4; `events.ts` alone is 608 lines; every endpoint needs Zod, server-action wiring, and payload tests; the original estimate was optimistic by roughly 2×).
 
 ### Phase 2 — Frontend Migration
 
-1. **Build the design-system foundation first** (§6): tokens, unified `Button` (CVA), icon registry, layout/nav components, state components, `/styleguide`. Everything below consumes it.
-2. Move remaining `components/` over; fix imports; confirm they render in the `/styleguide`.
-3. Convert pages per §4.2. Public read pages become RSC; interactive pages (Admin, Calendar) stay client components.
-4. Replace `AppContext` data-fetching with TanStack Query hooks; keep a thin Zustand store for pure UI state (toasts, modals, confirm dialog).
-5. Replace `ProtectedRoute` with `middleware.ts` route protection.
-6. Port toast (Sonner) and the confirmation-modal system.
-7. Verify every live page visually matches the old site.
+1. **Build the design-system foundation first** (§6): tokens, unified `Button` (CVA, deletes `.btn-*`), icon registry, layout/nav components, state components (`EmptyState`, `ErrorState`), `/styleguide`. Everything below consumes it — do not skip this step.
+2. Move remaining `components/` over; fix imports; confirm they render in `/styleguide`.
+3. Convert pages per §4.2. Public read pages become RSC; interactive pages (Admin, Calendar) stay client components with `'use client'`.
+4. Replace `AppContext` server-data fetching with **RSC + Server Actions**. Keep a minimal Zustand store for pure UI state only (toast queue, modal open/close, mobile drawer) — these are the only things the server doesn't already own. **Do not introduce React Query**: Next.js 15's RSC + `unstable_cache` + Server Actions covers the same ground with zero extra dependency.
+5. Replace `ProtectedRoute` with `middleware.ts` route protection (already scaffolded in Phase 0).
+6. Port toast (Sonner) and the `confirmAction`/`ConfirmationModal` system into the Zustand store.
+7. Verify every live page visually matches the old site, including on mobile.
 
 **Exit criteria:** All currently-live pages work and look identical in Next.js. Auth-gated pages redirect correctly. `/styleguide` shows the full system.
 
-**Effort:** ~4–5 sessions (includes the design-system foundation).
+**Effort: ~6–8 sessions** (was 4–5; design-system foundation first, then 13 pages; slightly faster than Phase 1 because there is no React Query to wrangle).
 
 ### Phase 3 — Security Hardening
 
-1. **Nonce-based CSP**: generate a per-request nonce in `middleware.ts`, inject into CSP header and every inline script tag. Remove `unsafe-inline` entirely.
-2. Confirm NextAuth's automatic OAuth `state`/PKCE is active (replaces the missing CSRF param).
-3. Audit every `prisma.$queryRawUnsafe` from the old `events.ts`/`search.ts`; replace with typed Prisma queries unless a measured perf need justifies raw SQL (then use parameterized `$queryRaw` tagged template, never `Unsafe`).
-4. Add startup env validation with Zod (`@t3-oss/env-nextjs` or a hand-rolled `lib/env.ts`) — app refuses to boot with missing/invalid env.
-5. Set secure cookie flags, HSTS, and the rest of the Helmet header set as Next.js headers.
-6. Security review of the diff (`/security-review`).
+At this point the nonce-based CSP is already in place (Phase 0). This phase audits and hardens it rather than establishing it.
 
-**Exit criteria:** CSP has no `unsafe-inline`; env validated at boot; no `$queryRawUnsafe`; security review clean.
+1. **Audit the CSP**: verify every `<Script>` tag and inline handler added in Phases 1–2 carries the Phase 0 nonce; tighten `imgSrc`, `connectSrc`, and `frameSrc` allowlists to exact values (not wildcards); run a CSP evaluation tool (e.g. securityheaders.com) against staging.
+2. Confirm NextAuth's automatic OAuth `state`/PKCE is active (replaces the current missing CSRF param).
+3. Audit every `prisma.$queryRawUnsafe` from the old `events.ts`/`search.ts`; replace with typed Prisma queries. Only keep raw SQL where Prisma genuinely cannot express the query, and only with the parameterized `$queryRaw` tagged template — never `Unsafe`.
+4. Add startup env validation with Zod (`@t3-oss/env-nextjs` or a hand-rolled `lib/env.ts`) — app refuses to start with missing or malformed env vars.
+5. Set HSTS, secure cookie flags, and the full security header set via `next.config.ts` headers.
+6. Security review of the branch diff (`/security-review`).
 
-**Effort:** ~1–2 sessions.
+**Exit criteria:** CSP audit clean; no `unsafe-inline`; no `$queryRawUnsafe`; env validated at boot; security review passing.
+
+**Effort: ~2–3 sessions** (was 1–2; now audit-only since the foundation was established in Phase 0).
 
 ### Phase 4 — Feature Completion
 
-1. Unhide and finish the ComingSoon pages: `/galeria`, `/aktualnosci`, `/wiki`, `/o-nas` (backends already exist).
+1. Unhide and finish the ComingSoon pages: `/galeria`, `/aktualnosci`, `/wiki`, `/o-nas` (backends already exist from Phase 1).
 2. Build real `/o-nas` content with the user.
-3. Add `generateMetadata` / Open Graph tags to event, gallery, and wiki detail pages (now possible with SSR).
+3. Add `generateMetadata` / Open Graph tags to event, gallery, and wiki detail pages (enabled by SSR).
 4. Add `error.tsx` and `not-found.tsx`.
 
-**Exit criteria:** No ComingSoon wrappers remain. Shared event links show rich previews.
+**Exit criteria:** No ComingSoon wrappers remain. Shared event links show rich social previews.
 
-**Effort:** ~1–2 sessions.
+**Effort: ~3–4 sessions** (was 1–2; unlocking 4 hidden pages + real `/o-nas` content is more than half a session each).
 
 ### Phase 5 — Production Readiness & Cutover
 
 1. Structured logging (replace `console.error`/`console.log` with a logger — `pino`).
-2. Error monitoring (Sentry).
-3. DB connection pooling verified (Prisma + pgBouncer or hosting equivalent).
-4. CI: lint + typecheck + smoke tests on every PR.
-5. Move uploads to object storage if decided in Phase 0.
+2. Error monitoring (Sentry — Next.js integration).
+3. DB connection pooling verified (Prisma Accelerate or pgBouncer on the DB host).
+4. CI pipeline on Vercel: lint + typecheck + smoke tests run on every PR automatically.
+5. Migrate `uploads/` to Cloudflare R2; verify watermarked variants serve correctly.
 6. Execute the cutover plan (§10).
 
-**Exit criteria:** New app in production, old app retired, monitoring green.
+**Exit criteria:** New app live in production, old app retired, monitoring green.
 
-**Effort:** ~1–2 sessions + a maintenance window for cutover.
+**Effort: ~3–4 sessions + a maintenance window for cutover** (was 1–2).
 
-**Total rough estimate:** ~13–17 focused sessions across all phases. The user has accepted downtime, which removes the hardest constraint (zero-downtime migration).
+**Total realistic estimate: ~24–33 sessions** across all phases. The original 13–17 estimate did not account for the complexity of porting a 600-line Express route into typed Route Handlers + Server Actions + Zod, nor for the Phase 0 infrastructure work. Plan for the high end; anything under 30 sessions is ahead of schedule.
 
 ---
 
@@ -472,10 +478,10 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 
 1. Freeze writes on the old app (maintenance banner).
 2. Take a full DB backup (`pg_dump`).
-3. Point the new app at the production DB; run `prisma migrate deploy` (baseline already applied, should be a no-op or only new migrations).
-4. Migrate `uploads/` if moving to object storage; otherwise the new app reads the same directory.
-5. Smoke test the new app against prod data on a staging URL.
-6. Switch DNS / reverse proxy to the new app.
+3. Point the new app at the production DB; run `prisma migrate deploy` (baseline already applied — should be a no-op or only new migrations).
+4. Verify `uploads/` files are fully synced to Cloudflare R2.
+5. Smoke test the new app against prod data on a Vercel preview URL.
+6. Switch DNS to the Vercel production deployment.
 7. Keep the old app deployable for 1–2 weeks as instant rollback.
 8. Remove the old app once stable.
 
@@ -485,14 +491,15 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 
 ## 11. Open Decisions (resolve in Phase 0 with user)
 
-| Decision | Options | Recommendation |
+| Decision | Answer | Notes |
 |---|---|---|
-| Hosting | VPS (self-managed) vs Vercel | **Vercel** — simplest CSP nonce + edge + CI story for a small site; VPS only if cost or data-residency requires it |
-| File storage | Local `uploads/` vs S3-compatible (R2/S3) | **Object storage (Cloudflare R2)** — local disk doesn't survive serverless; if staying on a VPS, local is fine |
-| Image serving/watermark | On-the-fly (current) vs pre-generated on upload | **Pre-generate watermarked variants on upload** — cheaper per-request, plays nicer with CDN and `next/image` |
-| Light mode | Single dark theme vs add light | **Dark only** for parity; tokens leave it open later |
-| `@google/genai` dependency | Currently present — used? | Audit usage; drop if unused to shrink surface |
-| Repo strategy | New branch vs new repo | **New branch `rewrite/nextjs`** — keeps history, easy to compare |
+| Hosting | **Vercel** (required) | VPS self-hosting of Next.js 15 is a significant operational burden: manual `standalone` build, custom `sharp` compilation, manual ISR cache invalidation, no built-in image optimization CDN, PM2 management. This contradicts "done right, not fast." If budget becomes a concern, Vercel's hobby tier is free for low traffic. If data-residency ever requires self-hosting, the correct response is to reconsider the framework (Remix or SvelteKit are deployment-agnostic); not to fight Next.js's Vercel coupling. |
+| File storage | **Cloudflare R2** (required) | Vercel's ephemeral filesystem does not persist between deployments. Cloudflare R2 is S3-compatible with a generous free tier and works well with Cloudflare CDN for serving images. |
+| Image serving/watermark | **Pre-generate on upload** | On-the-fly watermarking is incompatible with `next/image` and Vercel's CDN. Generate watermarked variants at upload time with sharp; store both originals and watermarked copies in R2. |
+| State management | **RSC + Server Actions** (no React Query) | Already decided; see §2 and Phase 2. |
+| Light mode | **Dark only** for parity | CSS variable tokens leave the door open later without any rework. |
+| `@google/genai` dependency | **Audit and drop if unused** | This package is in `package.json` but its usage is unclear. Unused dependencies increase attack surface. |
+| Repo strategy | **New branch `rewrite/nextjs`** | Keeps full git history; easy to compare old and new. |
 
 ---
 
@@ -501,14 +508,18 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | Schema drift causes bad baseline | Medium | High | §8 reconciliation before Phase 0; baseline against a DB *clone* first |
-| NextAuth Google config differs from current OAuth | Medium | Medium | Phase 0 de-risks this first, against a test account |
-| `events.ts` (608 lines) hides edge cases | High | Medium | Port incrementally, endpoint by endpoint, with payload tests |
-| `$queryRawUnsafe` queries hard to reproduce in Prisma | Medium | Low | Keep parameterized raw query as fallback where Prisma can't express it |
-| Watermark middleware doesn't translate to serverless | Medium | Medium | Pre-generate variants on upload (see §11) |
-| Duplicated button styling causes visual drift | Medium | Low | Unify on one CVA source; delete `.btn-*` CSS (§6.2) |
+| NextAuth v5 crashes in Edge Runtime with Prisma adapter | High | High | **Phase 0 must validate the `auth.config` split before any other phase starts** — see Phase 0 step 9 |
+| NextAuth Google OAuth config differs from current manual flow | Medium | Medium | Phase 0 de-risks this first, against a test account |
+| `events.ts` (608 lines) hides edge cases | High | Medium | Port incrementally, endpoint by endpoint, with payload tests; ~1 session per major file |
+| `$queryRawUnsafe` queries hard to reproduce in Prisma | Medium | Low | Keep parameterized `$queryRaw` tagged template as fallback; never `Unsafe` |
+| Watermark middleware incompatible with Vercel / `next/image` | High | Medium | Pre-generate variants on upload (§11); resolved in Phase 1 |
+| CSP written before nonce infrastructure | Was HIGH | Phase 0 | **Fixed by design**: CSP scaffold moved to Phase 0; every subsequent phase builds on the correct foundation |
+| React Query added to App Router project | Was MEDIUM | — | **Removed from plan**: RSC + Server Actions + `unstable_cache` covers the same surface with zero extra dependency |
+| Self-hosting Next.js on VPS | Removed | — | **Removed from plan**: operational complexity exceeds the budget for a small club site. Vercel is required. |
+| Duplicated button styling causes visual drift | Low | Low | Unified on one CVA source in Phase 2; `.btn-*` CSS deleted |
 | Scope creep into redesign | Medium | High | Guardrail §3.2 — design system *codifies*, never changes, the look |
-| Lost uploads during cutover | Low | High | Backup + verified copy before DNS switch (§10) |
-| **Live app stays vulnerable during rewrite** (session-revocation bug unpatched until cutover) | Certain | Medium | **Accepted** per §1.1. Mitigation: keep the rewrite moving; if the site goes fully public before cutover, revisit and patch the HIGH issue in the current app as an exception |
+| Lost uploads during cutover | Low | High | Full R2 sync verified before DNS switch (§10) |
+| **Live app stays vulnerable during rewrite** (session-revocation bypass unpatched) | Certain | Medium | **Accepted** per §1.1. If the site goes fully public before cutover, revisit and patch the HIGH issue in the current app as the one exception to the no-interim-patches rule. |
 
 ---
 
@@ -516,18 +527,20 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 
 - [ ] All current live pages work identically in Next.js
 - [ ] All ComingSoon pages unhidden and functional
-- [ ] Every API endpoint validates input with Zod
+- [ ] Every API endpoint validates input with Zod; mutations use Server Actions
 - [ ] Single shared auth helper; zero local `authenticate` copies
-- [ ] Design system codified: unified `Button`, icon registry, tokens, nav, state components, `/styleguide`
-- [ ] No duplicated styling; no hard-coded hex in components
-- [ ] CSP has no `unsafe-inline`
+- [ ] `lib/auth.config.ts` (edge-safe) and `lib/auth.ts` (full) correctly split; middleware uses only the config
+- [ ] Design system codified: unified `Button` (CVA), icon registry, tokens, nav, state components, `/styleguide`
+- [ ] No duplicated styling; no hard-coded hex in components; `.btn-*` CSS deleted
+- [ ] CSP has no `unsafe-inline`; nonce propagated correctly to all scripts
 - [ ] Real Prisma migrations; `runMigrations()` deleted
 - [ ] `schema.prisma` is the honest single source of truth; no `as any`
 - [ ] Owner protection + session revocation enforced everywhere
-- [ ] Env validated at boot
+- [ ] Env validated at boot; app refuses to start with missing vars
 - [ ] Accessibility baseline (§6.11) passing on core flows
-- [ ] Smoke tests in CI (lint + typecheck + key flows)
-- [ ] Error monitoring + structured logging in production
+- [ ] Smoke tests in CI (lint + typecheck + key flows on every PR via Vercel)
+- [ ] Error monitoring (Sentry) + structured logging (`pino`) in production
+- [ ] Uploads migrated to Cloudflare R2; watermarked variants pre-generated
 - [ ] Old app retired after stable cutover
 
 ---

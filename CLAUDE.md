@@ -2,9 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## Workflow Rules
+
+These are non-negotiable process rules. Follow them on every task, every session.
+
+1. **Always work in a branch.** Never commit directly to `main`. Create a descriptive branch (`feat/`, `fix/`, `chore/`) for every change, no matter how small.
+2. **Ask before merging to main.** When work is ready, push the branch and tell the user — do not open a PR or merge without explicit approval.
+3. **Ask how new features connect.** Before implementing anything that touches existing systems (auth, events, user model, GPX, notifications), ask the user how it should integrate with what's already there. Don't assume.
+4. **Keep it simple.** TRUP is a small club site. Avoid over-engineering: no abstractions for hypothetical future requirements, no premature generalization. Three similar lines is better than a premature abstraction.
+5. **Prefer modularity.** New backend functionality goes in its own route file. New UI functionality goes in its own component. Keep files focused and small.
+6. **No silent scope creep.** If you notice something unrelated that could be improved while doing a task, mention it — don't just fix it.
+
+---
+
 ## Project Overview
 
 This is the website for **TRUP** — a Polish hiking/mountain club. The stack is a full-stack TypeScript monorepo: a React 19 SPA (Vite) and an Express.js API server sharing the same repo.
+
+---
 
 ## Commands
 
@@ -33,6 +50,8 @@ npx prisma db seed
 ```
 
 There is no test suite.
+
+---
 
 ## Architecture
 
@@ -131,7 +150,7 @@ Pages marked `<ComingSoon>` have fully-functional backend APIs and frontend comp
 - Google OAuth2 flow: `/api/auth/google` → Google consent → `/api/auth/google/callback` → JWT cookie.
 - JWT stored in `httpOnly` cookie named `token` (7-day TTL).
 - Auth middleware in `server/middleware/auth.ts`:
-  - `authenticate` — verifies JWT, attaches `req.userId`/`req.userRole`
+  - `authenticate` — verifies JWT, attaches `req.userId`/`req.userRole`; checks `lastLogoutAt` to invalidate revoked sessions
   - `requireAdmin` — checks `ADMIN` role (403 if not)
   - `getUserIdFromCookie()` — returns `userId` from JWT cookie or `null` (for optional auth)
   - `getUserFromCookie()` — returns `{ userId, role }` or `null`
@@ -139,6 +158,7 @@ Pages marked `<ComingSoon>` have fully-functional backend APIs and frontend comp
 - DB role enum: `USER | ADMIN`. Frontend role string: `'guest' | 'user' | 'admin'`.
 - Emergency first-admin grant: `POST /api/auth/make-admin` (only works if no admin exists yet).
 - The OAuth callback URL is set via the `CALLBACK_URL` environment variable (defaults to `http://localhost:3001/api/auth/google/callback`). Update `CALLBACK_URL` for production deployments.
+- **Owner protection**: `OWNER_EMAIL` env var designates a permanent owner account that cannot be demoted or deleted by any admin.
 
 ### Middleware (`server/middleware/`)
 
@@ -155,6 +175,8 @@ Pages marked `<ComingSoon>` have fully-functional backend APIs and frontend comp
 - Stats cache (`server/routes/stats.ts`) is invalidated by calling `invalidateStatsCache()` after GPX approval or event finalisation.
 
 ### Key Data Models
+
+**`User`** — `role` (USER/ADMIN), `status` (ACTIVE/INACTIVE/FLAGGED), `lastLogoutAt` (used for session revocation). `OWNER_EMAIL` env var designates an undeletable/undemotable owner.
 
 **`Event`** — has `isDraft`, `isFinalized`, `featured`, `highlighted`, `isExpedition` flags. Sensitive fields (`mapLink`, `mapEmbed`, `gearRequired`, `meetingPoint*`, etc.) are stripped for unauthenticated requests. Key fields:
 - `imageFocalX`, `imageFocalY` — focal point for header image CSS positioning
@@ -181,7 +203,9 @@ The `/admin` route (`Admin.tsx`) covers:
 - Attendance tracking and RSVP management
 - GPX submission review queue and approval
 - **Event finalization queue** at `GET /api/events/admin/completion-queue` — lists finalized events needing post-event data entry (actual stats, track approval)
-- User management
+- User management (activate/deactivate, promote/demote, delete — with owner + self-demotion guards)
+
+---
 
 ## Environment Variables
 
@@ -194,6 +218,7 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 CLIENT_URL=http://localhost:5173      # frontend origin for CORS + OAuth redirect
 CALLBACK_URL=http://localhost:3001/api/auth/google/callback  # Google OAuth callback
+OWNER_EMAIL=...                       # email of the permanent owner account (cannot be deleted/demoted)
 PORT=3001                             # optional
 ```
 
@@ -206,3 +231,165 @@ VAPID_SUBJECT=mailto:...
 ```
 
 If `VAPID_*` variables are not set, push notification endpoints will still register but sending will fail silently.
+
+---
+
+## Architectural Principles
+
+These are guiding principles for all future development on this project, current stack or rewrite.
+
+- **One concern per file.** Route files own their endpoints. Components own their UI. Don't let logic bleed across boundaries.
+- **Security at the boundary.** Validate and sanitize at the API boundary (user input, external data). Trust internal code. Don't re-validate data that never left the server.
+- **Shared auth middleware, always.** Never define a local `authenticate` function inside a route file. Always import from `server/middleware/auth.ts`. Local copies silently break session revocation, rate-limiting, and any future security additions.
+- **Explicit over implicit.** Pass data down explicitly. Avoid magic globals. Make the data flow readable.
+- **Ask before you add complexity.** If a feature requires a new pattern, a new dependency, or touches core data models, discuss with the user before implementing. The cost of an unnecessary abstraction is higher than the cost of a short conversation.
+- **Small commits, clear messages.** Each commit should do one thing. Commit message should say what changed and why (not just what).
+
+---
+
+## Known Issues & Security Debt
+
+Track active bugs and technical debt here. Update this list when issues are fixed or discovered.
+
+**Last reviewed: 2026-05-27**
+
+### Security Issues
+
+1. **Three routes bypass session revocation** *(HIGH — fix before going public)*
+   - `server/routes/gpx.ts`, `server/routes/push.ts`, and `server/routes/users.ts` each define their own local `authenticate` function. These functions do NOT check `lastLogoutAt`, meaning a user who logged out can still use old JWT tokens to access these endpoints.
+   - **Fix**: Replace all three local `authenticate` functions with the shared middleware from `server/middleware/auth.ts`.
+
+2. **OAuth flow missing CSRF state parameter** *(MEDIUM)*
+   - The Google OAuth redirect at `GET /api/auth/google` does not generate or verify a `state` parameter. This is vulnerable to CSRF attacks on the OAuth flow.
+   - **Fix**: Generate a random `state` value, store it in a short-lived cookie, verify it in the callback.
+
+### Technical Debt
+
+3. **`prisma.$queryRawUnsafe()` usage** — Some event list queries use raw SQL with parameterized values. This is safe as written but fragile. Audit before adding new query variants.
+
+4. **`as any` casts for `lastLogoutAt`** — Since `prisma generate` can't run in dev without a DB connection, the `lastLogoutAt` field uses `as any` type casts. Running `npm run prisma:generate` with DB access will resolve these.
+
+5. **Raw SQL startup migrations** — `runMigrations()` in `server/index.ts` runs `ALTER TABLE IF NOT EXISTS` on every start instead of using Prisma's migration system. This works but is the wrong pattern for production and makes schema history invisible.
+
+6. **Multiple PrismaClient instances** — Each route file imports from `server/lib/prisma.ts` which should export a singleton, but this should be verified to confirm connection pooling is not a problem under load.
+
+---
+
+## Master Rewrite Plan
+
+The goal is a holistic, production-grade rewrite: **Next.js 15 App Router + NextAuth.js v5 + Prisma migrations + Zod**. This is not a fast rewrite — it is a "done right" rewrite. Do not start any phase without explicit user approval for that phase.
+
+### Why Rewrite?
+
+- CSP `unsafe-inline` cannot be removed without SSR (nonce-based CSP requires server-rendered HTML)
+- Raw startup migrations instead of versioned Prisma migrations makes production deployments risky
+- Multiple security gaps that are band-aided rather than architecturally solved
+- SPA architecture prevents server-side rendering, caching, and proper SEO for event pages
+
+### Target Stack
+
+| Layer | Current | Target |
+|---|---|---|
+| Framework | React 19 SPA + Express | Next.js 15 App Router |
+| Auth | Custom JWT + Google OAuth | NextAuth.js v5 (Google provider) |
+| Database migrations | Raw SQL startup scripts | Prisma Migrate |
+| Input validation | None (server-side) | Zod schemas |
+| Rendering | Client-only SPA | SSR + RSC where appropriate |
+| CSP | `unsafe-inline` (weak) | Nonce-based (strong) |
+| TypeScript | `as any` workarounds | Strict, no `any` |
+
+### Phase 0 — Prerequisites *(requires user blessing)*
+
+- Decide: new repo or new branch in existing repo (recommendation: new branch `rewrite/nextjs` to keep history)
+- Scaffold Next.js 15 project with TypeScript, Tailwind CSS v4, App Router
+- Connect existing PostgreSQL database
+- Initialize Prisma with `prisma migrate dev` (convert startup SQL to proper migrations)
+- Set up NextAuth.js v5 with Google provider (replaces all of `server/routes/auth.ts`)
+- Verify Google OAuth still works end-to-end before touching anything else
+- **Deliverable**: Working Next.js app that can log in with Google, read from DB, nothing else
+
+### Phase 1 — API Layer
+
+- Create Next.js Route Handlers (`app/api/`) for each existing Express route
+- Add Zod validation to every handler that accepts a request body or query params
+- Port `server/middleware/auth.ts` logic to a reusable Next.js middleware pattern
+- Use NextAuth session (no JWT cookie management) — session revocation is handled by NextAuth
+- Rate limiting via Next.js middleware (or Vercel's built-in rate limit if deployed there)
+- **Deliverable**: All API endpoints working, tested manually against the existing frontend
+
+### Phase 2 — Frontend Migration
+
+- Convert React Router routes to Next.js App Router file structure (`app/(routes)/...`)
+- Keep existing UI components as-is — they are well-built, just move the files
+- Replace `AppContext.tsx` global state with a lighter pattern (React Query for server state, small Zustand store for UI state)
+- Replace `ProtectedRoute` with Next.js middleware-based route protection
+- Add Suspense boundaries and loading skeletons for RSC data fetching
+- **Deliverable**: All live pages rendering correctly in Next.js
+
+### Phase 3 — Security Hardening
+
+- Nonce-based CSP (possible now with SSR — add nonce to every `<script>` and CSP header)
+- Add `state` parameter to Google OAuth flow (NextAuth handles this automatically)
+- Audit and fix all `prisma.$queryRawUnsafe()` calls — replace with Prisma's typed query builder where possible
+- Add environment variable validation at startup (using Zod or `@t3-oss/env-nextjs`)
+- **Deliverable**: Security audit checklist fully green
+
+### Phase 4 — Feature Completion
+
+- Unhide ComingSoon pages (`/galeria`, `/aktualnosci`, `/wiki`, `/o-nas`) — the backend is ready
+- Add proper error pages (`not-found.tsx`, `error.tsx`) in App Router convention
+- Add Open Graph metadata to event pages (enabled by SSR)
+- **Deliverable**: All pages live, no more ComingSoon
+
+### Phase 5 — Production Readiness
+
+- Error monitoring (Sentry or similar)
+- Structured logging (replace `console.error` with proper logger)
+- Database connection pooling audit
+- CI/CD pipeline: lint + typecheck on every PR
+- Deploy to production and verify all env vars
+- **Deliverable**: Production deployment
+
+### Rewrite Rules
+
+- Preserve all existing data and the existing PostgreSQL database — no data migration needed, only schema migration to Prisma Migrate format
+- UI/UX should look identical to the current site — this is a technical rewrite, not a redesign
+- Phase 0 requires explicit "go ahead" from the user before any code is written
+- Each phase produces a working, deployable state — never leave the app in a broken state between phases
+- All Phase 0–5 work happens in `rewrite/nextjs` branch; merge to main only after user approval
+
+---
+
+## CLAUDE.md Self-Update
+
+This file should be kept up to date as the codebase evolves. Two mechanisms exist for this:
+
+### `/sync-context` command
+
+Run `/sync-context` at any time to trigger a review of recent git history and update this file. The command lives at `.claude/commands/sync-context.md`.
+
+What it does:
+1. Reads `git log` since CLAUDE.md was last touched
+2. Identifies new routes, components, schema changes, and bug fixes
+3. Updates the relevant sections of this file in-place
+4. Commits the update on the current branch
+
+### SessionStart hook
+
+A `SessionStart` hook in `.claude/settings.json` checks whether CLAUDE.md is more than one day older than the latest commit. If it is stale, it prints a reminder to run `/sync-context` at the start of the session.
+
+### What to record here
+
+When updating this file, always update:
+- New routes in the API Routes table
+- New components in the Frontend Components list
+- New frontend routes in the Frontend Routes table
+- New environment variables in the Environment Variables section
+- Newly discovered bugs in Known Issues
+- Resolved bugs (mark them as fixed with date, then remove after the next session)
+- Any new architectural patterns introduced
+
+Do NOT record:
+- Commit hashes or PR numbers (they rot)
+- Names of specific past bugs or features fixed (use git log for that)
+- Implementation details that belong in code comments

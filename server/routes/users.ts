@@ -194,6 +194,10 @@ router.delete('/:id', authenticate, async (req: any, res) => {
       return res.status(403).json({ error: 'Nie można usunąć właściciela' });
     }
 
+    await prisma.eventParticipation.deleteMany({ where: { userId: req.params.id } });
+    await prisma.gpxSubmission.deleteMany({ where: { userId: req.params.id } });
+    await prisma.notification.deleteMany({ where: { userId: req.params.id } });
+    await prisma.pushSubscription.deleteMany({ where: { userId: req.params.id } });
     await prisma.user.delete({ where: { id: req.params.id } });
 
     invalidateStatsCache();

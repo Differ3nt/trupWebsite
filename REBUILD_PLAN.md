@@ -18,6 +18,7 @@ The current app (React 19 SPA + Express) works, but has structural problems that
 | **No input validation** | No server-side schema validation on any route body | Every POST/PATCH trusts the client; injection and bad-data risk |
 | **Auth fragmentation** | 3 route files define their own local `authenticate` that skips `lastLogoutAt` revocation | Security logic is copy-pasted and drifts; logout doesn't fully work |
 | **Hand-rolled OAuth** | `auth.ts` does manual `fetch` token exchange "z powodu błędów gaxios" | Missing CSRF `state` param; reinventing a solved problem |
+| **Duplicated UI styling** | Button styles exist twice — React `Button` variants AND global `.btn-*` classes in `index.css` | Two sources of truth drift; "same look everywhere" is unenforceable |
 | **No SSR / SEO** | Client-only SPA | Event pages can't have Open Graph tags or be crawled; slow first paint |
 | **No tests** | "There is no test suite" | Every change is unverified; regressions ship silently |
 
@@ -25,7 +26,7 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 
 ### 1.1 Bug Fixes Folded Into the Rewrite
 
-**Decision (2026-05-27):** the current app gets **no interim patches**. Every known bug and security gap is fixed *as part of* the rewrite, in the phase noted below. The current app keeps running unchanged until cutover (§9). This is a deliberate trade-off — see the accepted risk in §11.
+**Decision (2026-05-27):** the current app gets **no interim patches**. Every known bug and security gap is fixed *as part of* the rewrite, in the phase noted below. The current app keeps running unchanged until cutover (§10). This is a deliberate trade-off — see the accepted risk in §12.
 
 | Known issue (tracked in `CLAUDE.md`) | Severity | Fixed in | How |
 |---|---|---|---|
@@ -33,11 +34,12 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 | OAuth missing CSRF `state` param | MEDIUM | Phase 0 | NextAuth handles `state`/PKCE automatically |
 | Weak CSP (`unsafe-inline`) | MEDIUM | Phase 3 | Nonce-based CSP via SSR |
 | No server-side input validation | MEDIUM | Phase 1 | Zod schema on every handler |
+| Duplicated button styling (component + CSS) | LOW | Phase 2 | One variant source via the design system (§6.2) |
 | `prisma.$queryRawUnsafe` fragility | LOW | Phase 3 | Replace with typed Prisma queries |
-| `as any` casts (schema drift) | LOW | Phase 0 | Schema reconciliation (§7) makes types honest |
+| `as any` casts (schema drift) | LOW | Phase 0 | Schema reconciliation (§8) makes types honest |
 | Raw SQL startup migrations | — | Phase 0 | Prisma Migrate replaces `runMigrations()` |
 | Multiple `PrismaClient` instances | — | Phase 1 | Single `lib/prisma.ts` singleton |
-| Manual cascade deletes in `users.ts` | — | Phase 0/8 | `onDelete: Cascade` in schema relations |
+| Manual cascade deletes in `users.ts` | — | Phase 0 | `onDelete: Cascade` in schema relations (§9) |
 
 ---
 
@@ -51,13 +53,15 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 | Validation | None | **Zod** | Typed schemas at every API boundary; shared client/server types |
 | Server state | `fetch` + AppContext | **TanStack Query (React Query)** | Caching, revalidation, loading/error states |
 | UI state | AppContext | Small **Zustand** store (or React context, kept minimal) | Decouple UI state from server state |
-| Styling | Tailwind v4 | **Tailwind v4** (unchanged) | Already good; components port directly |
+| Styling | Tailwind v4 | **Tailwind v4** (unchanged) | Already good; tokens port directly |
+| Component variants | Hand-written variant maps + duplicate CSS | **CVA (class-variance-authority)** | One typed source of truth for variants/sizes |
+| Icons | `lucide-react` imported ad-hoc | **`lucide-react` via a central registry** | Consistent icon vocabulary; one-file library swap |
 | CSP | `unsafe-inline` | **Nonce-based CSP** | Real XSS protection, enabled by SSR |
 | Forms | react-hook-form | **react-hook-form + Zod resolver** | Validation shared with the API |
 | Images | multer + sharp on Express | **Next.js Route Handler + sharp** | Same processing, integrated |
 | Hosting | Self/VPS (tsx) | **VPS or Vercel** (decide Phase 0) | Either works; Vercel simplifies CSP nonces + edge |
 
-**Kept as-is** (well-built, port directly): all `src/components/` UI primitives, Leaflet GPX rendering, sharp image pipeline, watermark logic, gpxUtils parsing, the Tailwind design.
+**Kept as-is** (well-built, port directly): all `src/components/` UI primitives, Leaflet GPX rendering, sharp image pipeline, watermark logic, gpxUtils parsing, the Tailwind design tokens.
 
 ---
 
@@ -66,8 +70,8 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 These apply to every phase:
 
 1. **The production database is sacred.** No data migration, no data loss. We only convert the *schema management method* (raw SQL → Prisma Migrate) via a baseline migration against the existing DB.
-2. **No visual redesign.** This is a technical rewrite. The site looks identical when done. UI components move, they don't change.
-3. **Each phase is independently deployable.** Never leave the app half-broken between phases. The old app keeps running until the new one fully replaces it (see §9 Cutover).
+2. **No visual redesign.** This is a technical rewrite. The site looks identical when done. The design system (§6) *codifies* the current look — it does not change it.
+3. **Each phase is independently deployable.** Never leave the app half-broken between phases. The old app keeps running until the new one fully replaces it (see §10 Cutover).
 4. **Branch `rewrite/nextjs`.** All rebuild work lives here. Merge to `main` only after the user approves a completed, verified phase.
 5. **Phase gate.** Do not start a phase without the user saying "go" for that phase. Report at the end of each phase with what to verify.
 6. **Tests are part of "done."** A feature isn't done until it has at least a smoke test. No more "there is no test suite."
@@ -115,7 +119,7 @@ Concrete mapping so nothing is lost in translation.
 ### 4.3 Components — port verbatim
 
 All of `src/components/` moves to the new project unchanged except import-path fixes:
-UI primitives (`Badge`, `Button`, `Card`, `Checkbox`, `FormField`, `Input`, `Modal`, `Select`, `Skeleton`, `Textarea`, `Tooltip`, `NavItem`, `AuthGate`) and feature components (`ComingSoon`, `ConfirmationModal`, `EventCountdown`, `GpxPreview`, `GpxUploadModal`, `ImageCropper`, `ImageLoader`, `ImagePicker`, `ImagePositionPicker`, `Layout`, `Lightbox`, `MapyLink`, `NewsCard`, `PageHeader`, `PhotoWatermark`, `ProtectedRoute` → replaced by middleware, `ScrollToTop` → Next.js handles).
+UI primitives (`Badge`, `Button`, `Card`, `Checkbox`, `FormField`, `Input`, `Modal`, `Select`, `Skeleton`, `Textarea`, `Tooltip`, `NavItem`, `AuthGate`) and feature components (`ComingSoon`, `ConfirmationModal`, `EventCountdown`, `GpxPreview`, `GpxUploadModal`, `ImageCropper`, `ImageLoader`, `ImagePicker`, `ImagePositionPicker`, `Layout`, `Lightbox`, `MapyLink`, `NewsCard`, `PageHeader`, `PhotoWatermark`, `ProtectedRoute` → replaced by middleware, `ScrollToTop` → Next.js handles). During Phase 2 the primitives are refactored onto the design-system foundation (§6) — same look, unified source.
 
 ### 4.4 Server libs
 
@@ -149,16 +153,22 @@ trup/
 │   │   ├── gpx/
 │   │   ├── images/
 │   │   └── ...                    # one folder per resource
+│   ├── styleguide/                # dev-only living catalog of the design system (§6.14)
+│   ├── globals.css                # design tokens (@theme) — single source (§6.1)
 │   ├── layout.tsx                 # root layout, CSP nonce injection
 │   ├── error.tsx
 │   └── not-found.tsx
-├── components/                    # ported verbatim
-│   ├── ui/                        # primitives
-│   └── features/                  # feature components
+├── components/
+│   ├── ui/                        # primitives (Button, Card, Input, Badge, Modal, ...)
+│   ├── features/                  # feature components (EventCountdown, GpxPreview, ...)
+│   ├── layout/                    # Layout shell, Navbar, MobileDrawer, Footer
+│   ├── states/                    # EmptyState, ErrorState, loading Skeletons (§6.8)
+│   └── icons.ts                   # central icon registry (§6.3)
 ├── lib/
 │   ├── prisma.ts
 │   ├── auth.ts                    # NextAuth config + session helpers
 │   ├── gpx.ts
+│   ├── cva.ts                     # shared CVA variant helpers (optional)
 │   ├── validations/               # Zod schemas, one file per resource
 │   │   ├── event.ts
 │   │   ├── gpx.ts
@@ -173,11 +183,169 @@ trup/
 └── uploads/                       # (or move to object storage — decide Phase 0)
 ```
 
-**Modularity rule:** one resource = one folder under `app/api/`, one Zod file under `lib/validations/`, one set of pages. Adding a feature touches a predictable, isolated set of files.
+**Modularity rule:** one resource = one folder under `app/api/`, one Zod file under `lib/validations/`, one set of pages. Adding a feature touches a predictable, isolated set of files. Every reusable visual element lives in `components/ui` and is consumed, never re-styled inline.
 
 ---
 
-## 6. Phases
+## 6. Design System & Frontend Foundations
+
+The current site already has a strong, consistent visual language — internally call it **"Alpine Brutalism"**: a green-on-dark palette, the Bebas Neue display font, **0px border-radius everywhere**, uppercase tracking-widest labels, and hover effects that invert foreground/background. The goal of this section is to **codify that language into reusable, customisable building blocks** so every future feature looks native without re-inventing styles. We preserve the look; we make it systematic.
+
+Built **at the start of Phase 2**, before any page is ported, so every page consumes the same foundation.
+
+### 6.1 Design tokens (single source of truth)
+
+All tokens live in `app/globals.css` under Tailwind v4 `@theme` (they already do — formalize and document, never hard-code hex in components).
+
+| Token group | Values (current) | Purpose |
+|---|---|---|
+| Display font | `Bebas Neue` | Headings, hero text, button labels |
+| Body font | `Inter` | Body copy, UI text |
+| `--color-primary` | `#8ED081` (green) | Primary actions, accents, active states |
+| `--color-surface` | `#37392E` (dark olive) | App background |
+| `--color-on-surface` | `#f9f9f8` | Default text on surface |
+| `--color-surface-variant` / `-dim` / `-container-*` | olive greys | Cards, panels, layered backgrounds |
+| `--color-error` | `#ff5252` | Destructive/error |
+| `--color-tertiary-container` | `#b63f75` (magenta) | Special highlights (e.g. expedition) |
+| `--radius-*` | `0px` everywhere | Signature sharp-corner look — never round |
+| Motion | `cubic-bezier(0.4,0,0.2,1)`, `active:scale-95/0.98` | Standard transition + press feedback |
+
+**Rule:** components reference tokens (`bg-primary`, `text-on-surface`), never raw hex. Adding a color = add a token here first.
+
+### 6.2 Button system (unify the two that exist today)
+
+Today buttons are styled **twice**: the React `Button` component (`variant`/`size` maps) *and* a parallel `.btn-primary/.btn-secondary/...` set in `index.css`. The rewrite collapses this into **one** source.
+
+- **Implementation:** `components/ui/Button.tsx` backed by **CVA** for typed, composable variants. Delete the `.btn-*` CSS classes entirely.
+- **Keep every current variant** (document its intended use so usage stays consistent):
+
+| Variant | When to use |
+|---|---|
+| `primary` | The one main call-to-action on a view (green, inverts to white on hover) |
+| `secondary` | Neutral actions, "back", blurred-glass look |
+| `danger` | Destructive actions (delete, remove) — error-red ring |
+| `warning` | Caution / toggle-able states (amber) |
+| `outline` | Low-emphasis actions, ring only |
+| `ghost` | Minimal actions, nav-adjacent, toolbars |
+
+- **Keep every current size:** `sm`, `md`, `lg`, `icon`.
+- **Keep existing props:** `isLoading` (spinner), `leftIcon`/`rightIcon`, `asChild` (Radix `Slot`), plus add `fullWidth`.
+- **Customisable, not forked:** pass extra Tailwind via `className` (merged with `cn()` / `tailwind-merge`). New one-off looks are achieved by composing tokens, never by creating a new component.
+- Base style stays: `inline-flex items-center justify-center font-bold uppercase tracking-widest transition-all`.
+
+The same CVA pattern is the template for other variant-driven primitives (`Badge`, `Input` states, `Card` elevations).
+
+### 6.3 Icon system (one registry, reused everywhere)
+
+Icons today come from `lucide-react`, imported ad-hoc in ~23 files. Centralize them.
+
+- **`components/icons.ts`** re-exports the curated set under semantic names, so usage is consistent and swapping libraries (or replacing one glyph) is a one-file change.
+- **Standard sizes:** 14 (sm / inline), 16–18 (default), 20–24 (lg / headers). `strokeWidth` consistent (lucide default 2).
+- **Icon-only buttons must have an `aria-label`** (accessibility, §6.11).
+- **Curated vocabulary** (already in use — group by role so the same concept always uses the same glyph):
+
+| Role | Icons |
+|---|---|
+| Navigation / chrome | `Menu`, `X`, `ChevronLeft/Right`, `ArrowLeft/Right`, `Search`, `Bell`, `User`, `Settings`, `LogOut`, `HelpCircle` |
+| Hiking domain | `Mountain`, `Compass`, `Route`, `MapPin`, `Map`, `Calendar`, `Clock`, `TrendingUp`, `Trophy`, `Award`, `Skull` (difficulty), `Zap` |
+| Actions | `Plus`, `Upload`, `UploadCloud`, `Download`, `Check`, `CheckCircle2`, `RotateCcw`, `ZoomIn`, `Maximize2`, `Move`, `Lock` |
+| Status / feedback | `AlertTriangle`, `ShieldAlert`, `Loader2`, `Star`, `Users`, `UserCheck` |
+| Content | `Book`, `BookOpen`, `FileText`, `Tag`, `Grid`, `ExternalLink`, `Phone`, `Mail` |
+
+Adding an icon = add it to the registry with a semantic name, then import from there.
+
+### 6.4 Navigation & information architecture
+
+Current nav (`Layout.tsx`): top bar with Home, Wydarzenia, Kalendarz, Galeria, Wiki, Aktualności, O nas, external "Zgłoś problem"; plus notifications bell and user menu; mobile collapses to a `Menu`/`X` drawer.
+
+Plan, formalized:
+
+- **Sitemap / IA** (the canonical tree):
+  - Public: `/` · `/wydarzenia` → `/wydarzenia/[id]` · `/kalendarz` · `/galeria` → `/galeria/[id]` · `/wiki` → `/wiki/[id]` · `/aktualnosci` · `/o-nas` · ext. "Zgłoś problem"
+  - Auth: `/profil`
+  - Admin: `/admin` (tabs: events, RSVP, GPX queue, completion queue, users) · `/admin/galeria`
+- **Primary nav component** (`components/layout/Navbar.tsx`): desktop top bar + mobile slide-in drawer. Active link via Next.js `usePathname()` + `aria-current="page"`. Keep the existing `NavItem` + `link-underline` hover.
+- **External links:** consistent `target="_blank" rel="noopener noreferrer"` pattern (the "Zgłoś problem" form), visually marked with `ExternalLink`.
+- **Breadcrumbs** on detail pages (event, album, wiki article) — a small reusable `Breadcrumbs` component.
+- **Admin sub-navigation:** a tabbed layout shared by `/admin` and `/admin/galeria`.
+- **User menu:** profile, notifications (bell + dropdown), logout — gated by session; admin entry only shown to admins (the bug we already fixed in the current app — keep it fixed here).
+- **Footer:** secondary nav + club info, reusing `link-underline-footer`.
+- **Accessibility:** keyboard navigable, focus trap in the mobile drawer, ESC to close, visible focus rings.
+- Next.js handles scroll restoration (drops the current `ScrollToTop`).
+
+### 6.5 Layout, responsiveness & breakpoints
+
+- **App shell** (`components/layout/Layout.tsx`): header / main / footer; `PageHeader` hero with focal-point-aware background image (`imageFocalX/Y`).
+- **Mobile-first**, standard Tailwind breakpoints (`sm/md/lg/xl`). Document the container max-width and page padding once; reuse via a `Container` wrapper.
+- Preserve the modal backdrop behaviour (`body.modal-active` blur/grayscale of `#root`).
+
+### 6.6 Forms
+
+- Primitives: `FormField` (label + error + hint), `Input`, `Select`, `Textarea`, `Checkbox` — all on the same token/variant system.
+- **`react-hook-form` + `@hookform/resolvers/zod`**, sharing the exact Zod schema used by the API (§Phase 1) so client and server validate identically.
+- Standardize: required markers, inline error display, disabled/loading states, `ImageCropper`/`ImagePicker` for image fields.
+
+### 6.7 Feedback & overlays
+
+- **Toasts:** Sonner via the existing `showToast` helper — standard success / error / info styles.
+- **Confirmation:** the existing `confirmAction` + `ConfirmationModal`; **required for every destructive action**.
+- **Modal** primitive + **Tooltip** primitive — already exist, keep on the token system.
+
+### 6.8 Loading, empty & error states (standardize the trio)
+
+Every data-driven view must handle all three states with shared components:
+
+- **Loading:** `Skeleton` (exists) + Suspense boundaries for RSC.
+- **Empty:** a reusable `EmptyState` (icon + message + optional action) — for "no events", "no photos", empty search.
+- **Error:** a reusable `ErrorState` (message + retry) for failed fetches.
+
+This removes ad-hoc per-page handling and guarantees consistent UX.
+
+### 6.9 Imagery & media
+
+- `ImageLoader` (lazy + spinner) for album/gallery photos; `Lightbox` for full-screen viewing; `PageHeader` for hero images.
+- Watermark + sharp pipeline preserved. **Note:** the on-the-fly watermark complicates `next/image`; plan to pre-generate watermarked variants on upload (see §11) and serve them as plain images, or keep a custom image route.
+- Leaflet maps (`GpxPreview`) stay client-only (dynamic import, no SSR).
+
+### 6.10 Motion & animation
+
+- Keep the current subtle motion: cubic-bezier transitions, press `scale`, hover color-invert, the `progress-shrink` keyframe. `motion` (Framer) is available for richer transitions where warranted.
+- **Respect `prefers-reduced-motion`** — disable non-essential animation.
+
+### 6.11 Accessibility (baseline checklist)
+
+- Visible `focus-visible` rings on all interactive elements.
+- `aria-label` on every icon-only button; `aria-current` on active nav.
+- Sufficient color contrast (verify green `#8ED081` / magenta `#b63f75` on dark surfaces).
+- Semantic headings, `alt` text on content images, keyboard operability for modals/drawer.
+- Honor reduced-motion.
+
+### 6.12 Theming
+
+- The site is a single dark theme driven entirely by CSS variables — light mode is therefore *possible* later but **out of scope** for the parity rewrite. Keeping tokens centralized (§6.1) leaves the door open.
+
+### 6.13 Content & copy
+
+- UI copy is Polish. Keep it consistent; collect shared/reused labels (nav, buttons, toasts) in a small `lib/strings.ts` so wording is centralized. **Full i18n / multi-language is out of scope** unless explicitly requested.
+
+### 6.14 Living catalog (`/styleguide`)
+
+- A **dev-only** `/styleguide` route renders every primitive with all variants/sizes, the color tokens, and the icon set. Lighter than Storybook and good enough for a small project — it makes "same style, customisable" verifiable at a glance and onboards future contributors fast.
+
+### 6.15 Design-system deliverables checklist
+
+- [ ] Tokens documented in `app/globals.css`; no hard-coded hex in components
+- [ ] `Button` unified on CVA; `.btn-*` CSS deleted; variants documented
+- [ ] `components/icons.ts` registry; all icon imports routed through it
+- [ ] `Navbar` + `MobileDrawer` + `Breadcrumbs` + admin tabs + `Footer`, with active states & a11y
+- [ ] `EmptyState` + `ErrorState` + skeleton patterns in `components/states/`
+- [ ] Form primitives wired to `react-hook-form` + Zod resolver
+- [ ] `/styleguide` route showing the whole system
+- [ ] Accessibility checklist (§6.11) passing on core flows
+
+---
+
+## 7. Phases
 
 Every phase: branch off `rewrite/nextjs`, build, self-verify, report to user, await approval before next phase.
 
@@ -185,8 +353,8 @@ Every phase: branch off `rewrite/nextjs`, build, self-verify, report to user, aw
 
 Goal: prove the riskiest pieces work before committing to the full port.
 
-1. **Reconcile the schema first** (do this in the *current* repo, see §7) so we baseline from truth.
-2. Decide hosting (Vercel vs VPS) and file storage (local `uploads/` vs S3-compatible object storage). Recommendation below in §10.
+1. **Reconcile the schema first** (do this in the *current* repo, see §8) so we baseline from truth.
+2. Decide hosting (Vercel vs VPS) and file storage (local `uploads/` vs S3-compatible object storage). Recommendation in §11.
 3. Scaffold Next.js 15 + TypeScript (strict) + Tailwind v4 + App Router in `rewrite/nextjs`.
 4. Point Prisma at the **existing production-shaped DB** (a clone/staging copy, never prod directly).
 5. `prisma migrate diff` + `prisma migrate resolve` to create a **baseline migration** matching the current DB exactly (no data change).
@@ -213,16 +381,17 @@ Goal: prove the riskiest pieces work before committing to the full port.
 
 ### Phase 2 — Frontend Migration
 
-1. Move `components/` over; fix imports; confirm they render in isolation (Storybook optional, not required).
-2. Convert pages per §4.2. Public read pages become RSC; interactive pages (Admin, Calendar) stay client components.
-3. Replace `AppContext` data-fetching with TanStack Query hooks; keep a thin Zustand store for pure UI state (toasts, modals, confirm dialog).
-4. Replace `ProtectedRoute` with `middleware.ts` route protection.
-5. Port toast (Sonner) and the confirmation-modal system.
-6. Verify every live page visually matches the old site.
+1. **Build the design-system foundation first** (§6): tokens, unified `Button` (CVA), icon registry, layout/nav components, state components, `/styleguide`. Everything below consumes it.
+2. Move remaining `components/` over; fix imports; confirm they render in the `/styleguide`.
+3. Convert pages per §4.2. Public read pages become RSC; interactive pages (Admin, Calendar) stay client components.
+4. Replace `AppContext` data-fetching with TanStack Query hooks; keep a thin Zustand store for pure UI state (toasts, modals, confirm dialog).
+5. Replace `ProtectedRoute` with `middleware.ts` route protection.
+6. Port toast (Sonner) and the confirmation-modal system.
+7. Verify every live page visually matches the old site.
 
-**Exit criteria:** All currently-live pages work and look identical in Next.js. Auth-gated pages redirect correctly.
+**Exit criteria:** All currently-live pages work and look identical in Next.js. Auth-gated pages redirect correctly. `/styleguide` shows the full system.
 
-**Effort:** ~3–4 sessions.
+**Effort:** ~4–5 sessions (includes the design-system foundation).
 
 ### Phase 3 — Security Hardening
 
@@ -255,17 +424,17 @@ Goal: prove the riskiest pieces work before committing to the full port.
 3. DB connection pooling verified (Prisma + pgBouncer or hosting equivalent).
 4. CI: lint + typecheck + smoke tests on every PR.
 5. Move uploads to object storage if decided in Phase 0.
-6. Execute the cutover plan (§9).
+6. Execute the cutover plan (§10).
 
 **Exit criteria:** New app in production, old app retired, monitoring green.
 
 **Effort:** ~1–2 sessions + a maintenance window for cutover.
 
-**Total rough estimate:** ~12–16 focused sessions across all phases. The user has accepted downtime, which removes the hardest constraint (zero-downtime migration).
+**Total rough estimate:** ~13–17 focused sessions across all phases. The user has accepted downtime, which removes the hardest constraint (zero-downtime migration).
 
 ---
 
-## 7. Schema Reconciliation (do BEFORE Phase 0)
+## 8. Schema Reconciliation (do BEFORE Phase 0)
 
 `prisma/schema.prisma` does not match what `runMigrations()` actually creates. Before baselining, the schema must tell the truth. Fields present in `runMigrations()` but missing/needing verification in `schema.prisma`:
 
@@ -285,7 +454,7 @@ This step alone is valuable even if the rewrite stalls — it makes the current 
 
 ---
 
-## 8. Data Model Notes for the Rewrite
+## 9. Data Model Notes for the Rewrite
 
 Carry these domain rules into the new schema (with proper Prisma relations + `onDelete: Cascade` instead of manual cascade deletes in `users.ts`):
 
@@ -297,7 +466,7 @@ Carry these domain rules into the new schema (with proper Prisma relations + `on
 
 ---
 
-## 9. Cutover Plan
+## 10. Cutover Plan
 
 User has accepted downtime, so we use a clean swap (not blue-green):
 
@@ -314,44 +483,49 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 
 ---
 
-## 10. Open Decisions (resolve in Phase 0 with user)
+## 11. Open Decisions (resolve in Phase 0 with user)
 
 | Decision | Options | Recommendation |
 |---|---|---|
 | Hosting | VPS (self-managed) vs Vercel | **Vercel** — simplest CSP nonce + edge + CI story for a small site; VPS only if cost or data-residency requires it |
 | File storage | Local `uploads/` vs S3-compatible (R2/S3) | **Object storage (Cloudflare R2)** — local disk doesn't survive serverless; if staying on a VPS, local is fine |
-| Image serving/watermark | On-the-fly (current) vs pre-generated on upload | **Pre-generate watermarked variants on upload** — cheaper per-request, plays nicer with CDN |
+| Image serving/watermark | On-the-fly (current) vs pre-generated on upload | **Pre-generate watermarked variants on upload** — cheaper per-request, plays nicer with CDN and `next/image` |
+| Light mode | Single dark theme vs add light | **Dark only** for parity; tokens leave it open later |
 | `@google/genai` dependency | Currently present — used? | Audit usage; drop if unused to shrink surface |
 | Repo strategy | New branch vs new repo | **New branch `rewrite/nextjs`** — keeps history, easy to compare |
 
 ---
 
-## 11. Risk Register
+## 12. Risk Register
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Schema drift causes bad baseline | Medium | High | §7 reconciliation before Phase 0; baseline against a DB *clone* first |
+| Schema drift causes bad baseline | Medium | High | §8 reconciliation before Phase 0; baseline against a DB *clone* first |
 | NextAuth Google config differs from current OAuth | Medium | Medium | Phase 0 de-risks this first, against a test account |
 | `events.ts` (608 lines) hides edge cases | High | Medium | Port incrementally, endpoint by endpoint, with payload tests |
 | `$queryRawUnsafe` queries hard to reproduce in Prisma | Medium | Low | Keep parameterized raw query as fallback where Prisma can't express it |
-| Watermark middleware doesn't translate to serverless | Medium | Medium | Pre-generate variants on upload (see §10) |
-| Scope creep into redesign | Medium | High | Guardrail §3.2 — no visual changes; enforce in review |
-| Lost uploads during cutover | Low | High | Backup + verified copy before DNS switch (§9) |
+| Watermark middleware doesn't translate to serverless | Medium | Medium | Pre-generate variants on upload (see §11) |
+| Duplicated button styling causes visual drift | Medium | Low | Unify on one CVA source; delete `.btn-*` CSS (§6.2) |
+| Scope creep into redesign | Medium | High | Guardrail §3.2 — design system *codifies*, never changes, the look |
+| Lost uploads during cutover | Low | High | Backup + verified copy before DNS switch (§10) |
 | **Live app stays vulnerable during rewrite** (session-revocation bug unpatched until cutover) | Certain | Medium | **Accepted** per §1.1. Mitigation: keep the rewrite moving; if the site goes fully public before cutover, revisit and patch the HIGH issue in the current app as an exception |
 
 ---
 
-## 12. Definition of Done (whole project)
+## 13. Definition of Done (whole project)
 
 - [ ] All current live pages work identically in Next.js
 - [ ] All ComingSoon pages unhidden and functional
 - [ ] Every API endpoint validates input with Zod
 - [ ] Single shared auth helper; zero local `authenticate` copies
+- [ ] Design system codified: unified `Button`, icon registry, tokens, nav, state components, `/styleguide`
+- [ ] No duplicated styling; no hard-coded hex in components
 - [ ] CSP has no `unsafe-inline`
 - [ ] Real Prisma migrations; `runMigrations()` deleted
 - [ ] `schema.prisma` is the honest single source of truth; no `as any`
 - [ ] Owner protection + session revocation enforced everywhere
 - [ ] Env validated at boot
+- [ ] Accessibility baseline (§6.11) passing on core flows
 - [ ] Smoke tests in CI (lint + typecheck + key flows)
 - [ ] Error monitoring + structured logging in production
 - [ ] Old app retired after stable cutover

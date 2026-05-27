@@ -283,7 +283,8 @@ The full, detailed rebuild plan lives in **`REBUILD_PLAN.md`** at the project ro
 
 - **Goal**: holistic, production-grade rewrite to **Next.js 15 App Router + NextAuth.js v5 + Prisma Migrate + Zod**. Done right, not fast.
 - **Six phases (0–5)**: Foundation/de-risking → API layer → Frontend → Security hardening → Feature completion → Production & cutover. Each phase is independently deployable and gated on explicit user approval.
-- **Hard prerequisite**: reconcile `prisma/schema.prisma` with `runMigrations()` (they have drifted) before any baseline migration — see `REBUILD_PLAN.md` §7.
+- **Design system (§6)**: codify the existing "Alpine Brutalism" look into reusable, customisable parts — unified `Button` (one CVA source, deletes the duplicate `.btn-*` CSS), a central icon registry, documented tokens, navigation/IA, standard loading/empty/error states, and a dev-only `/styleguide`. Look is preserved, never redesigned.
+- **Hard prerequisite**: reconcile `prisma/schema.prisma` with `runMigrations()` (they have drifted) before any baseline migration — see `REBUILD_PLAN.md` §8.
 - **Guardrails**: production DB is sacred (no data loss), no visual redesign, work in branch `rewrite/nextjs`, merge to main only after user approval, tests are part of "done".
 - **Phase 0 requires explicit user blessing before any code is written.**
 

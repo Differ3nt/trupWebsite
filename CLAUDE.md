@@ -253,11 +253,13 @@ Track active bugs and technical debt here. Update this list when issues are fixe
 
 **Last reviewed: 2026-05-27**
 
+> **Decision (2026-05-27): do NOT patch the current app.** All issues below are deferred and fixed during the rewrite (see `REBUILD_PLAN.md` §1.1 for the bug→phase mapping). Do not "helpfully" patch the live app — the user has chosen to fold every fix into the rewrite. The one exception: if the site goes fully public *before* cutover, revisit the HIGH-severity issue below.
+
 ### Security Issues
 
-1. **Three routes bypass session revocation** *(HIGH — fix before going public)*
+1. **Three routes bypass session revocation** *(HIGH — deferred to rewrite Phase 1)*
    - `server/routes/gpx.ts`, `server/routes/push.ts`, and `server/routes/users.ts` each define their own local `authenticate` function. These functions do NOT check `lastLogoutAt`, meaning a user who logged out can still use old JWT tokens to access these endpoints.
-   - **Fix**: Replace all three local `authenticate` functions with the shared middleware from `server/middleware/auth.ts`.
+   - **Fix (in rewrite)**: Single shared `requireUser()`/`requireAdmin()` helper; no local auth copies.
 
 2. **OAuth flow missing CSRF state parameter** *(MEDIUM)*
    - The Google OAuth redirect at `GET /api/auth/google` does not generate or verify a `state` parameter. This is vulnerable to CSRF attacks on the OAuth flow.

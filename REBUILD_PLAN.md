@@ -23,6 +23,22 @@ The current app (React 19 SPA + Express) works, but has structural problems that
 
 A rewrite solves all of these at the architecture level instead of band-aiding each one.
 
+### 1.1 Bug Fixes Folded Into the Rewrite
+
+**Decision (2026-05-27):** the current app gets **no interim patches**. Every known bug and security gap is fixed *as part of* the rewrite, in the phase noted below. The current app keeps running unchanged until cutover (§9). This is a deliberate trade-off — see the accepted risk in §11.
+
+| Known issue (tracked in `CLAUDE.md`) | Severity | Fixed in | How |
+|---|---|---|---|
+| 3 routes bypass session revocation (`gpx.ts`, `push.ts`, `users.ts` local `authenticate`) | HIGH | Phase 1 | Single shared `requireUser()`/`requireAdmin()` helper; no local copies |
+| OAuth missing CSRF `state` param | MEDIUM | Phase 0 | NextAuth handles `state`/PKCE automatically |
+| Weak CSP (`unsafe-inline`) | MEDIUM | Phase 3 | Nonce-based CSP via SSR |
+| No server-side input validation | MEDIUM | Phase 1 | Zod schema on every handler |
+| `prisma.$queryRawUnsafe` fragility | LOW | Phase 3 | Replace with typed Prisma queries |
+| `as any` casts (schema drift) | LOW | Phase 0 | Schema reconciliation (§7) makes types honest |
+| Raw SQL startup migrations | — | Phase 0 | Prisma Migrate replaces `runMigrations()` |
+| Multiple `PrismaClient` instances | — | Phase 1 | Single `lib/prisma.ts` singleton |
+| Manual cascade deletes in `users.ts` | — | Phase 0/8 | `onDelete: Cascade` in schema relations |
+
 ---
 
 ## 2. Target Stack
@@ -321,6 +337,7 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 | Watermark middleware doesn't translate to serverless | Medium | Medium | Pre-generate variants on upload (see §10) |
 | Scope creep into redesign | Medium | High | Guardrail §3.2 — no visual changes; enforce in review |
 | Lost uploads during cutover | Low | High | Backup + verified copy before DNS switch (§9) |
+| **Live app stays vulnerable during rewrite** (session-revocation bug unpatched until cutover) | Certain | Medium | **Accepted** per §1.1. Mitigation: keep the rewrite moving; if the site goes fully public before cutover, revisit and patch the HIGH issue in the current app as an exception |
 
 ---
 

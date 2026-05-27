@@ -277,86 +277,13 @@ Track active bugs and technical debt here. Update this list when issues are fixe
 
 ## Master Rewrite Plan
 
-The goal is a holistic, production-grade rewrite: **Next.js 15 App Router + NextAuth.js v5 + Prisma migrations + Zod**. This is not a fast rewrite — it is a "done right" rewrite. Do not start any phase without explicit user approval for that phase.
+The full, detailed rebuild plan lives in **`REBUILD_PLAN.md`** at the project root. Read it before starting any rewrite work. Summary:
 
-### Why Rewrite?
-
-- CSP `unsafe-inline` cannot be removed without SSR (nonce-based CSP requires server-rendered HTML)
-- Raw startup migrations instead of versioned Prisma migrations makes production deployments risky
-- Multiple security gaps that are band-aided rather than architecturally solved
-- SPA architecture prevents server-side rendering, caching, and proper SEO for event pages
-
-### Target Stack
-
-| Layer | Current | Target |
-|---|---|---|
-| Framework | React 19 SPA + Express | Next.js 15 App Router |
-| Auth | Custom JWT + Google OAuth | NextAuth.js v5 (Google provider) |
-| Database migrations | Raw SQL startup scripts | Prisma Migrate |
-| Input validation | None (server-side) | Zod schemas |
-| Rendering | Client-only SPA | SSR + RSC where appropriate |
-| CSP | `unsafe-inline` (weak) | Nonce-based (strong) |
-| TypeScript | `as any` workarounds | Strict, no `any` |
-
-### Phase 0 — Prerequisites *(requires user blessing)*
-
-- Decide: new repo or new branch in existing repo (recommendation: new branch `rewrite/nextjs` to keep history)
-- Scaffold Next.js 15 project with TypeScript, Tailwind CSS v4, App Router
-- Connect existing PostgreSQL database
-- Initialize Prisma with `prisma migrate dev` (convert startup SQL to proper migrations)
-- Set up NextAuth.js v5 with Google provider (replaces all of `server/routes/auth.ts`)
-- Verify Google OAuth still works end-to-end before touching anything else
-- **Deliverable**: Working Next.js app that can log in with Google, read from DB, nothing else
-
-### Phase 1 — API Layer
-
-- Create Next.js Route Handlers (`app/api/`) for each existing Express route
-- Add Zod validation to every handler that accepts a request body or query params
-- Port `server/middleware/auth.ts` logic to a reusable Next.js middleware pattern
-- Use NextAuth session (no JWT cookie management) — session revocation is handled by NextAuth
-- Rate limiting via Next.js middleware (or Vercel's built-in rate limit if deployed there)
-- **Deliverable**: All API endpoints working, tested manually against the existing frontend
-
-### Phase 2 — Frontend Migration
-
-- Convert React Router routes to Next.js App Router file structure (`app/(routes)/...`)
-- Keep existing UI components as-is — they are well-built, just move the files
-- Replace `AppContext.tsx` global state with a lighter pattern (React Query for server state, small Zustand store for UI state)
-- Replace `ProtectedRoute` with Next.js middleware-based route protection
-- Add Suspense boundaries and loading skeletons for RSC data fetching
-- **Deliverable**: All live pages rendering correctly in Next.js
-
-### Phase 3 — Security Hardening
-
-- Nonce-based CSP (possible now with SSR — add nonce to every `<script>` and CSP header)
-- Add `state` parameter to Google OAuth flow (NextAuth handles this automatically)
-- Audit and fix all `prisma.$queryRawUnsafe()` calls — replace with Prisma's typed query builder where possible
-- Add environment variable validation at startup (using Zod or `@t3-oss/env-nextjs`)
-- **Deliverable**: Security audit checklist fully green
-
-### Phase 4 — Feature Completion
-
-- Unhide ComingSoon pages (`/galeria`, `/aktualnosci`, `/wiki`, `/o-nas`) — the backend is ready
-- Add proper error pages (`not-found.tsx`, `error.tsx`) in App Router convention
-- Add Open Graph metadata to event pages (enabled by SSR)
-- **Deliverable**: All pages live, no more ComingSoon
-
-### Phase 5 — Production Readiness
-
-- Error monitoring (Sentry or similar)
-- Structured logging (replace `console.error` with proper logger)
-- Database connection pooling audit
-- CI/CD pipeline: lint + typecheck on every PR
-- Deploy to production and verify all env vars
-- **Deliverable**: Production deployment
-
-### Rewrite Rules
-
-- Preserve all existing data and the existing PostgreSQL database — no data migration needed, only schema migration to Prisma Migrate format
-- UI/UX should look identical to the current site — this is a technical rewrite, not a redesign
-- Phase 0 requires explicit "go ahead" from the user before any code is written
-- Each phase produces a working, deployable state — never leave the app in a broken state between phases
-- All Phase 0–5 work happens in `rewrite/nextjs` branch; merge to main only after user approval
+- **Goal**: holistic, production-grade rewrite to **Next.js 15 App Router + NextAuth.js v5 + Prisma Migrate + Zod**. Done right, not fast.
+- **Six phases (0–5)**: Foundation/de-risking → API layer → Frontend → Security hardening → Feature completion → Production & cutover. Each phase is independently deployable and gated on explicit user approval.
+- **Hard prerequisite**: reconcile `prisma/schema.prisma` with `runMigrations()` (they have drifted) before any baseline migration — see `REBUILD_PLAN.md` §7.
+- **Guardrails**: production DB is sacred (no data loss), no visual redesign, work in branch `rewrite/nextjs`, merge to main only after user approval, tests are part of "done".
+- **Phase 0 requires explicit user blessing before any code is written.**
 
 ---
 

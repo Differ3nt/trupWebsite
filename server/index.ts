@@ -165,6 +165,8 @@ async function runMigrations() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualGpxName}" ADD COLUMN IF NOT EXISTS "isOfficial" BOOLEAN NOT NULL DEFAULT false`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "${actualGpxName}" ADD COLUMN IF NOT EXISTS "label" TEXT`);
 
+    await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastLogoutAt" TIMESTAMP`);
+
     console.log('[DB] Struktura bazy danych zweryfikowana pomyślnie');
   } catch (e: any) {
     console.warn('[DB] Uwaga podczas migracji:', e.message?.slice(0, 120));

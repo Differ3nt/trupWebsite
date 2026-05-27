@@ -26,21 +26,26 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     // Weryfikacja tokenu przy użyciu klucza JWT_SECRET
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role?: string; status?: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role?: string; status?: string; iat?: number };
 
     req.userId = decoded.userId;
     req.userRole = decoded.role;
     req.userStatus = decoded.status;
 
-    // Fetch from DB if token is missing role or status (old tokens)
-    if (!req.userRole || req.userStatus === undefined) {
-      const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true, status: true } });
-      if (user) {
-        if (!req.userRole) req.userRole = user.role;
-        if (req.userStatus === undefined) req.userStatus = user.status;
-      }
+    // Always check DB: fill missing role/status (old tokens) + verify session not revoked
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { role: true, status: true, lastLogoutAt: true } as any
+    }) as any;
+    if (!user) return res.status(401).json({ error: 'Użytkownik nie istnieje', code: 'UNAUTHENTICATED' });
+
+    if (!req.userRole) req.userRole = user.role;
+    if (req.userStatus === undefined) req.userStatus = user.status;
+
+    if (user.lastLogoutAt && decoded.iat && decoded.iat * 1000 < new Date(user.lastLogoutAt).getTime()) {
+      return res.status(401).json({ error: 'Sesja wygasła, zaloguj się ponownie', code: 'SESSION_REVOKED' });
     }
-    
+
     next();
 
   } catch (error) {

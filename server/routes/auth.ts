@@ -237,7 +237,19 @@ router.post('/make-admin', async (req, res) => {
 /**
  * Wylogowanie użytkownika - czyszczenie ciasteczka sesji.
  */
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  try {
+    const token = req.cookies?.token;
+    if (token) {
+      const decoded = jwt.decode(token) as { userId?: string } | null;
+      if (decoded?.userId) {
+        await prisma.user.update({
+          where: { id: decoded.userId },
+          data: { lastLogoutAt: new Date() } as any
+        });
+      }
+    }
+  } catch { /* ignore — cookie may be malformed */ }
   res.clearCookie('token');
   res.json({ success: true });
 });

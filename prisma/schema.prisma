@@ -20,6 +20,7 @@ model User {
   updatedAt         DateTime             @updatedAt
   hardware          String[]             @default([])
   phoneNumber       String?
+  lastLogoutAt      DateTime?
   participations    EventParticipation[]
   gpxSubmissions    GpxSubmission[]
   notifications     Notification[]

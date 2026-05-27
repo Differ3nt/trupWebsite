@@ -2,9 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## Workflow Rules
+
+These are non-negotiable process rules. Follow them on every task, every session.
+
+1. **Always work in a branch.** Never commit directly to `main`. Create a descriptive branch (`feat/`, `fix/`, `chore/`) for every change, no matter how small.
+2. **Ask before merging to main.** When work is ready, push the branch and tell the user — do not open a PR or merge without explicit approval.
+3. **Ask how new features connect.** Before implementing anything that touches existing systems (auth, events, user model, GPX, notifications), ask the user how it should integrate with what's already there. Don't assume.
+4. **Keep it simple.** TRUP is a small club site. Avoid over-engineering: no abstractions for hypothetical future requirements, no premature generalization. Three similar lines is better than a premature abstraction.
+5. **Prefer modularity.** New backend functionality goes in its own route file. New UI functionality goes in its own component. Keep files focused and small.
+6. **No silent scope creep.** If you notice something unrelated that could be improved while doing a task, mention it — don't just fix it.
+
+---
+
 ## Project Overview
 
 This is the website for **TRUP** — a Polish hiking/mountain club. The stack is a full-stack TypeScript monorepo: a React 19 SPA (Vite) and an Express.js API server sharing the same repo.
+
+---
 
 ## Commands
 
@@ -33,6 +50,8 @@ npx prisma db seed
 ```
 
 There is no test suite.
+
+---
 
 ## Architecture
 
@@ -131,7 +150,7 @@ Pages marked `<ComingSoon>` have fully-functional backend APIs and frontend comp
 - Google OAuth2 flow: `/api/auth/google` → Google consent → `/api/auth/google/callback` → JWT cookie.
 - JWT stored in `httpOnly` cookie named `token` (7-day TTL).
 - Auth middleware in `server/middleware/auth.ts`:
-  - `authenticate` — verifies JWT, attaches `req.userId`/`req.userRole`
+  - `authenticate` — verifies JWT, attaches `req.userId`/`req.userRole`; checks `lastLogoutAt` to invalidate revoked sessions
   - `requireAdmin` — checks `ADMIN` role (403 if not)
   - `getUserIdFromCookie()` — returns `userId` from JWT cookie or `null` (for optional auth)
   - `getUserFromCookie()` — returns `{ userId, role }` or `null`
@@ -139,6 +158,7 @@ Pages marked `<ComingSoon>` have fully-functional backend APIs and frontend comp
 - DB role enum: `USER | ADMIN`. Frontend role string: `'guest' | 'user' | 'admin'`.
 - Emergency first-admin grant: `POST /api/auth/make-admin` (only works if no admin exists yet).
 - The OAuth callback URL is set via the `CALLBACK_URL` environment variable (defaults to `http://localhost:3001/api/auth/google/callback`). Update `CALLBACK_URL` for production deployments.
+- **Owner protection**: `OWNER_EMAIL` env var designates a permanent owner account that cannot be demoted or deleted by any admin.
 
 ### Middleware (`server/middleware/`)
 
@@ -155,6 +175,8 @@ Pages marked `<ComingSoon>` have fully-functional backend APIs and frontend comp
 - Stats cache (`server/routes/stats.ts`) is invalidated by calling `invalidateStatsCache()` after GPX approval or event finalisation.
 
 ### Key Data Models
+
+**`User`** — `role` (USER/ADMIN), `status` (ACTIVE/INACTIVE/FLAGGED), `lastLogoutAt` (used for session revocation). `OWNER_EMAIL` env var designates an undeletable/undemotable owner.
 
 **`Event`** — has `isDraft`, `isFinalized`, `featured`, `highlighted`, `isExpedition` flags. Sensitive fields (`mapLink`, `mapEmbed`, `gearRequired`, `meetingPoint*`, etc.) are stripped for unauthenticated requests. Key fields:
 - `imageFocalX`, `imageFocalY` — focal point for header image CSS positioning
@@ -181,7 +203,9 @@ The `/admin` route (`Admin.tsx`) covers:
 - Attendance tracking and RSVP management
 - GPX submission review queue and approval
 - **Event finalization queue** at `GET /api/events/admin/completion-queue` — lists finalized events needing post-event data entry (actual stats, track approval)
-- User management
+- User management (activate/deactivate, promote/demote, delete — with owner + self-demotion guards)
+
+---
 
 ## Environment Variables
 
@@ -194,6 +218,7 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 CLIENT_URL=http://localhost:5173      # frontend origin for CORS + OAuth redirect
 CALLBACK_URL=http://localhost:3001/api/auth/google/callback  # Google OAuth callback
+OWNER_EMAIL=...                       # email of the permanent owner account (cannot be deleted/demoted)
 PORT=3001                             # optional
 ```
 
@@ -206,3 +231,97 @@ VAPID_SUBJECT=mailto:...
 ```
 
 If `VAPID_*` variables are not set, push notification endpoints will still register but sending will fail silently.
+
+---
+
+## Architectural Principles
+
+These are guiding principles for all future development on this project, current stack or rewrite.
+
+- **One concern per file.** Route files own their endpoints. Components own their UI. Don't let logic bleed across boundaries.
+- **Security at the boundary.** Validate and sanitize at the API boundary (user input, external data). Trust internal code. Don't re-validate data that never left the server.
+- **Shared auth middleware, always.** Never define a local `authenticate` function inside a route file. Always import from `server/middleware/auth.ts`. Local copies silently break session revocation, rate-limiting, and any future security additions.
+- **Explicit over implicit.** Pass data down explicitly. Avoid magic globals. Make the data flow readable.
+- **Ask before you add complexity.** If a feature requires a new pattern, a new dependency, or touches core data models, discuss with the user before implementing. The cost of an unnecessary abstraction is higher than the cost of a short conversation.
+- **Small commits, clear messages.** Each commit should do one thing. Commit message should say what changed and why (not just what).
+
+---
+
+## Known Issues & Security Debt
+
+Track active bugs and technical debt here. Update this list when issues are fixed or discovered.
+
+**Last reviewed: 2026-05-27**
+
+> **Decision (2026-05-27): do NOT patch the current app.** All issues below are deferred and fixed during the rewrite (see `REBUILD_PLAN.md` §1.1 for the bug→phase mapping). Do not "helpfully" patch the live app — the user has chosen to fold every fix into the rewrite. The one exception: if the site goes fully public *before* cutover, revisit the HIGH-severity issue below.
+
+### Security Issues
+
+1. **Three routes bypass session revocation** *(HIGH — deferred to rewrite Phase 1)*
+   - `server/routes/gpx.ts`, `server/routes/push.ts`, and `server/routes/users.ts` each define their own local `authenticate` function. These functions do NOT check `lastLogoutAt`, meaning a user who logged out can still use old JWT tokens to access these endpoints.
+   - **Fix (in rewrite)**: Single shared `requireUser()`/`requireAdmin()` helper; no local auth copies.
+
+2. **OAuth flow missing CSRF state parameter** *(MEDIUM)*
+   - The Google OAuth redirect at `GET /api/auth/google` does not generate or verify a `state` parameter. This is vulnerable to CSRF attacks on the OAuth flow.
+   - **Fix**: Generate a random `state` value, store it in a short-lived cookie, verify it in the callback.
+
+### Technical Debt
+
+3. **`prisma.$queryRawUnsafe()` usage** — Some event list queries use raw SQL with parameterized values. This is safe as written but fragile. Audit before adding new query variants.
+
+4. **`as any` casts for `lastLogoutAt`** — Since `prisma generate` can't run in dev without a DB connection, the `lastLogoutAt` field uses `as any` type casts. Running `npm run prisma:generate` with DB access will resolve these.
+
+5. **Raw SQL startup migrations** — `runMigrations()` in `server/index.ts` runs `ALTER TABLE IF NOT EXISTS` on every start instead of using Prisma's migration system. This works but is the wrong pattern for production and makes schema history invisible.
+
+6. **Multiple PrismaClient instances** — Each route file imports from `server/lib/prisma.ts` which should export a singleton, but this should be verified to confirm connection pooling is not a problem under load.
+
+---
+
+## Master Rewrite Plan
+
+The full, detailed rebuild plan lives in **`REBUILD_PLAN.md`** at the project root. Read it before starting any rewrite work. Summary:
+
+- **Goal**: holistic, production-grade rewrite to **Next.js 15 App Router + NextAuth.js v5 + Prisma Migrate + Zod**. Done right, not fast.
+- **Six phases (0–5)**: Foundation/de-risking → API layer → Frontend → Security hardening → Feature completion → Production & cutover. Each phase is independently deployable and gated on explicit user approval.
+- **Design system (§6)**: codify the existing "Alpine Brutalism" look into reusable, customisable parts — unified `Button` (one CVA source, deletes the duplicate `.btn-*` CSS), a central icon registry, documented tokens, navigation/IA, standard loading/empty/error states, and a dev-only `/styleguide`. Look is preserved, never redesigned.
+- **Feature spec (§14)**: a full parity inventory of everything the live site does today (every page, role gate, modal, RSVP/finalize/GPX/stats rule). The rebuild is verified against it — nothing may silently disappear.
+- **Serverless constraints (§2.1)**: Vercel's 4.5 MB body limit (→ presigned-URL R2 uploads), 10 s timeout (→ async Cloudflare Worker for watermarking), and connection exhaustion (→ Prisma Accelerate pooler in Phase 0).
+- **Hard prerequisite**: reconcile `prisma/schema.prisma` with `runMigrations()` (they have drifted) before any baseline migration — see `REBUILD_PLAN.md` §8.
+- **Guardrails**: production DB is sacred (no data loss), no visual redesign, work in branch `rewrite/nextjs`, merge to main only after user approval, tests are part of "done".
+- **Phase 0 requires explicit user blessing before any code is written.**
+
+---
+
+## CLAUDE.md Self-Update
+
+This file should be kept up to date as the codebase evolves. Two mechanisms exist for this:
+
+### `/sync-context` command
+
+Run `/sync-context` at any time to trigger a review of recent git history and update this file. The command lives at `.claude/commands/sync-context.md`.
+
+What it does:
+1. Reads `git log` since CLAUDE.md was last touched
+2. Identifies new routes, components, schema changes, and bug fixes
+3. Updates the relevant sections of this file in-place
+4. Commits the update on the current branch
+
+### SessionStart hook
+
+A `SessionStart` hook in `.claude/settings.json` checks whether CLAUDE.md is more than one day older than the latest commit. If it is stale, it prints a reminder to run `/sync-context` at the start of the session.
+
+### What to record here
+
+When updating this file, always update:
+- New routes in the API Routes table
+- New components in the Frontend Components list
+- New frontend routes in the Frontend Routes table
+- New environment variables in the Environment Variables section
+- Newly discovered bugs in Known Issues
+- Resolved bugs (mark them as fixed with date, then remove after the next session)
+- Any new architectural patterns introduced
+
+Do NOT record:
+- Commit hashes or PR numbers (they rot)
+- Names of specific past bugs or features fixed (use git log for that)
+- Implementation details that belong in code comments

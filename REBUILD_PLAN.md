@@ -49,8 +49,12 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ❌ Toast (Sonner) + `confirmAction` modal system migrated into a Zustand store
 - ❌ Visual parity sweep vs. live site on mobile
 
-**Phase 3 — Security Hardening** — ❌ not started (foundation in Phase 0 only)
-- Items to do: CSP audit, env validation with Zod (`lib/env.ts`), HSTS + security headers in `next.config.ts`, NextAuth state/PKCE verification, replace any `$queryRawUnsafe` ports
+**Phase 3 — Security Hardening** — 🔶 partial
+- ✅ Env validation: `lib/env.ts` validates all required vars at startup with Zod; clear error message lists every problem; VAPID partial-set detected; `lib/storage.ts` + `lib/session.ts` now read from `env` object; `app/layout.tsx` imports it so the check fires on cold start
+- ❌ CSP audit — verify all `<Script>` tags and inline handlers carry the Phase 0 nonce; tighten `imgSrc`/`connectSrc`/`frameSrc`
+- ❌ HSTS + security headers via `next.config.ts` headers()
+- ❌ NextAuth state/PKCE verification (likely auto-handled by NextAuth v5; needs a real login cycle to confirm)
+- ❌ Replace any `$queryRawUnsafe` ports (relevant when Phase 1 real implementations land)
 
 **Phase 4 — Feature Completion** — ❌ not started
 - The four "ComingSoon" pages already exist as ports in the rewrite. Remaining: `generateMetadata` / OG tags on detail pages, real `/o-nas` content, `app/error.tsx` and `app/not-found.tsx`

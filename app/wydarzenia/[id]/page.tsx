@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { EventDetailClient } from './EventDetailClient';
@@ -6,6 +7,29 @@ import { EventDetailClient } from './EventDetailClient';
 type Props = {
   params: Promise<{ id: string }>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const event = await prisma.event.findUnique({
+      where: { id },
+      select: { title: true, description: true, image: true, dateStart: true, location: true },
+    });
+    if (!event) return { title: 'Wydarzenie | TRUP' };
+    return {
+      title: `${event.title} | TRUP`,
+      description: event.description?.slice(0, 160) ?? 'Wyprawa Grupy Górskiej TRUP',
+      openGraph: {
+        title: event.title,
+        description: event.description?.slice(0, 160) ?? undefined,
+        images: event.image ? [{ url: event.image }] : [],
+        type: 'article',
+      },
+    };
+  } catch {
+    return { title: 'Wydarzenie | TRUP' };
+  }
+}
 
 export default async function EventDetailPage({ params }: Props) {
   const { id } = await params;

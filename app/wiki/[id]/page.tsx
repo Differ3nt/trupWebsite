@@ -1,10 +1,33 @@
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, User, Tag as TagIcon } from '@/components/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const article = await prisma.wikiArticle.findUnique({
+      where: { id },
+      select: { title: true, content: true, category: true, authorName: true },
+    });
+    if (!article) return { title: 'Wiki | TRUP' };
+    return {
+      title: `${article.title} | Wiki TRUP`,
+      description: article.content.slice(0, 160),
+      openGraph: {
+        title: article.title,
+        description: article.content.slice(0, 160),
+        type: 'article',
+      },
+    };
+  } catch {
+    return { title: 'Wiki | TRUP' };
+  }
+}
 
 export default async function WikiArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

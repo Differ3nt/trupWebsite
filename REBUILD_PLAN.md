@@ -62,7 +62,7 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 | Client polling | `setInterval` + raw `fetch` | **SWR** (polling use cases only) | ~5 kB; wraps `useSWR('/api/…', { refreshInterval })` for data that must auto-refresh after page load (notification dropdown §14.11). Everything else stays RSC + Server Actions — SWR is not the default. |
 | Image upload | multer receiving binary in Express | **Route Handler + `lib/storage.ts`** | Next.js Route Handler receives the multipart body; `lib/storage.ts` writes the file to the local volume. No 3rd-party service; no presigned URL indirection needed on a self-hosted server. |
 | Image processing | sync sharp in-process | **sync sharp in Next.js Route Handler** | Self-hosted LXC has no serverless timeout. The existing sharp resize + watermark logic runs synchronously in the same Route Handler that receives the upload. `watermark.ts` middleware ports directly. |
-| File storage | `uploads/` directory | **Local volume `/var/lib/trup/uploads/`**, accessed via `lib/storage.ts` | A plain directory on disk. Caddy or a Next.js route handler serves files back. `lib/storage.ts` abstracts all reads/writes — swapping to S3 later is one file. MinIO rejected (no benefit at single-server scale). |
+| File storage | `uploads/` directory | **Local volume `/opt/trupWebsite/uploads/`**, accessed via `lib/storage.ts` | A plain directory on disk. Caddy serves uploads as static files. `lib/storage.ts` abstracts all reads/writes — swapping to S3 later is one file. MinIO rejected (no benefit at single-server scale). |
 | Connection pooler | single persistent pool (Express) | **Prisma built-in pool** (no extra service) | Next.js on LXC runs as a long-lived Node.js process, not ephemeral serverless functions. Prisma's default connection pool is sufficient; Prisma Accelerate and pgBouncer are not needed. |
 | Hosting | Self/VPS (tsx) | **LXC container on Proxmox** + Cloudflare proxy | Long-lived Node.js process; LXC is enough isolation, lighter than a full VM, starts in seconds. Cloudflare is already live on the domain (orange-cloud). See §2.1. |
 
@@ -90,7 +90,7 @@ The free plan covers everything needed at this scale: DNS, reverse proxy, edge T
 
 ### Local file storage + `lib/storage.ts` abstraction
 
-Uploads (images, GPX) are stored in a plain directory on the LXC container (`/var/lib/trup/uploads/`). Next.js writes files there directly; Caddy or a Next.js route handler serves them back. Zero added services, zero added processes.
+Uploads (images, GPX) are stored in a plain directory on the LXC container (`/opt/trupWebsite/uploads/`). Caddy serves them directly from disk. Zero added services, zero added processes.
 
 **Why not MinIO:** MinIO emulates the S3 API on top of local disk. It is useful when multiple servers share storage or a cloud migration is on the roadmap. Neither applies here. For a single server hosting one app for 50–60 users, MinIO adds a second LXC to maintain, HTTP overhead on every file read, and operational complexity for no observable benefit.
 
@@ -107,10 +107,59 @@ Cloudflare is the only intended public entry point. The LXC origin firewall allo
 The user manages the backup destination. The recommended practices for *what* to back up:
 
 - **Database:** nightly `pg_dump --format=custom` (compressed; restores with `pg_restore`).
-- **Uploads:** nightly `tar` of `/var/lib/trup/uploads/`.
+- **Uploads:** nightly `tar` of `/opt/trupWebsite/uploads/` (or the whole project dir if uploads live inside it).
 - **Encryption:** encrypt archives with `age`; the private key lives offline, not on the server.
 - **Retention:** 7 daily / 4 weekly / 12 monthly.
 - **Restore drills:** quarterly, onto a throwaway LXC. A backup that has never been restored is not a backup.
+
+## 2.3 Web Server, TLS & Process Management
+
+### Reverse proxy: Caddy
+
+**Caddy** is the committed reverse proxy (not nginx, not a bare Next.js port). It sits in front of the Next.js process on the LXC and handles:
+
+- **TLS termination** — Cloudflare→origin HTTPS (see below); Caddy auto-provisions and renews the Let's Encrypt cert with zero manual work.
+- **Static file serving** — `/opt/trupWebsite/uploads/` is served directly from disk by Caddy. Image requests never touch Node.js.
+- **Port forwarding** — all other requests proxy to `localhost:3000` where Next.js listens.
+
+A minimal `Caddyfile` is ~10 lines. It lives in the repo at `deploy/Caddyfile`.
+
+### Cloudflare TLS mode: Full (Strict)
+
+Set **Full (Strict)** in the Cloudflare dashboard (SSL/TLS → Overview). This means Cloudflare verifies the origin certificate — it won't connect over plain HTTP or accept a self-signed cert. Caddy's automatic Let's Encrypt provisioning satisfies this at no cost. The alternatives to avoid:
+
+- **Flexible** — Cloudflare talks HTTP to the origin. Breaks `Secure` cookies (NextAuth sessions stop working). Never use.
+- **Full** (non-strict) — allows self-signed certs but doesn't verify them. Unnecessary since Caddy handles real certs.
+
+### `output: 'standalone'` in `next.config.ts`
+
+Add `output: 'standalone'` to `next.config.ts`. This produces `.next/standalone/server.js` — a minimal self-contained server that does not need the full `node_modules` tree on the production LXC. Deployments copy this artifact; no `npm install` runs on the server.
+
+### Process manager: systemd
+
+Next.js runs as a systemd service so it survives crashes and reboots automatically. The unit file lives in the repo at `deploy/trupWebsite.service`:
+
+```ini
+[Unit]
+Description=TRUP Website
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/trupWebsite
+ExecStart=node .next/standalone/server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+EnvironmentFile=/opt/trupWebsite/.env
+User=trup
+
+[Install]
+WantedBy=multi-user.target
+```
+
+The service runs as a dedicated `trup` system user (not root). `EnvironmentFile` loads the `.env` from the project directory. Caddy proxies `https://trup.domain → localhost:3000`.
 
 ---
 
@@ -185,7 +234,7 @@ UI primitives (`Badge`, `Button`, `Card`, `Checkbox`, `FormField`, `Input`, `Mod
 ## 5. Proposed Project Structure
 
 ```
-trup/
+trupWebsite/
 ├── app/
 │   ├── (public)/                 # public route group
 │   │   ├── page.tsx              # Home
@@ -219,7 +268,7 @@ trup/
 │   ├── auth.ts                    # NextAuth full config (Prisma adapter) — RSCs and Route Handlers only
 │   ├── auth.config.ts             # NextAuth JWT config (no Prisma adapter) — safe for Edge Runtime / middleware.ts
 │   ├── gpx.ts
-│   ├── storage.ts                 # file read/write abstraction (wraps fs + /var/lib/trup/uploads/)
+│   ├── storage.ts                 # file read/write abstraction (wraps fs + /opt/trupWebsite/uploads/)
 │   ├── watermark.ts               # sharp watermark logic (ported from server/middleware/watermark.ts)
 │   ├── validations/               # Zod schemas, one file per resource
 │   │   ├── event.ts
@@ -232,7 +281,11 @@ trup/
 │   └── seed.ts
 ├── middleware.ts                  # route protection + CSP nonce (imports auth.config.ts only — never auth.ts)
 ├── public/
-└── uploads/                       # symlink or mount point → /var/lib/trup/uploads/ on the LXC
+├── uploads/                       # /opt/trupWebsite/uploads/ — served by Caddy directly for static files
+└── deploy/
+    ├── Caddyfile                  # reverse proxy: localhost:3000 + /uploads/ static serving
+    ├── trupWebsite.service        # systemd unit file
+    └── deploy.yml → .github/workflows/deploy.yml
 ```
 
 **Modularity rule:** one resource = one folder under `app/api/`, one Zod file under `lib/validations/`, one set of pages. Adding a feature touches a predictable, isolated set of files. Every reusable visual element lives in `components/ui` and is consumed, never re-styled inline.
@@ -415,8 +468,9 @@ Goal: prove the riskiest pieces work before committing to the full port. This ph
 8. **Scaffold nonce-based CSP infrastructure**: generate a per-request nonce in `middleware.ts`, set the `Content-Security-Policy` response header (no `unsafe-inline`), and propagate the nonce to `app/layout.tsx`. Document the nonce propagation pattern — every `<Script>` tag and inline script written in Phases 1 and 2 **must** receive this nonce. Deferring CSP to Phase 3 guarantees expensive backtracking; doing it now means the foundation is correct.
 9. **Validate the NextAuth v5 edge-split pattern**: implement `lib/auth.config.ts` (JWT strategy + Google provider, **no Prisma adapter** — Edge Runtime safe) and `lib/auth.ts` (full NextAuth config with Prisma adapter, used in RSCs and API Route Handlers only). `middleware.ts` imports **only** `auth.config.ts`. NextAuth v5 crashes in Edge Runtime when the Prisma adapter is loaded; this split is non-negotiable. Prototype route protection (`/profil` redirects unauthenticated users to `/`) before proceeding.
 10. **Verify Prisma connection pool** under the LXC deployment: Next.js on LXC runs as a persistent Node.js process (not ephemeral serverless), so Prisma's built-in pool is sufficient. Confirm the pool size env var (`DATABASE_URL` or `connection_limit`) is appropriate for the Postgres `max_connections` setting and note it in `.env.example`.
+11. **Set up Caddy + systemd on the LXC** (see §2.3): install Caddy, write `deploy/Caddyfile` (proxy `localhost:3000`, serve `/opt/trupWebsite/uploads/` as static), install `deploy/trupWebsite.service`, create the `trup` system user, set Cloudflare SSL/TLS mode to **Full (Strict)**. Verify the origin cert is issued and Cloudflare→origin HTTPS works. This only needs doing once; subsequent deployments just `systemctl restart trup`.
 
-**Exit criteria:** Google login → session → logout works. DB read from RSC works. Schema and DB are in sync via a real Prisma migration. CSP nonce infrastructure in place with no `unsafe-inline` from day one. Protected route redirects unauthenticated users correctly via `auth.config.ts` in middleware. Cloudflare origin firewall verified. Prisma pool documented. Nothing else exists yet.
+**Exit criteria:** Google login → session → logout works. DB read from RSC works. Schema and DB are in sync via a real Prisma migration. CSP nonce infrastructure in place with no `unsafe-inline` from day one. Protected route redirects unauthenticated users correctly via `auth.config.ts` in middleware. Cloudflare origin firewall verified. Prisma pool documented. Caddy proxying Next.js with Full (Strict) TLS. systemd service running and survives a reboot. Nothing else exists yet.
 
 **Effort: ~3–4 sessions** (was 1–2; the CSP scaffold, NextAuth edge validation, and baseline migration each carry real uncertainty; this is the highest-risk phase).
 
@@ -426,7 +480,7 @@ Goal: prove the riskiest pieces work before committing to the full port. This ph
 2. Write a Zod schema for every request body and query param in `lib/validations/`.
 3. Create one shared session/authorization helper (`requireUser()`, `requireAdmin()`, `requireOwnerSafe()`) — used by **every** handler. No local auth copies, ever.
 4. Port owner-protection and self-demotion guards from `users.ts`.
-5. Re-implement rate limiting via Next.js middleware (or Vercel's built-in rate limiting).
+5. **Rate limiting via Cloudflare WAF rules** (primary) — blocking happens at the edge before requests reach the LXC. Add rules for the auth endpoint (`/api/auth/*`) and any mutation-heavy routes. As an application-level backstop, add a simple in-memory rate limiter in Next.js middleware (a lightweight approach is sufficient for a single-instance LXC; no Redis needed at this scale).
 6. **Implement the upload Route Handler** (see §4.1 mapping): Route Handler receives the multipart body, authenticates the user, validates file type, calls `lib/storage.ts` to write the file to the local volume, runs sharp resize + watermark synchronously via `lib/watermark.ts`, and creates the DB record. Mirror the current `upload.ts` behaviour — original + thumbnail + watermarked variants. Port `upload-asset` and `upload-simple` variants.
 7. All mutations use **Server Actions** where appropriate; Route Handlers for external API consumers. No React Query — the framework handles caching.
 8. Smoke test: hit every endpoint with valid + invalid payloads; invalid must be rejected by Zod with a 400.
@@ -477,11 +531,14 @@ At this point the nonce-based CSP is already in place (Phase 0). This phase audi
 
 ### Phase 5 — Production Readiness & Cutover
 
-1. **Structured logging**: replace `console.error`/`console.log` with `pino`. Write JSON log lines to `/var/log/trup/app.log`; configure `logrotate` for rotation at 100 MB, retention 14 days. No Loki or Grafana — log volume is low enough that `tail -f` and `grep` are sufficient for ad-hoc debugging. `pino` supports transports, so switching output destination later is a one-line config change.
+1. **Structured logging**: replace `console.error`/`console.log` with `pino`. Write JSON log lines to `/var/log/trupWebsite/app.log`; configure `logrotate` for rotation at 100 MB, retention 14 days. No Loki or Grafana — log volume is low enough that `tail -f` and `grep` are sufficient for ad-hoc debugging. `pino` supports transports, so switching output destination later is a one-line config change.
 2. Error monitoring (Sentry — Next.js integration).
 3. ~~DB connection pooling~~ — **already done in Phase 0**. Verify under production load.
-4. CI pipeline (GitHub Actions): lint + typecheck + smoke tests run on every PR automatically.
-5. Verify `uploads/` is fully present on the LXC local volume and `lib/storage.ts` serves all images correctly through the new app. Confirm the backup strategy is active (§2.2): nightly pg_dump + tar, encrypted with age, retention schedule in place.
+4. **CI/CD pipeline (GitHub Actions)**:
+   - **CI** (every PR): `npm run lint` + `tsc --noEmit` + Vitest unit tests + Playwright smoke tests against `next build && next start`.
+   - **CD** (merge to main): SSH to the LXC → `git pull` → `npm ci` → `npm run build` → `systemctl restart trup`. Keep it simple; a 30-line workflow file in `.github/workflows/deploy.yml`.
+   - **Testing stack**: **Vitest** for unit/integration (fast, Vite-native, zero config), **Playwright** for E2E smoke tests (official Next.js integration). Tests are written alongside the feature they verify — not deferred to end.
+5. Verify `uploads/` is fully present at `/opt/trupWebsite/uploads/` and Caddy serves them correctly. Confirm `lib/storage.ts` writes and reads correctly through the new app. Confirm the backup strategy is active (§2.2): nightly pg_dump + tar, encrypted with age, retention schedule in place.
 6. Execute the cutover plan (§10).
 
 **Exit criteria:** New app live in production, old app retired, monitoring green.
@@ -539,6 +596,8 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 
 **Rollback:** DNS back to old LXC + restore DB from backup if a migration went wrong. Because we kept the old app, rollback is minutes, not hours.
 
+**Expected on day 1:** Every user will be silently logged out on their first visit. The current app uses `httpOnly` JWT cookies named `token`; NextAuth uses different cookie names entirely. Old cookies are ignored and users are redirected to Google login. This is harmless and expected — not a bug. No action needed.
+
 ---
 
 ## 11. Open Decisions (resolve in Phase 0 with user)
@@ -546,16 +605,20 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 | Decision | Answer | Notes |
 |---|---|---|
 | Hosting | **LXC container on Proxmox** | Next.js runs as a long-lived Node.js process; LXC is sufficient isolation, lighter and faster than a full VM. Cloudflare proxy is already live on the domain. See §2.1. |
-| File storage | **Local volume `/var/lib/trup/uploads/`** via `lib/storage.ts` | Single-server app; no need for S3/R2/MinIO at this scale. The abstraction layer (§2.1) makes a future migration a one-file change. |
+| File storage | **Local volume `/opt/trupWebsite/uploads/`** via `lib/storage.ts` | Single-server app; no need for S3/R2/MinIO at this scale. The abstraction layer (§2.1) makes a future migration a one-file change. |
 | Image upload method | **Direct to Next.js Route Handler** | No 4.5 MB serverless limit on self-hosted LXC. Multipart body received by the handler; `lib/storage.ts` writes to disk. Simpler than presigned URLs. |
 | Image processing | **Sync sharp in the Route Handler** | No 10 s serverless timeout on LXC. `lib/watermark.ts` runs synchronously at upload time — same behaviour as the current Express app. |
 | Connection pooler | **Prisma built-in pool** (no extra service) | LXC is persistent; no per-invocation connection churn. Prisma's default pool is sufficient. Document `connection_limit` in `.env.example`. |
 | Client-side polling | **SWR** (scoped to polling only) | Used only where data must refresh post-load without navigation (notification dropdown, §14.11). RSC + Server Actions is the default for everything else. React Query rejected as overkill. |
-| Logging | **pino → rotated file** | JSON lines to `/var/log/trup/app.log`; `logrotate` for rotation + retention. Loki + Grafana rejected at this scale — `grep` is sufficient. pino supports transports for a future Loki migration. |
+| Logging | **pino → rotated file** | JSON lines to `/var/log/trupWebsite/app.log`; `logrotate` for rotation + retention. Loki + Grafana rejected at this scale — `grep` is sufficient. pino supports transports for a future Loki migration. |
 | Backups | **User-managed destination** | Recommended: nightly pg_dump + tar, encrypted with age, 7/4/12 retention, quarterly restore drills. Destination is user's own setup. See §2.2. |
 | State management | **RSC + Server Actions** (SWR for polling) | See §2 and Phase 2. |
 | Light mode | **Dark only** for parity | CSS variable tokens leave the door open later without any rework. |
 | `@google/genai` dependency | **Audit and drop if unused** | This package is in `package.json` but its usage is unclear. Unused dependencies increase attack surface. |
+| Reverse proxy | **Caddy** | Auto-TLS, static file serving, simple config. See §2.3. |
+| TLS mode | **Full (Strict)** via Cloudflare | Caddy provisions origin cert automatically. |
+| Process manager | **systemd** | Unit file in `deploy/trupWebsite.service`; runs as `trup` user. |
+| Test framework | **Vitest** (unit) + **Playwright** (E2E) | Named in Phase 5; tests written alongside features. |
 | Repo strategy | **New branch `rewrite/nextjs`** | Keeps full git history; easy to compare old and new. |
 
 ---
@@ -570,13 +633,13 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 | `events.ts` (608 lines) hides edge cases | High | Medium | Port incrementally, endpoint by endpoint, with payload tests; ~1 session per major file |
 | `$queryRawUnsafe` queries hard to reproduce in Prisma | Medium | Low | Keep parameterized `$queryRaw` tagged template as fallback; never `Unsafe` |
 | Origin IP exposure bypasses Cloudflare proxy | Medium | Medium | **Fixed by design**: origin firewall allows inbound 80/443 from Cloudflare IPs only (§2.1, Phase 0 step 2); weekly cron refreshes the allowlist |
-| Disk fills up with uploads on LXC | Low | Medium | Monitor `/var/lib/trup/uploads/`; set up a `df` alert. `lib/storage.ts` makes storage quotas easy to enforce if needed. |
+| Disk fills up with uploads on LXC | Low | Medium | Monitor `/opt/trupWebsite/uploads/`; set up a `df` alert. `lib/storage.ts` makes storage quotas easy to enforce if needed. |
 | CSP written before nonce infrastructure | Was HIGH | Phase 0 | **Fixed by design**: CSP scaffold moved to Phase 0; every subsequent phase builds on the correct foundation |
 | React Query added to App Router project | Was MEDIUM | — | **Removed from plan**: RSC + Server Actions + SWR (polling only) covers all cases with minimal extra dependency |
 | Serverless upload/processing limits | N/A | — | **Not applicable**: self-hosted LXC has no 4.5 MB body limit and no 10 s function timeout |
 | Duplicated button styling causes visual drift | Low | Low | Unified on one CVA source in Phase 2; `.btn-*` CSS deleted |
 | Scope creep into redesign | Medium | High | Guardrail §3.2 — design system *codifies*, never changes, the look |
-| Lost uploads during cutover | Low | High | Verify full `/var/lib/trup/uploads/` presence on new LXC before DNS switch (§10); backup taken immediately before cutover |
+| Lost uploads during cutover | Low | High | Verify full `/opt/trupWebsite/uploads/` presence on new LXC before DNS switch (§10); backup taken immediately before cutover |
 | **Live app stays vulnerable during rewrite** (session-revocation bypass unpatched) | Certain | Medium | **Accepted** per §1.1. If the site goes fully public before cutover, revisit and patch the HIGH issue in the current app as the one exception to the no-interim-patches rule. |
 
 ---
@@ -597,7 +660,8 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 - [ ] Owner protection + session revocation enforced everywhere
 - [ ] Env validated at boot; app refuses to start with missing vars
 - [ ] Accessibility baseline (§6.11) passing on core flows
-- [ ] Smoke tests in CI (lint + typecheck + key flows on every PR via GitHub Actions)
+- [ ] CI/CD pipeline: Vitest + Playwright on every PR; GitHub Actions deploy to LXC on merge to main
+- [ ] `deploy/Caddyfile` + `deploy/trupWebsite.service` in repo; systemd service survives reboot
 - [ ] Error monitoring (Sentry) + structured logging (`pino` → rotated file via `logrotate`) in production
 - [ ] Uploads verified on LXC local volume; `lib/storage.ts` serves all files correctly
 - [ ] Backup strategy active: nightly pg_dump + tar, age-encrypted, retention schedule running (§2.2)

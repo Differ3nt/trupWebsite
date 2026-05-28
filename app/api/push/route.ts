@@ -29,7 +29,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = pushSubscriptionSchema.parse(body);
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const id = crypto.randomUUID();
+
+    await prisma.pushSubscription.upsert({
+      where: { endpoint: validated.endpoint },
+      update: {
+        p256dh: validated.keys.p256dh,
+        auth: validated.keys.auth,
+      },
+      create: {
+        id,
+        userId: auth.data.userId,
+        endpoint: validated.endpoint,
+        p256dh: validated.keys.p256dh,
+        auth: validated.keys.auth,
+      },
+    });
+
+    return NextResponse.json({ id, subscribed: true });
   } catch (err) {
     return handleApiError(err, '[push POST]');
   }

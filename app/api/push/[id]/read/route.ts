@@ -13,7 +13,26 @@ export async function PATCH(
   try {
     const { id } = await params;
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    // Verify ownership before updating
+    const notification = await prisma.notification.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+
+    if (!notification) {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+    }
+
+    if (notification.userId !== auth.data.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const updated = await prisma.notification.update({
+      where: { id },
+      data: { isRead: true },
+    });
+
+    return NextResponse.json(updated);
   } catch (err) {
     return handleApiError(err, '[push [id] read PATCH]');
   }

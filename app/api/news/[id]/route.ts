@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 import { handleApiError } from '@/lib/api-errors';
 
@@ -7,9 +8,9 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
   if (!auth.ok) return auth.response;
 
   try {
-    await props.params;
-
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const { id } = await props.params;
+    await prisma.newsItem.delete({ where: { id } });
+    return NextResponse.json({ success: true });
   } catch (err) {
     return handleApiError(err, '[news [id] DELETE]');
   }

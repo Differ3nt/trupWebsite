@@ -35,11 +35,21 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
   if (!auth.ok) return auth.response;
 
   try {
-    await props.params;
+    const { id } = await props.params;
     const body = await request.json();
     const validated = updateWikiArticleSchema.parse(body);
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const article = await prisma.wikiArticle.update({
+      where: { id },
+      data: {
+        ...(validated.title !== undefined && { title: validated.title }),
+        ...(validated.content !== undefined && { content: validated.content }),
+        ...(validated.category !== undefined && { category: validated.category }),
+        ...(validated.authorName !== undefined && { authorName: validated.authorName }),
+        ...(validated.tags !== undefined && { tags: validated.tags }),
+      },
+    });
+    return NextResponse.json(article);
   } catch (err) {
     return handleApiError(err, '[wiki [id] PUT]');
   }
@@ -50,9 +60,9 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
   if (!auth.ok) return auth.response;
 
   try {
-    await props.params;
-
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const { id } = await props.params;
+    await prisma.wikiArticle.delete({ where: { id } });
+    return NextResponse.json({ success: true });
   } catch (err) {
     return handleApiError(err, '[wiki [id] DELETE]');
   }

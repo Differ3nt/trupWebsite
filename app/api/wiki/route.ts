@@ -32,10 +32,21 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   try {
+    const session = await getSession();
     const body = await request.json();
     const validated = createWikiArticleSchema.parse(body);
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const article = await prisma.wikiArticle.create({
+      data: {
+        title: validated.title,
+        content: validated.content,
+        category: validated.category,
+        tags: validated.tags ?? [],
+        authorId: session!.userId,
+        authorName: validated.authorName,
+      },
+    });
+    return NextResponse.json(article, { status: 201 });
   } catch (err) {
     return handleApiError(err, '[wiki POST]');
   }

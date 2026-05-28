@@ -55,7 +55,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createNewsSchema.parse(body);
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const id = `news_${Date.now()}`;
+    const now = new Date();
+    const newsItem = await prisma.newsItem.create({
+      data: {
+        id,
+        title: validated.title,
+        content: validated.content,
+        type: validated.type,
+        imageUrl: validated.imageUrl,
+        link: validated.link,
+        eventId: validated.eventId,
+        articleId: validated.articleId,
+        priority: validated.priority ?? 0,
+        updatedAt: now,
+      },
+    });
+    return NextResponse.json(newsItem, { status: 201 });
   } catch (err) {
     return handleApiError(err, '[news POST]');
   }

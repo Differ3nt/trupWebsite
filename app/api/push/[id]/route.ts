@@ -13,7 +13,25 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    // Verify ownership before deleting
+    const subscription = await prisma.pushSubscription.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+
+    if (!subscription) {
+      return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+    }
+
+    if (subscription.userId !== auth.data.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    await prisma.pushSubscription.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ deleted: true });
   } catch (err) {
     return handleApiError(err, '[push [id] DELETE]');
   }

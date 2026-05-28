@@ -59,56 +59,58 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 | Icons | `lucide-react` imported ad-hoc | **`lucide-react` via a central registry** | Consistent icon vocabulary; one-file library swap |
 | CSP | `unsafe-inline` | **Nonce-based CSP** | Real XSS protection, enabled by SSR — scaffolded Phase 0, not deferred |
 | Forms | react-hook-form | **react-hook-form + Zod resolver** | Validation shared with the API |
-| Image upload | multer receiving binary in Express | **Presigned URL → R2 direct upload** | Vercel enforces a 4.5 MB request body limit; binary data must never pass through Vercel. Client gets a presigned PUT URL from the API and uploads directly to R2. |
-| Image processing | sync sharp in-process | **Cloudflare Worker (async, R2-triggered)** | Vercel Hobby timeout is 10 s; synchronous watermark + resize on large files will 504. R2 event notification triggers a Worker; Vercel is not in the image-processing path. |
-| Connection pooler | single persistent pool (Express) | **Prisma Accelerate** (Phase 0, not Phase 5) | Each Vercel function invocation opens a new DB connection; without a pooler, `max_connections` is exhausted during development. Must be live before Phase 1 begins. |
-| Hosting | Self/VPS (tsx) | **Vercel** (required — see §11) | VPS + Next.js 15 is a significant operational burden; Vercel is the correct hosting target for this stack |
+| Client polling | `setInterval` + raw `fetch` | **SWR** (polling use cases only) | ~5 kB; wraps `useSWR('/api/…', { refreshInterval })` for data that must auto-refresh after page load (notification dropdown §14.11). Everything else stays RSC + Server Actions — SWR is not the default. |
+| Image upload | multer receiving binary in Express | **Route Handler + `lib/storage.ts`** | Next.js Route Handler receives the multipart body; `lib/storage.ts` writes the file to the local volume. No 3rd-party service; no presigned URL indirection needed on a self-hosted server. |
+| Image processing | sync sharp in-process | **sync sharp in Next.js Route Handler** | Self-hosted LXC has no serverless timeout. The existing sharp resize + watermark logic runs synchronously in the same Route Handler that receives the upload. `watermark.ts` middleware ports directly. |
+| File storage | `uploads/` directory | **Local volume `/var/lib/trup/uploads/`**, accessed via `lib/storage.ts` | A plain directory on disk. Caddy or a Next.js route handler serves files back. `lib/storage.ts` abstracts all reads/writes — swapping to S3 later is one file. MinIO rejected (no benefit at single-server scale). |
+| Connection pooler | single persistent pool (Express) | **Prisma built-in pool** (no extra service) | Next.js on LXC runs as a long-lived Node.js process, not ephemeral serverless functions. Prisma's default connection pool is sufficient; Prisma Accelerate and pgBouncer are not needed. |
+| Hosting | Self/VPS (tsx) | **LXC container on Proxmox** + Cloudflare proxy | Long-lived Node.js process; LXC is enough isolation, lighter than a full VM, starts in seconds. Cloudflare is already live on the domain (orange-cloud). See §2.1. |
 
-**Kept as-is** (well-built, port directly): all `src/components/` UI primitives, Leaflet GPX rendering, sharp watermark logic, gpxUtils parsing, the Tailwind design tokens.
+**Kept as-is** (well-built, port directly): all `src/components/` UI primitives, Leaflet GPX rendering, sharp watermark logic (ports to Next.js Route Handler), `watermark.ts` middleware logic, gpxUtils parsing, the Tailwind design tokens.
 
 ---
 
-## 2.1 Serverless Architecture Constraints
+## 2.1 Self-Hosting Infrastructure
 
-Three hard limits of Vercel's serverless infrastructure affect core features. All three are resolved by architectural decisions already incorporated into the phases; they are documented here so the *why* behind the upload and image-processing flows is always clear.
+All infrastructure decisions are resolved. No items remain "to decide later."
 
-### Constraint A — Vercel 4.5 MB request body limit
+### LXC container on Proxmox
 
-Vercel serverless functions reject requests larger than 4.5 MB **before any application code executes** (HTTP 413). The current Express app uses multer to receive image uploads directly — this pattern is incompatible with Vercel. Members may also want to upload high-resolution originals larger than this limit.
+Next.js runs as a long-lived Node.js process in a dedicated **LXC container** on the Proxmox host. A full VM is not needed: Next.js does not require its own kernel, and LXC provides sufficient isolation for a single-tenant club application while using far less RAM and disk and starting in seconds.
 
-**Solution: Presigned URL direct-to-R2 upload**
+Why not a VM: a VM is warranted when the guest needs a different kernel, runs untrusted workloads, or needs live migration. None of those apply here.
 
-Upload becomes a two-step process:
+### Cloudflare: DNS + proxy (already live)
 
-1. **`POST /api/images/presign`** — server authenticates the user, validates file type and metadata, generates a short-lived presigned `PUT` URL for the R2 bucket (using `@aws-sdk/s3-request-presigner`), returns `{ presignedUrl, key }`.
-2. **Client uploads directly to R2** via the presigned URL — the binary data never passes through a Vercel function.
-3. **`POST /api/images/confirm`** — client sends the `key`; server verifies the object exists in R2, creates the DB record, and marks the image as pending processing.
+Cloudflare is already active on the domain (orange-cloud proxy). No Cloudflare setup is needed in Phase 0 — only one verification step remains:
 
-No file-size limit. Vercel only handles small JSON payloads.
+**Verify the origin firewall** accepts inbound HTTP/HTTPS **only from Cloudflare's published IP ranges.** This prevents direct-to-origin requests from bypassing the proxy — which is possible for anyone who learns the home IP via certificate transparency logs or leaked headers. Cloudflare publishes the IP list at a stable URL; a weekly cron refreshes the firewall ruleset automatically.
 
-### Constraint B — 10-second serverless execution timeout
+The free plan covers everything needed at this scale: DNS, reverse proxy, edge TLS, basic WAF, DDoS protection, and "Always Online" cached fallback when the origin is briefly unreachable.
 
-Vercel Hobby tier enforces a hard 10-second timeout per function invocation. Synchronous `sharp` watermark generation on large images (resize to 1920px + logo composite) will routinely exceed this, returning HTTP 504 with no partial output.
+### Local file storage + `lib/storage.ts` abstraction
 
-**Solution: Async processing via Cloudflare Worker + R2 event trigger**
+Uploads (images, GPX) are stored in a plain directory on the LXC container (`/var/lib/trup/uploads/`). Next.js writes files there directly; Caddy or a Next.js route handler serves them back. Zero added services, zero added processes.
 
-1. Original image lands in R2 (uploaded by the browser via presigned URL, zero Vercel involvement).
-2. An **R2 event notification** triggers a **Cloudflare Worker**.
-3. The Worker reads the original from R2, runs resize + watermark (ported from `watermark.ts` using `@cf-wasm/sharp` or equivalent), writes the processed variant back to R2 under a deterministic key.
-4. The Worker calls `POST /api/images/confirm-processed` (an internal Vercel Route Handler) or updates the DB directly via Prisma's HTTP driver, marking the image ready.
+**Why not MinIO:** MinIO emulates the S3 API on top of local disk. It is useful when multiple servers share storage or a cloud migration is on the roadmap. Neither applies here. For a single server hosting one app for 50–60 users, MinIO adds a second LXC to maintain, HTTP overhead on every file read, and operational complexity for no observable benefit.
 
-The Worker runs at the Cloudflare edge with no timeout limit, independent of Vercel. The existing sharp logic ports directly.
+**`lib/storage.ts` is the insurance policy:** every file read/write in the application goes through this module. Its current implementation is a thin `fs` wrapper. If storage ever needs to move (to S3, R2, or anything else), the change is one file — no application-wide refactor.
 
-### Constraint C — Database connection exhaustion
+## 2.2 Operational Security & Backups
 
-Express maintains a single persistent connection pool. In Vercel serverless, each concurrent request can instantiate a new function that opens a fresh TCP connection to the PostgreSQL server. With PostgreSQL's default `max_connections` (typically 100 or lower on a self-hosted Proxmox instance), even routine parallel development requests exhaust the limit, causing `connection refused` errors.
+### Origin firewall
 
-**Solution: Prisma Accelerate in Phase 0, not Phase 5**
+Cloudflare is the only intended public entry point. The LXC origin firewall allows inbound 80/443 only from Cloudflare's IP ranges. A weekly cron fetches the canonical list and reloads the firewall rules.
 
-This is **not production polish**. Without a pooler, Phase 1 development testing will hit connection exhaustion. It must be running before the first Route Handler is written.
+### Backup strategy
 
-- **Recommended: Prisma Accelerate** — Prisma's managed pooler. Replace `DATABASE_URL` with the Accelerate connection string; the Prisma client change is transparent. Free tier: 100k queries/month, 6 pooled connections per database — sufficient for a small club site.
-- **Alternative: pgBouncer on the DB host** — more control, free, requires Proxmox admin access. Use transaction-mode pooling (required for serverless, not session mode).
+The user manages the backup destination. The recommended practices for *what* to back up:
+
+- **Database:** nightly `pg_dump --format=custom` (compressed; restores with `pg_restore`).
+- **Uploads:** nightly `tar` of `/var/lib/trup/uploads/`.
+- **Encryption:** encrypt archives with `age`; the private key lives offline, not on the server.
+- **Retention:** 7 daily / 4 weekly / 12 monthly.
+- **Restore drills:** quarterly, onto a throwaway LXC. A backup that has never been restored is not a backup.
 
 ---
 
@@ -136,7 +138,7 @@ Concrete mapping so nothing is lost in translation.
 |---|---|---|---|
 | `auth.ts` | 245 | **Deleted** — replaced by NextAuth | NextAuth handles Google provider, session, callback, logout |
 | `events.ts` | 608 | `app/api/events/route.ts` + `[id]/` | Largest file; split into list / detail / rsvp / finalize handlers |
-| `upload.ts` | 366 | `app/api/images/presign/route.ts` + `app/api/images/confirm/route.ts` | Binary data never touches Vercel. `presign` authenticates + returns R2 presigned URL; `confirm` creates DB record + enqueues processing. Watermark runs in a Cloudflare Worker. |
+| `upload.ts` | 366 | `app/api/images/route.ts` (upload + asset variants) | Route Handler receives the multipart body; `lib/storage.ts` writes to the local volume; sharp processes synchronously (resize + watermark). Same logic as current multer handler, ported. |
 | `users.ts` | 210 | `app/api/users/route.ts` + `[id]/` | Drop local `authenticate`; use shared session helper. Keep owner guards |
 | `push.ts` | 130 | `app/api/push/route.ts` | Drop local `authenticate`; keep web-push |
 | `wiki.ts` | 124 | `app/api/wiki/route.ts` + `[id]/` | |
@@ -176,7 +178,7 @@ UI primitives (`Badge`, `Button`, `Card`, `Checkbox`, `FormField`, `Input`, `Mod
 | `server/lib/prisma.ts` | `lib/prisma.ts` — singleton with global guard for dev hot-reload |
 | `server/lib/gpxUtils.ts` | `lib/gpx.ts` — unchanged logic |
 | `server/middleware/auth.ts` | `lib/auth.ts` (NextAuth full config) + `lib/auth.config.ts` (edge-safe config) |
-| `server/middleware/watermark.ts` | **Cloudflare Worker** (separate deployment) — logic ports directly to Worker runtime using `@cf-wasm/sharp` |
+| `server/middleware/watermark.ts` | `lib/watermark.ts` — same sharp logic, called from the upload Route Handler. On-the-fly serving can use a Next.js Route Handler at `/uploads/[...path]`. |
 
 ---
 
@@ -217,6 +219,8 @@ trup/
 │   ├── auth.ts                    # NextAuth full config (Prisma adapter) — RSCs and Route Handlers only
 │   ├── auth.config.ts             # NextAuth JWT config (no Prisma adapter) — safe for Edge Runtime / middleware.ts
 │   ├── gpx.ts
+│   ├── storage.ts                 # file read/write abstraction (wraps fs + /var/lib/trup/uploads/)
+│   ├── watermark.ts               # sharp watermark logic (ported from server/middleware/watermark.ts)
 │   ├── validations/               # Zod schemas, one file per resource
 │   │   ├── event.ts
 │   │   ├── gpx.ts
@@ -228,16 +232,8 @@ trup/
 │   └── seed.ts
 ├── middleware.ts                  # route protection + CSP nonce (imports auth.config.ts only — never auth.ts)
 ├── public/
-└── uploads/                       # local only in dev; Cloudflare R2 in production (see §11)
+└── uploads/                       # symlink or mount point → /var/lib/trup/uploads/ on the LXC
 ```
-
-**Cloudflare Worker** (separate deployment, outside this repo):
-```
-trup-image-worker/
-├── src/index.ts                   # R2 event handler: read original → resize + watermark → write variant → confirm to API
-└── wrangler.toml                  # R2 bucket binding + event trigger config
-```
-The Worker is a small, independent project. It has one job: receive an R2 upload event, process the image, write the result back. It never touches auth or business logic.
 
 **Modularity rule:** one resource = one folder under `app/api/`, one Zod file under `lib/validations/`, one set of pages. Adding a feature touches a predictable, isolated set of files. Every reusable visual element lives in `components/ui` and is consumed, never re-styled inline.
 
@@ -360,7 +356,7 @@ This removes ad-hoc per-page handling and guarantees consistent UX.
 ### 6.9 Imagery & media
 
 - `ImageLoader` (lazy + spinner) for album/gallery photos; `Lightbox` for full-screen viewing; `PageHeader` for hero images.
-- Images are uploaded directly to R2 via presigned URLs (see §2.1). The Cloudflare Worker handles async watermark generation; the Next.js app only stores and serves R2 URLs — it never processes binary image data.
+- Images are uploaded via the Route Handler; `lib/storage.ts` writes to the local volume; sharp processes synchronously. `lib/watermark.ts` handles watermark generation in-process.
 - Leaflet maps (`GpxPreview`) stay client-only (dynamic import, no SSR).
 
 ### 6.10 Motion & animation
@@ -410,7 +406,7 @@ Every phase: branch off `rewrite/nextjs`, build, self-verify, report to user, aw
 Goal: prove the riskiest pieces work before committing to the full port. This phase is **intentionally front-loaded with the hardest problems** — CSP architecture, NextAuth edge runtime, and schema baseline — so that every subsequent phase builds on proven ground rather than discovering structural issues mid-port.
 
 1. **Reconcile the schema first** (do this in the *current* repo, see §8) so we baseline from truth.
-2. Confirm hosting (Vercel) and file storage (Cloudflare R2 for production) — see §11. No decisions deferred.
+2. **Verify Cloudflare origin firewall** (see §2.1): confirm the LXC accepts inbound 80/443 only from Cloudflare's published IP ranges. Set up the weekly cron to refresh the allowlist. All infrastructure decisions are already resolved — no further choices deferred.
 3. Scaffold Next.js 15 + TypeScript (strict) + Tailwind v4 + App Router in `rewrite/nextjs`.
 4. Point Prisma at the **existing production-shaped DB** (a clone/staging copy, never prod directly).
 5. `prisma migrate diff` + `prisma migrate resolve` to create a **baseline migration** matching the current DB exactly (no data change).
@@ -418,9 +414,9 @@ Goal: prove the riskiest pieces work before committing to the full port. This ph
 7. Render a single trivial page that reads one row from the DB via Prisma in an RSC.
 8. **Scaffold nonce-based CSP infrastructure**: generate a per-request nonce in `middleware.ts`, set the `Content-Security-Policy` response header (no `unsafe-inline`), and propagate the nonce to `app/layout.tsx`. Document the nonce propagation pattern — every `<Script>` tag and inline script written in Phases 1 and 2 **must** receive this nonce. Deferring CSP to Phase 3 guarantees expensive backtracking; doing it now means the foundation is correct.
 9. **Validate the NextAuth v5 edge-split pattern**: implement `lib/auth.config.ts` (JWT strategy + Google provider, **no Prisma adapter** — Edge Runtime safe) and `lib/auth.ts` (full NextAuth config with Prisma adapter, used in RSCs and API Route Handlers only). `middleware.ts` imports **only** `auth.config.ts`. NextAuth v5 crashes in Edge Runtime when the Prisma adapter is loaded; this split is non-negotiable. Prototype route protection (`/profil` redirects unauthenticated users to `/`) before proceeding.
-10. **Set up database connection pooler** (see §2.1 Constraint C): configure Prisma Accelerate (recommended — replace `DATABASE_URL` with Accelerate connection string) or pgBouncer on the DB host in transaction mode. Verify that a burst of 20 parallel requests does not exhaust `max_connections`. This **must be live before Phase 1 begins** — without it, parallel Route Handler development will hit connection exhaustion and produce misleading errors.
+10. **Verify Prisma connection pool** under the LXC deployment: Next.js on LXC runs as a persistent Node.js process (not ephemeral serverless), so Prisma's built-in pool is sufficient. Confirm the pool size env var (`DATABASE_URL` or `connection_limit`) is appropriate for the Postgres `max_connections` setting and note it in `.env.example`.
 
-**Exit criteria:** Google login → session → logout works. DB read from RSC works. Schema and DB are in sync via a real Prisma migration. CSP nonce infrastructure in place with no `unsafe-inline` from day one. Protected route redirects unauthenticated users correctly via `auth.config.ts` in middleware. 20 parallel requests complete without connection errors. Nothing else exists yet.
+**Exit criteria:** Google login → session → logout works. DB read from RSC works. Schema and DB are in sync via a real Prisma migration. CSP nonce infrastructure in place with no `unsafe-inline` from day one. Protected route redirects unauthenticated users correctly via `auth.config.ts` in middleware. Cloudflare origin firewall verified. Prisma pool documented. Nothing else exists yet.
 
 **Effort: ~3–4 sessions** (was 1–2; the CSP scaffold, NextAuth edge validation, and baseline migration each carry real uncertainty; this is the highest-risk phase).
 
@@ -431,7 +427,7 @@ Goal: prove the riskiest pieces work before committing to the full port. This ph
 3. Create one shared session/authorization helper (`requireUser()`, `requireAdmin()`, `requireOwnerSafe()`) — used by **every** handler. No local auth copies, ever.
 4. Port owner-protection and self-demotion guards from `users.ts`.
 5. Re-implement rate limiting via Next.js middleware (or Vercel's built-in rate limiting).
-6. **Implement the presigned-URL upload flow** (see §2.1 Constraint A): `POST /api/images/presign` (authenticate + return R2 presigned URL) and `POST /api/images/confirm` (verify object in R2, create DB record). Delete the old multer-based upload path entirely. Also set up and deploy the Cloudflare Worker for async watermark processing (see §5 Worker structure).
+6. **Implement the upload Route Handler** (see §4.1 mapping): Route Handler receives the multipart body, authenticates the user, validates file type, calls `lib/storage.ts` to write the file to the local volume, runs sharp resize + watermark synchronously via `lib/watermark.ts`, and creates the DB record. Mirror the current `upload.ts` behaviour — original + thumbnail + watermarked variants. Port `upload-asset` and `upload-simple` variants.
 7. All mutations use **Server Actions** where appropriate; Route Handlers for external API consumers. No React Query — the framework handles caching.
 8. Smoke test: hit every endpoint with valid + invalid payloads; invalid must be rejected by Zod with a 400.
 
@@ -444,7 +440,7 @@ Goal: prove the riskiest pieces work before committing to the full port. This ph
 1. **Build the design-system foundation first** (§6): tokens, unified `Button` (CVA, deletes `.btn-*`), icon registry, layout/nav components, state components (`EmptyState`, `ErrorState`), `/styleguide`. Everything below consumes it — do not skip this step.
 2. Move remaining `components/` over; fix imports; confirm they render in `/styleguide`.
 3. Convert pages per §4.2. Public read pages become RSC; interactive pages (Admin, Calendar) stay client components with `'use client'`.
-4. Replace `AppContext` server-data fetching with **RSC + Server Actions**. Keep a minimal Zustand store for pure UI state only (toast queue, modal open/close, mobile drawer) — these are the only things the server doesn't already own. **Do not introduce React Query**: Next.js 15's RSC + `unstable_cache` + Server Actions covers the same ground with zero extra dependency.
+4. Replace `AppContext` server-data fetching with **RSC + Server Actions**. Keep a minimal Zustand store for pure UI state only (toast queue, modal open/close, mobile drawer). For data that must **auto-refresh after page load without navigation** — specifically the notification dropdown (§14.11, 60 s interval) — use **SWR** (`useSWR('/api/…', { refreshInterval: 60000 })`). This is the *only* permitted client-side polling library; RSC + Server Actions covers everything else. **Do not introduce React Query** — its richer feature set addresses problems TRUP doesn't have.
 5. Replace `ProtectedRoute` with `middleware.ts` route protection (already scaffolded in Phase 0).
 6. Port toast (Sonner) and the `confirmAction`/`ConfirmationModal` system into the Zustand store.
 7. Verify every live page visually matches the old site, including on mobile.
@@ -481,11 +477,11 @@ At this point the nonce-based CSP is already in place (Phase 0). This phase audi
 
 ### Phase 5 — Production Readiness & Cutover
 
-1. Structured logging (replace `console.error`/`console.log` with a logger — `pino`).
+1. **Structured logging**: replace `console.error`/`console.log` with `pino`. Write JSON log lines to `/var/log/trup/app.log`; configure `logrotate` for rotation at 100 MB, retention 14 days. No Loki or Grafana — log volume is low enough that `tail -f` and `grep` are sufficient for ad-hoc debugging. `pino` supports transports, so switching output destination later is a one-line config change.
 2. Error monitoring (Sentry — Next.js integration).
 3. ~~DB connection pooling~~ — **already done in Phase 0**. Verify under production load.
-4. CI pipeline on Vercel: lint + typecheck + smoke tests run on every PR automatically.
-5. Verify `uploads/` fully migrated to Cloudflare R2 and Cloudflare Worker processing is confirmed working end-to-end.
+4. CI pipeline (GitHub Actions): lint + typecheck + smoke tests run on every PR automatically.
+5. Verify `uploads/` is fully present on the LXC local volume and `lib/storage.ts` serves all images correctly through the new app. Confirm the backup strategy is active (§2.2): nightly pg_dump + tar, encrypted with age, retention schedule in place.
 6. Execute the cutover plan (§10).
 
 **Exit criteria:** New app live in production, old app retired, monitoring green.
@@ -535,13 +531,13 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 1. Freeze writes on the old app (maintenance banner).
 2. Take a full DB backup (`pg_dump`).
 3. Point the new app at the production DB; run `prisma migrate deploy` (baseline already applied — should be a no-op or only new migrations).
-4. Verify `uploads/` files are fully synced to Cloudflare R2.
-5. Smoke test the new app against prod data on a Vercel preview URL.
-6. Switch DNS to the Vercel production deployment.
+4. Verify `uploads/` files are fully present on the LXC local volume.
+5. Smoke test the new app against prod data on the staging LXC before switching traffic.
+6. Switch Cloudflare DNS / proxy to point at the new LXC.
 7. Keep the old app deployable for 1–2 weeks as instant rollback.
 8. Remove the old app once stable.
 
-**Rollback:** DNS back to old app + restore DB from backup if a migration went wrong. Because we kept the old app, rollback is minutes, not hours.
+**Rollback:** DNS back to old LXC + restore DB from backup if a migration went wrong. Because we kept the old app, rollback is minutes, not hours.
 
 ---
 
@@ -549,12 +545,15 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 
 | Decision | Answer | Notes |
 |---|---|---|
-| Hosting | **Vercel** (required) | VPS self-hosting of Next.js 15 is a significant operational burden: manual `standalone` build, custom `sharp` compilation, manual ISR cache invalidation, no built-in image optimization CDN, PM2 management. This contradicts "done right, not fast." If budget becomes a concern, Vercel's hobby tier is free for low traffic. If data-residency ever requires self-hosting, the correct response is to reconsider the framework (Remix or SvelteKit are deployment-agnostic); not to fight Next.js's Vercel coupling. |
-| File storage | **Cloudflare R2** (required) | Vercel's ephemeral filesystem does not persist between deployments. Cloudflare R2 is S3-compatible with a generous free tier and works well with Cloudflare CDN for serving images. |
-| Image upload method | **Presigned URL → R2 direct** | Vercel 4.5 MB body limit makes server-side upload reception impossible for large photos. Client receives a presigned PUT URL and uploads directly to R2 (see §2.1 Constraint A). |
-| Image processing | **Cloudflare Worker (async, R2-triggered)** | Vercel 10 s timeout rules out synchronous sharp processing. R2 event notification triggers a Worker which does resize + watermark asynchronously (see §2.1 Constraint B). |
-| Connection pooler | **Prisma Accelerate** (Phase 0) | Serverless connection exhaustion kills development, not just production. Prisma Accelerate free tier is sufficient; pgBouncer on the DB host is the alternative (see §2.1 Constraint C). |
-| State management | **RSC + Server Actions** (no React Query) | Already decided; see §2 and Phase 2. |
+| Hosting | **LXC container on Proxmox** | Next.js runs as a long-lived Node.js process; LXC is sufficient isolation, lighter and faster than a full VM. Cloudflare proxy is already live on the domain. See §2.1. |
+| File storage | **Local volume `/var/lib/trup/uploads/`** via `lib/storage.ts` | Single-server app; no need for S3/R2/MinIO at this scale. The abstraction layer (§2.1) makes a future migration a one-file change. |
+| Image upload method | **Direct to Next.js Route Handler** | No 4.5 MB serverless limit on self-hosted LXC. Multipart body received by the handler; `lib/storage.ts` writes to disk. Simpler than presigned URLs. |
+| Image processing | **Sync sharp in the Route Handler** | No 10 s serverless timeout on LXC. `lib/watermark.ts` runs synchronously at upload time — same behaviour as the current Express app. |
+| Connection pooler | **Prisma built-in pool** (no extra service) | LXC is persistent; no per-invocation connection churn. Prisma's default pool is sufficient. Document `connection_limit` in `.env.example`. |
+| Client-side polling | **SWR** (scoped to polling only) | Used only where data must refresh post-load without navigation (notification dropdown, §14.11). RSC + Server Actions is the default for everything else. React Query rejected as overkill. |
+| Logging | **pino → rotated file** | JSON lines to `/var/log/trup/app.log`; `logrotate` for rotation + retention. Loki + Grafana rejected at this scale — `grep` is sufficient. pino supports transports for a future Loki migration. |
+| Backups | **User-managed destination** | Recommended: nightly pg_dump + tar, encrypted with age, 7/4/12 retention, quarterly restore drills. Destination is user's own setup. See §2.2. |
+| State management | **RSC + Server Actions** (SWR for polling) | See §2 and Phase 2. |
 | Light mode | **Dark only** for parity | CSS variable tokens leave the door open later without any rework. |
 | `@google/genai` dependency | **Audit and drop if unused** | This package is in `package.json` but its usage is unclear. Unused dependencies increase attack surface. |
 | Repo strategy | **New branch `rewrite/nextjs`** | Keeps full git history; easy to compare old and new. |
@@ -570,15 +569,14 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 | NextAuth Google OAuth config differs from current manual flow | Medium | Medium | Phase 0 de-risks this first, against a test account |
 | `events.ts` (608 lines) hides edge cases | High | Medium | Port incrementally, endpoint by endpoint, with payload tests; ~1 session per major file |
 | `$queryRawUnsafe` queries hard to reproduce in Prisma | Medium | Low | Keep parameterized `$queryRaw` tagged template as fallback; never `Unsafe` |
-| Vercel 4.5 MB body limit blocks image uploads | Certain | High | **Fixed by design**: presigned URL → R2 direct upload (§2.1 Constraint A); binary data never passes through Vercel |
-| Vercel 10 s timeout kills sharp processing | Certain | High | **Fixed by design**: async Cloudflare Worker triggered by R2 event (§2.1 Constraint B); Vercel not in image-processing path |
-| DB connection exhaustion during development | Certain | High | **Fixed by design**: Prisma Accelerate (or pgBouncer) configured in Phase 0 step 10 — before Phase 1 begins |
+| Origin IP exposure bypasses Cloudflare proxy | Medium | Medium | **Fixed by design**: origin firewall allows inbound 80/443 from Cloudflare IPs only (§2.1, Phase 0 step 2); weekly cron refreshes the allowlist |
+| Disk fills up with uploads on LXC | Low | Medium | Monitor `/var/lib/trup/uploads/`; set up a `df` alert. `lib/storage.ts` makes storage quotas easy to enforce if needed. |
 | CSP written before nonce infrastructure | Was HIGH | Phase 0 | **Fixed by design**: CSP scaffold moved to Phase 0; every subsequent phase builds on the correct foundation |
-| React Query added to App Router project | Was MEDIUM | — | **Removed from plan**: RSC + Server Actions + `unstable_cache` covers the same surface with zero extra dependency |
-| Self-hosting Next.js on VPS | Removed | — | **Removed from plan**: operational complexity exceeds the budget for a small club site. Vercel is required. |
+| React Query added to App Router project | Was MEDIUM | — | **Removed from plan**: RSC + Server Actions + SWR (polling only) covers all cases with minimal extra dependency |
+| Serverless upload/processing limits | N/A | — | **Not applicable**: self-hosted LXC has no 4.5 MB body limit and no 10 s function timeout |
 | Duplicated button styling causes visual drift | Low | Low | Unified on one CVA source in Phase 2; `.btn-*` CSS deleted |
 | Scope creep into redesign | Medium | High | Guardrail §3.2 — design system *codifies*, never changes, the look |
-| Lost uploads during cutover | Low | High | Full R2 sync verified before DNS switch (§10) |
+| Lost uploads during cutover | Low | High | Verify full `/var/lib/trup/uploads/` presence on new LXC before DNS switch (§10); backup taken immediately before cutover |
 | **Live app stays vulnerable during rewrite** (session-revocation bypass unpatched) | Certain | Medium | **Accepted** per §1.1. If the site goes fully public before cutover, revisit and patch the HIGH issue in the current app as the one exception to the no-interim-patches rule. |
 
 ---
@@ -599,9 +597,10 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 - [ ] Owner protection + session revocation enforced everywhere
 - [ ] Env validated at boot; app refuses to start with missing vars
 - [ ] Accessibility baseline (§6.11) passing on core flows
-- [ ] Smoke tests in CI (lint + typecheck + key flows on every PR via Vercel)
-- [ ] Error monitoring (Sentry) + structured logging (`pino`) in production
-- [ ] Uploads migrated to Cloudflare R2; watermarked variants pre-generated
+- [ ] Smoke tests in CI (lint + typecheck + key flows on every PR via GitHub Actions)
+- [ ] Error monitoring (Sentry) + structured logging (`pino` → rotated file via `logrotate`) in production
+- [ ] Uploads verified on LXC local volume; `lib/storage.ts` serves all files correctly
+- [ ] Backup strategy active: nightly pg_dump + tar, age-encrypted, retention schedule running (§2.2)
 - [ ] Old app retired after stable cutover
 
 ---
@@ -718,7 +717,7 @@ This is the **canonical inventory of everything the live site does today**, capt
 - **`/featured`** returns 6 upcoming featured (home news), **`/highlighted`** returns 6 achievements, both DESC.
 - **RSVP rules:** statuses GOING/INTERESTED/null; reject past-dated events; enforce spot limits (block GOING when full unless upgrading from INTERESTED); null status removes the participation row; `notifyDaysBefore` stored separately.
 - **GPX upload:** parse distance/elevation/duration (manual duration override), status `PENDING`; admin queue + approve/reject; **approval/rejection invalidates stats cache**.
-- **Image pipeline (sharp):** originals JPEG 90%, thumbnails WebP, avatar cropped 400×400, asset uploads keep format; TRUP watermark on download. *(Rebuild moves processing to the R2-triggered Cloudflare Worker per §2.1 — same outputs.)*
+- **Image pipeline (sharp):** originals JPEG 90%, thumbnails WebP, avatar cropped 400×400, asset uploads keep format; TRUP watermark applied at upload time via `lib/watermark.ts`. Same outputs as the current app — processing stays in-process on the LXC.
 - **Push:** subscribe stores endpoint+keys; send broadcasts and **auto-cleans `410 Gone`** subscriptions.
 - **Stats** (cached): expeditions = count of published GÓRY; distance/elevation/duration = sum of approved GPX; members = ACTIVE users. **Invalidated on** finalize, user-status change, GPX approve/reject.
 - **Search** (min 3 chars): ACTIVE users (≤10), events by title/id (≤10), albums by title/description (≤10); unified results with type/url/description.

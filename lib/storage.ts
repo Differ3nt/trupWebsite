@@ -1,7 +1,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { env } from '@/lib/env';
 
-export const storageRoot = process.env.UPLOADS_DIR ?? path.join(process.cwd(), 'uploads');
+export const storageRoot = env.UPLOADS_DIR ?? path.join(process.cwd(), 'uploads');
 
 function safeResolve(relativePath: string): string {
   const normalized = path.posix.normalize(relativePath).replace(/^[\/\\]+/, '');

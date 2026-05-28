@@ -1,3 +1,4 @@
+import '@/lib/env'; // validate env vars at startup — throws with a clear message if anything is missing
 import { Bebas_Neue, Inter } from 'next/font/google';
 import type { Metadata } from 'next';
 import './globals.css';

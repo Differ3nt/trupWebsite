@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { env } from '@/lib/env';
 
 export type AuthResult<T> = { ok: true; data: T } | { ok: false; response: NextResponse };
 
@@ -42,7 +43,7 @@ export async function requireOwnerSafe(
   targetUserId: string,
   targetEmail?: string
 ): Promise<AuthResult<void>> {
-  const ownerEmail = process.env.OWNER_EMAIL;
+  const ownerEmail = env.OWNER_EMAIL;
   if (session.role === 'ADMIN') {
     if (ownerEmail && targetEmail === ownerEmail) {
       return {

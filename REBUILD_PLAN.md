@@ -21,17 +21,17 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ❌ Prisma `connection_limit` documented in `.env.example`
 - ❌ Schema reconciliation (§8) executed against real DB
 
-**Phase 1 — API Layer** — 🔶 partial (skeleton only)
-- ✅ 38 Route Handler files at `app/api/**/route.ts` (stubs)
-- ✅ Zod schemas in `lib/validations/` wired into stubs via `.parse(body)`
+**Phase 1 — API Layer** — 🔶 partial (real impl done; DB-blocked items remain)
+- ✅ 38 Route Handler files at `app/api/**/route.ts` — real Prisma implementations (not stubs)
+- ✅ Zod schemas in `lib/validations/` wired into every handler
 - ✅ Shared session helpers in `lib/session.ts`: `getSession`, `requireUser`, `requireAdmin`, `requireOwnerSafe` — no local auth copies
-- ✅ Centralized error handler `lib/api-errors.ts`: ZodError → 400 with issues, else → 500 (applied to all 38 route files, 47 catch blocks)
-- ⏸ Real implementations behind the stubs — blocked on DB
-- ❌ `lib/storage.ts` (currently a stub)
-- ✅ `lib/watermark.ts` — real sharp watermark pipeline ported from legacy; `watermarkImage(buffer, opts)` pure function; logo sizing, drop-shadow, jpeg/webp output; smoke tested
-- ❌ Upload Route Handler real implementation (multer → multipart + sharp + storage)
-- ❌ Cloudflare WAF rate-limit rules
-- ❌ Smoke tests against the API surface
+- ✅ Centralized error handler `lib/api-errors.ts`: ZodError → 400 with issues, else → 500 (applied to all 38 route files, 47 catch blocks); Sentry.captureException on non-Zod errors
+- ✅ `lib/storage.ts` — real fs-based saveFile/readFile/deleteFile/resolvePath using env.UPLOADS_DIR
+- ✅ `lib/watermark.ts` — real sharp watermark pipeline; pure Buffer→Buffer function
+- ✅ `lib/gpx.ts` — real gpxparser implementation ported from legacy gpxUtils
+- ✅ All image upload routes: album upload (1920px JPEG + 400px WebP thumb), asset upload, avatar upload, PUT/DELETE
+- ⏸ Cloudflare WAF rate-limit rules — blocked on deployment infra
+- ⏸ Runtime DB testing — blocked on DB clone access
 
 **Phase 2 — Frontend Migration** — 🔶 mostly done
 - ✅ Design tokens consolidated in `app/globals.css`
@@ -44,9 +44,9 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ✅ Events page: panel ↔ calendar view toggle with shared filters
 - ✅ `/styleguide` route exists
 - ✅ Icon import audit — 20 files redirected to `@/components/icons`; 6 missing icons added to registry; all lucide-react direct imports eliminated
-- ❌ Hex-color audit (§6.15) — confirm no hard-coded hex outside tokens
-- ❌ Accessibility checklist (§6.11) run against core flows
-- ❌ Toast (Sonner) + `confirmAction` modal system migrated into a Zustand store
+- ✅ Hex-color audit (§6.15) — Footer, Home page, EventDetailClient: all hard-coded hex replaced with tokens; two new tokens added (--color-ink, --color-frame)
+- ✅ Accessibility checklist (§6.11) — focus-visible rings, prefers-reduced-motion, aria-current, aria-labels on icon buttons, MobileDrawer ESC+focus, Modal focus trap, gallery alt text + lightbox aria-modal
+- ✅ Toast (Sonner) + `confirmAction` modal: Zustand store at `lib/store/ui.ts`; `ConfirmationModal` component; `window.confirm` replaced in AdminClient + AdminGalleryClient; `<ConfirmationModal>` in root layout
 - ❌ Visual parity sweep vs. live site on mobile
 
 **Phase 3 — Security Hardening** — 🔶 partial
@@ -59,11 +59,17 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 **Phase 4 — Feature Completion** — 🔶 partial
 - ✅ `app/error.tsx` — error boundary; Polish copy; reset + home actions
 - ✅ `app/not-found.tsx` — 404 page; Polish copy; Alpine Brutalism styled
-- ❌ `generateMetadata` / Open Graph tags on event, gallery, wiki detail pages
+- ✅ `generateMetadata` / Open Graph tags on event, gallery, wiki detail pages
+- ✅ All four previously-ComingSoon pages (galeria, wiki, aktualności, o-nas) are fully routed — no ComingSoon wrapper
 - ❌ Real `/o-nas` content (needs user input on club description/team)
-- ❌ Confirm all four previously-ComingSoon pages (gallery, wiki, news, about) are fully routed and accessible
 
-**Phase 5 — Production Readiness & Cutover** — ❌ not started
+**Phase 5 — Production Readiness & Cutover** — 🔶 partial
+- ✅ Deploy artifacts: `deploy/Caddyfile`, `deploy/trupWebsite.service` (systemd hardening), `deploy/logrotate.conf`
+- ✅ CI/CD: `.github/workflows/ci.yml` (typecheck + build + unit tests), `.github/workflows/deploy.yml` (SSH deploy on merge to main)
+- ✅ Structured logging: `lib/logger.ts` (pino; pino-pretty in dev, JSON stdout in prod); systemd service captures to /var/log/trupWebsite/app.log
+- ✅ Sentry error monitoring: `sentry.{client,server,edge}.config.ts`; `next.config.ts` wrapped with `withSentryConfig`; `captureException` in api-errors; optional env vars in env.ts
+- ✅ Test suite: Vitest (18 unit tests passing — api-errors, event/common validations) + Playwright (5 E2E smoke tests); CI runs unit tests on every push
+- ⏸ Cutover: blocked on DB clone, OAuth credentials, LXC + Caddy + Cloudflare setup
 
 **Cross-cutting deferred (blocks Phase 0/1 completion — see §10.1):**
 - DB clone access · Google OAuth dev credentials · LXC + Caddy + systemd + Cloudflare origin firewall

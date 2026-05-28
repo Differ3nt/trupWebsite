@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Search, BookOpen, Star, FileText } from 'lucide-react';
+import { Search, BookOpen, Star, FileText } from '@/components/icons';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/states/EmptyState';

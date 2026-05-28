@@ -1,5 +1,5 @@
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Mountain } from 'lucide-react';
+import { Mountain } from '@/components/icons';
 
 const values = [
   'SUROWOŚĆ I AUTENTYCZNOŚĆ',

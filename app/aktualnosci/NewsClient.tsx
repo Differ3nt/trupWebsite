@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText } from 'lucide-react';
+import { FileText } from '@/components/icons';
 import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
 

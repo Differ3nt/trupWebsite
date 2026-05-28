@@ -23,7 +23,7 @@ import {
   ChevronRight,
   HelpCircle,
   Skull,
-} from 'lucide-react';
+} from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';

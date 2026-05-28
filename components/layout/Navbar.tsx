@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useState, useEffect } from 'react';
-import { Menu, X, Bell, User } from 'lucide-react';
+import { Menu, X, Bell, User } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { NavItem } from './NavItem';
 import { MobileDrawer } from './MobileDrawer';

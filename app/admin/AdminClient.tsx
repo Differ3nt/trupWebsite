@@ -12,7 +12,7 @@ import {
   Star,
   Trash2,
   Edit2,
-} from 'lucide-react';
+} from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';

@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {

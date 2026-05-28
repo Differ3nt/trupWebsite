@@ -1,6 +1,6 @@
 'use client';
 import { useSession, signIn } from 'next-auth/react';
-import { Lock } from 'lucide-react';
+import { Lock } from '@/components/icons';
 import { Button } from './Button';
 import { cn } from '@/lib/utils';
 

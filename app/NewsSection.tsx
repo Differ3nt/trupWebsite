@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { FileText } from 'lucide-react';
+import { FileText } from '@/components/icons';
 import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
 import { Button } from '@/components/ui/Button';

@@ -14,7 +14,7 @@ const buildCsp = (nonce: string) =>
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com https://*.tile.openstreetmap.org`,
     `connect-src 'self'`,
-    `frame-src 'self' https://*.mapy.cz https://frame.mapy.cz`,
+    `frame-src 'self' https://www.google.com https://*.mapy.cz https://frame.mapy.cz`,
     `font-src 'self' data: https://fonts.gstatic.com`,
     `object-src 'none'`,
     `base-uri 'self'`,

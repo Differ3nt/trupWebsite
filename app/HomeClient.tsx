@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Mountain, Route, TrendingUp, Clock, Users } from 'lucide-react';
+import { Mountain, Route, TrendingUp, Clock, Users } from '@/components/icons';
 
 interface HomeStats {
   expeditions: number;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Lock, MapPin, Calendar } from 'lucide-react';
+import { Lock, MapPin, Calendar } from '@/components/icons';
 import { EmptyState } from '@/components/states/EmptyState';
 
 interface AlbumImage {

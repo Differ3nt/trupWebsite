@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Mountain } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mountain } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 
 interface CalendarEvent {

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, Users, Star, LayoutGrid, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Users, Star, LayoutGrid, CalendarDays, ChevronLeft, ChevronRight } from '@/components/icons';
 import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
 import { Button } from '@/components/ui/Button';

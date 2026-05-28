@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, User, Tag as TagIcon } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Tag as TagIcon } from '@/components/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';

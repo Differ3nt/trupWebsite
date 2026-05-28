@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { X, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ArrowLeft } from '@/components/icons';
 
 interface AlbumImage {
   id: string;

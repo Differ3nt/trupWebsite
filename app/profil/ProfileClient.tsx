@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { FormField } from '@/components/ui/FormField';
 import { Checkbox } from '@/components/ui/Checkbox';
-import { Calendar, MapPin, Zap, Mountain, LogOut } from 'lucide-react';
+import { Calendar, MapPin, Zap, Mountain, LogOut } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
 const HARDWARE_OPTIONS = [

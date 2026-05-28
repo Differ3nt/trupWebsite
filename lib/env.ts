@@ -22,6 +22,19 @@ const schema = z.object({
 });
 
 function parseEnv() {
+  // Allow skipping validation in CI build steps where env vars aren't available.
+  // Never set this in production — the app will crash at runtime instead of startup.
+  if (process.env.SKIP_ENV_VALIDATION === 'true') {
+    return schema.parse({
+      DATABASE_URL: 'postgresql://ci/ci',
+      AUTH_SECRET: 'ci-placeholder-secret-32-chars-long',
+      AUTH_GOOGLE_ID: 'ci',
+      AUTH_GOOGLE_SECRET: 'ci',
+      OWNER_EMAIL: 'ci@example.com',
+      NODE_ENV: process.env.NODE_ENV ?? 'development',
+    });
+  }
+
   const result = schema.safeParse(process.env);
 
   if (!result.success) {

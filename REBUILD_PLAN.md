@@ -600,6 +600,18 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 
 ---
 
+## 10.1 Pending Infrastructure (blocks Phase 0/1 completion)
+
+The Next.js scaffold (Phase 0) and Zod/route-handler skeleton (Phase 1) are in place on branch `rewrite/nextjs` and compile cleanly. The following items remain blocked on infrastructure the user has not yet provisioned and must be resolved before the rewrite can progress past stubs:
+
+- **DB access for the dev session.** Phase 0 §8 baseline migration, Phase 1 route implementations, and any RSC that reads data all need a reachable Postgres. Options discussed: Neon-hosted clone (recommended; safest), Cloudflare Tunnel to the Proxmox Postgres, or direct exposure with `pg_hba.conf` whitelist. Decision deferred. Until this lands, route handlers stay as 501 stubs with Zod validation wired.
+- **Google OAuth test credentials.** NextAuth v5 edge-split is *structurally* validated (the build proves `middleware.ts` bundles using only `auth.config.ts`), but a real login → session → logout cycle cannot be exercised without `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`.
+- **LXC + Caddy + systemd + Cloudflare origin firewall.** Phase 0 deployment steps. Not blocking development; needed for cutover (Phase 5).
+
+These do not block design-system work (Phase 2 §6), which is the next productive direction.
+
+---
+
 ## 11. Open Decisions (resolve in Phase 0 with user)
 
 | Decision | Answer | Notes |

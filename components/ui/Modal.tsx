@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, ReactNode } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import { X } from '@/components/icons';
 
 interface ModalProps {
@@ -11,9 +11,15 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    if (isOpen) { window.addEventListener('keydown', handler); document.body.style.overflow = 'hidden'; }
+    if (isOpen) {
+      window.addEventListener('keydown', handler);
+      document.body.style.overflow = 'hidden';
+      dialogRef.current?.focus();
+    }
     return () => { window.removeEventListener('keydown', handler); document.body.style.overflow = ''; };
   }, [isOpen, onClose]);
 
@@ -22,7 +28,14 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className={`relative bg-surface border-2 border-outline-variant w-full max-w-md ${className ?? ''}`} role="dialog" aria-modal="true" aria-labelledby={title ? 'modal-title' : undefined}>
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className={`relative bg-surface border-2 border-outline-variant w-full max-w-md ${className ?? ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'modal-title' : undefined}
+      >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
             <h2 id="modal-title" className="font-display font-black text-xl uppercase tracking-widest text-on-surface">{title}</h2>

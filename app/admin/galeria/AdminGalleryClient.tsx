@@ -282,6 +282,7 @@ export function AdminGalleryClient() {
                 variant="danger"
                 size="sm"
                 onClick={() => handleDelete(selectedImage.id)}
+                title="Usuń obraz"
               >
                 <Trash2 size={16} />
               </Button>

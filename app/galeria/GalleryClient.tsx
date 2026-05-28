@@ -94,7 +94,7 @@ export function GalleryClient({ albums }: GalleryClientProps) {
                   {image.thumbnailUrl ? (
                     <img
                       src={image.thumbnailUrl}
-                      alt=""
+                      alt={`Zdjęcie z albumu ${album.title}`}
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />

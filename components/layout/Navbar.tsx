@@ -55,6 +55,7 @@ export function Navbar() {
                 label={link.label}
                 badge={link.badge}
                 active={isActive(link.href)}
+                aria-current={isActive(link.href) ? 'page' : undefined}
               />
             ))}
           </div>
@@ -65,7 +66,7 @@ export function Navbar() {
                 {session.user.role === 'ADMIN' && (
                   <NavItem href="/admin" label="Panel" />
                 )}
-                <NavItem icon={<Bell size={16} />} />
+                <NavItem icon={<Bell size={16} />} aria-label="Powiadomienia" />
                 <NavItem href="/profil" icon={<User size={16} />} />
               </>
             ) : status === 'authenticated' ? (

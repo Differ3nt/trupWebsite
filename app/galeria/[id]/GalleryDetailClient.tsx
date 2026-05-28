@@ -99,10 +99,11 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
             key={image.id}
             onClick={() => setLightboxIdx(idx)}
             className="group relative aspect-square overflow-hidden bg-surface-container-low border border-outline-variant/30 hover:border-primary transition-colors cursor-pointer"
+            aria-label={`Otwórz zdjęcie ${idx + 1} z ${album.images.length}`}
           >
             <img
               src={image.thumbnailUrl || image.originalUrl}
-              alt=""
+              alt={`Zdjęcie ${idx + 1} z albumu ${album.title}`}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
               loading="lazy"
             />
@@ -119,13 +120,16 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
       {lightboxIdx !== null && (
         <div
           className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Lightbox: zdjęcie ${lightboxIdx + 1} z ${album.images.length}`}
           onClick={() => setLightboxIdx(null)}
         >
           {/* Main Image */}
           <div className="relative w-full h-full flex items-center justify-center max-w-5xl max-h-[90vh]">
             <img
               src={album.images[lightboxIdx].originalUrl}
-              alt=""
+              alt={`Zdjęcie ${lightboxIdx + 1} z albumu ${album.title}`}
               className="max-w-full max-h-full object-contain"
               onClick={(e) => e.stopPropagation()}
             />
@@ -134,6 +138,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
             <button
               onClick={() => setLightboxIdx(null)}
               className="absolute top-4 right-4 bg-black/60 hover:bg-black text-white p-3 transition-colors rounded-full"
+              aria-label="Zamknij lightbox"
             >
               <X size={24} />
             </button>
@@ -147,6 +152,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
                     navigateLightbox('prev');
                   }}
                   className="absolute left-4 bg-black/60 hover:bg-black text-white p-3 transition-colors rounded-full"
+                  aria-label="Poprzednie zdjęcie"
                 >
                   <ChevronLeft size={24} />
                 </button>
@@ -156,6 +162,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
                     navigateLightbox('next');
                   }}
                   className="absolute right-4 bg-black/60 hover:bg-black text-white p-3 transition-colors rounded-full"
+                  aria-label="Następne zdjęcie"
                 >
                   <ChevronRight size={24} />
                 </button>

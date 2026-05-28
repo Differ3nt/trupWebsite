@@ -1,7 +1,8 @@
 'use client';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { X } from '@/components/icons';
 import { NavItem } from './NavItem';
 
 interface MobileDrawerProps {
@@ -12,19 +13,40 @@ interface MobileDrawerProps {
 
 export function MobileDrawer({ isOpen, onClose, navLinks }: MobileDrawerProps) {
   const { data: session } = useSession();
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
+    if (isOpen) drawerRef.current?.focus();
     return () => {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   return (
     <div
+      ref={drawerRef}
+      tabIndex={-1}
+      role="navigation"
+      aria-hidden={!isOpen}
       className={`fixed inset-0 z-40 bg-surface flex flex-col items-center justify-center p-6 transform transition-transform duration-300 ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <nav className="flex flex-col items-center gap-8">
         {navLinks.map((link) => (

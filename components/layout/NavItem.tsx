@@ -10,6 +10,8 @@ interface NavItemProps {
   active?: boolean;
   badge?: number | string | null;
   className?: string;
+  'aria-label'?: string;
+  'aria-current'?: 'page' | 'step' | 'location' | 'date' | 'time' | true | false;
 }
 
 export function NavItem({
@@ -20,6 +22,8 @@ export function NavItem({
   active = false,
   badge,
   className,
+  'aria-label': ariaLabel,
+  'aria-current': ariaCurrent,
 }: NavItemProps) {
   const baseClasses =
     'relative text-[10px] font-bold tracking-widest uppercase whitespace-nowrap inline-flex items-center gap-1 transition-colors duration-200';
@@ -58,6 +62,8 @@ export function NavItem({
       <Link
         href={href}
         className={cn(baseClasses, stateClasses, className)}
+        aria-label={ariaLabel}
+        aria-current={active && !ariaCurrent ? 'page' : ariaCurrent}
       >
         {element}
       </Link>
@@ -69,6 +75,8 @@ export function NavItem({
       onClick={onClick}
       className={cn(baseClasses, stateClasses, className)}
       role="button"
+      aria-label={ariaLabel}
+      aria-current={active && !ariaCurrent ? 'page' : ariaCurrent}
     >
       {element}
     </button>

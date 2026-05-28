@@ -22,8 +22,8 @@ WorkingDirectory=/opt/trupWebsite
 ExecStart=node .next/standalone/server.js
 Restart=always
 RestartSec=5
-StandardOutput=journal
-StandardError=journal
+StandardOutput=append:/var/log/trupWebsite/app.log
+StandardError=append:/var/log/trupWebsite/app.log
 SyslogIdentifier=trupWebsite
 
 # Runtime configuration

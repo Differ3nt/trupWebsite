@@ -1,7 +1,10 @@
-import { headers } from 'next/headers';
 import { Bebas_Neue, Inter } from 'next/font/google';
 import type { Metadata } from 'next';
 import './globals.css';
+import { Providers } from './providers';
+import { Navbar } from '@/components/layout/Navbar';
+import { Footer } from '@/components/layout/Footer';
+import { Toaster } from 'sonner';
 
 const bebasNeue = Bebas_Neue({
   variable: '--font-display',
@@ -19,17 +22,38 @@ export const metadata: Metadata = {
   description: 'Robimy to czego innym się nie chce',
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const nonce = (await headers()).get('x-nonce') || '';
 
   return (
     <html lang="pl" className={`${bebasNeue.variable} ${inter.variable}`}>
-      <body>
-        {children}
+      <body className="flex flex-col min-h-screen selection:bg-primary selection:text-surface">
+        <Providers>
+          <Navbar />
+          <main className="flex-1 pt-16 md:pt-20">
+            {children}
+          </main>
+          <Footer />
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: 'var(--color-surface-container-low)',
+                color: 'var(--color-on-surface)',
+                border: '1px solid color-mix(in srgb, var(--color-outline-variant) 30%, transparent)',
+                borderRadius: '0px',
+                fontFamily: 'var(--font-sans)',
+                textTransform: 'uppercase',
+                fontSize: '10px',
+                letterSpacing: '0.1em',
+                fontWeight: 'bold',
+              },
+            }}
+          />
+        </Providers>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/session';
+import { prisma } from '@/lib/prisma';
 import { idSchema } from '@/lib/validations/common';
 import { handleApiError } from '@/lib/api-errors';
 
@@ -18,9 +19,14 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     idSchema.parse(id);
 
     const body = await request.json();
-    attendanceSchema.parse(body);
+    const validated = attendanceSchema.parse(body);
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const { userId, attended } = validated;
+    await prisma.eventParticipation.updateMany({
+      where: { userId, eventId: id },
+      data: { attended },
+    });
+    return NextResponse.json({ success: true });
   } catch (err) {
     return handleApiError(err, '[events attendance PATCH]');
   }

@@ -113,7 +113,52 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createEventSchema.parse(body);
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const typeMap: Record<string, string> = {
+      'GÓRY': 'WYP',
+      'INTEGRACJA': 'INT',
+      'KULTURA': 'KUL',
+    };
+    const typeCode = typeMap[validated.type] ?? 'EVT';
+    const year = validated.dateStart.getFullYear();
+    const count = await prisma.event.count({
+      where: { dateStart: { gte: new Date(year, 0, 1), lt: new Date(year + 1, 0, 1) } },
+    });
+    const eventId = `${year}_${String(count + 1).padStart(2, '0')}_${typeCode}`;
+
+    // plannedDuration from frontend is in hours — store as minutes
+    const plannedDurationMin = validated.plannedDuration ? validated.plannedDuration * 60 : undefined;
+
+    const event = await prisma.event.create({
+      data: {
+        id: eventId,
+        title: validated.title,
+        type: validated.type,
+        dateStart: validated.dateStart,
+        dateEnd: validated.dateEnd,
+        description: validated.description,
+        location: validated.location,
+        image: validated.image,
+        spots: validated.spots,
+        isDraft: validated.isDraft,
+        difficulty: validated.difficulty,
+        organizer: validated.organizer,
+        transport: validated.transport,
+        weatherInfo: validated.weatherInfo,
+        mapLink: validated.mapLink,
+        mapEmbed: validated.mapEmbed,
+        meetingPointName: validated.meetingPointName,
+        meetingPointLink: validated.meetingPointLink,
+        meetingPointEmbed: validated.meetingPointEmbed,
+        plannedDistance: validated.plannedDistance,
+        plannedElevation: validated.plannedElevation,
+        plannedDuration: plannedDurationMin,
+        imageFocalX: validated.imageFocalX,
+        imageFocalY: validated.imageFocalY,
+        gearRequired: validated.gearRequired,
+        gearCritical: validated.gearCritical,
+      },
+    });
+    return NextResponse.json({ success: true, eventId: event.id }, { status: 201 });
   } catch (err) {
     return handleApiError(err, '[events POST]');
   }

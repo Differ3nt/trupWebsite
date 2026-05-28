@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requireAdmin } from '@/lib/session';
+import { updateEventSchema } from '@/lib/validations/event';
 import { handleApiError } from '@/lib/api-errors';
 
 const SENSITIVE_FIELDS = [
@@ -92,7 +93,47 @@ export async function PUT(
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
 
-  return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const validated = updateEventSchema.parse(body);
+
+    const plannedDurationMin = validated.plannedDuration ? validated.plannedDuration * 60 : undefined;
+
+    await prisma.event.update({
+      where: { id },
+      data: {
+        ...(validated.title !== undefined && { title: validated.title }),
+        ...(validated.type !== undefined && { type: validated.type }),
+        ...(validated.dateStart !== undefined && { dateStart: validated.dateStart }),
+        ...(validated.dateEnd !== undefined && { dateEnd: validated.dateEnd }),
+        ...(validated.description !== undefined && { description: validated.description }),
+        ...(validated.location !== undefined && { location: validated.location }),
+        ...(validated.image !== undefined && { image: validated.image }),
+        ...(validated.spots !== undefined && { spots: validated.spots }),
+        ...(validated.isDraft !== undefined && { isDraft: validated.isDraft }),
+        ...(validated.difficulty !== undefined && { difficulty: validated.difficulty }),
+        ...(validated.organizer !== undefined && { organizer: validated.organizer }),
+        ...(validated.transport !== undefined && { transport: validated.transport }),
+        ...(validated.weatherInfo !== undefined && { weatherInfo: validated.weatherInfo }),
+        ...(validated.mapLink !== undefined && { mapLink: validated.mapLink }),
+        ...(validated.mapEmbed !== undefined && { mapEmbed: validated.mapEmbed }),
+        ...(validated.meetingPointName !== undefined && { meetingPointName: validated.meetingPointName }),
+        ...(validated.meetingPointLink !== undefined && { meetingPointLink: validated.meetingPointLink }),
+        ...(validated.meetingPointEmbed !== undefined && { meetingPointEmbed: validated.meetingPointEmbed }),
+        ...(validated.plannedDistance !== undefined && { plannedDistance: validated.plannedDistance }),
+        ...(validated.plannedElevation !== undefined && { plannedElevation: validated.plannedElevation }),
+        ...(plannedDurationMin !== undefined && { plannedDuration: plannedDurationMin }),
+        ...(validated.imageFocalX !== undefined && { imageFocalX: validated.imageFocalX }),
+        ...(validated.imageFocalY !== undefined && { imageFocalY: validated.imageFocalY }),
+        ...(validated.gearRequired !== undefined && { gearRequired: validated.gearRequired }),
+        ...(validated.gearCritical !== undefined && { gearCritical: validated.gearCritical }),
+      },
+    });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return handleApiError(err, '[events [id] PUT]');
+  }
 }
 
 export async function DELETE(
@@ -102,5 +143,11 @@ export async function DELETE(
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
 
-  return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+  try {
+    const { id } = await params;
+    await prisma.event.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return handleApiError(err, '[events [id] DELETE]');
+  }
 }

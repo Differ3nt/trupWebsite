@@ -62,7 +62,7 @@ A rewrite solves all of these at the architecture level instead of band-aiding e
 | Client polling | `setInterval` + raw `fetch` | **SWR** (polling use cases only) | ~5 kB; wraps `useSWR('/api/…', { refreshInterval })` for data that must auto-refresh after page load (notification dropdown §14.11). Everything else stays RSC + Server Actions — SWR is not the default. |
 | Image upload | multer receiving binary in Express | **Route Handler + `lib/storage.ts`** | Next.js Route Handler receives the multipart body; `lib/storage.ts` writes the file to the local volume. No 3rd-party service; no presigned URL indirection needed on a self-hosted server. |
 | Image processing | sync sharp in-process | **sync sharp in Next.js Route Handler** | Self-hosted LXC has no serverless timeout. The existing sharp resize + watermark logic runs synchronously in the same Route Handler that receives the upload. `watermark.ts` middleware ports directly. |
-| File storage | `uploads/` directory | **Local volume `/opt/trupWebsite/uploads/`**, accessed via `lib/storage.ts` | A plain directory on disk. Caddy serves uploads as static files. `lib/storage.ts` abstracts all reads/writes — swapping to S3 later is one file. MinIO rejected (no benefit at single-server scale). |
+| File storage | `uploads/` directory | **Local volume `/opt/trupWebsite/uploads/`**, accessed via `lib/storage.ts` | A plain directory on disk. Caddy or a Next.js route handler serves files back. `lib/storage.ts` abstracts all reads/writes — swapping to S3 later is one file. MinIO rejected (no benefit at single-server scale). |
 | Connection pooler | single persistent pool (Express) | **Prisma built-in pool** (no extra service) | Next.js on LXC runs as a long-lived Node.js process, not ephemeral serverless functions. Prisma's default connection pool is sufficient; Prisma Accelerate and pgBouncer are not needed. |
 | Hosting | Self/VPS (tsx) | **LXC container on Proxmox** + Cloudflare proxy | Long-lived Node.js process; LXC is enough isolation, lighter than a full VM, starts in seconds. Cloudflare is already live on the domain (orange-cloud). See §2.1. |
 
@@ -90,7 +90,7 @@ The free plan covers everything needed at this scale: DNS, reverse proxy, edge T
 
 ### Local file storage + `lib/storage.ts` abstraction
 
-Uploads (images, GPX) are stored in a plain directory on the LXC container (`/opt/trupWebsite/uploads/`). Caddy serves them directly from disk. Zero added services, zero added processes.
+Uploads (images, GPX) are stored in a plain directory on the LXC container (`/opt/trupWebsite/uploads/`). Next.js writes files there directly; Caddy or a Next.js route handler serves them back. Zero added services, zero added processes.
 
 **Why not MinIO:** MinIO emulates the S3 API on top of local disk. It is useful when multiple servers share storage or a cloud migration is on the roadmap. Neither applies here. For a single server hosting one app for 50–60 users, MinIO adds a second LXC to maintain, HTTP overhead on every file read, and operational complexity for no observable benefit.
 
@@ -615,11 +615,11 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 | State management | **RSC + Server Actions** (SWR for polling) | See §2 and Phase 2. |
 | Light mode | **Dark only** for parity | CSS variable tokens leave the door open later without any rework. |
 | `@google/genai` dependency | **Audit and drop if unused** | This package is in `package.json` but its usage is unclear. Unused dependencies increase attack surface. |
-| Reverse proxy | **Caddy** | Auto-TLS, static file serving, simple config. See §2.3. |
-| TLS mode | **Full (Strict)** via Cloudflare | Caddy provisions origin cert automatically. |
-| Process manager | **systemd** | Unit file in `deploy/trupWebsite.service`; runs as `trup` user. |
-| Test framework | **Vitest** (unit) + **Playwright** (E2E) | Named in Phase 5; tests written alongside features. |
 | Repo strategy | **New branch `rewrite/nextjs`** | Keeps full git history; easy to compare old and new. |
+| Reverse proxy | **Caddy** | Auto-TLS (Let's Encrypt), zero config, serves `/opt/trupWebsite/uploads/` as static files, proxies all else to `localhost:3000`. See §2.3. |
+| TLS mode | **Cloudflare Full (Strict)** | Caddy provisions a real Let's Encrypt cert; Cloudflare verifies it. Flexible mode breaks `Secure` cookies (NextAuth fails). See §2.3. |
+| Process manager | **systemd** | `deploy/trupWebsite.service`; runs as `trup` user; `Restart=always`; survives reboots. See §2.3. |
+| Test framework | **Vitest + Playwright** | Vitest for unit/integration; Playwright for E2E smoke tests. Named and required — tests are part of "done" per §3.6. See Phase 5. |
 
 ---
 

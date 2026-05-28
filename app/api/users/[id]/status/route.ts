@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requireAdmin, requireOwnerSafe } from '@/lib/session';
-import { updateUserStatusSchema } from '@/lib/validations/user';
-import { handleApiError } from '@/lib/api-errors';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin, requireOwnerSafe } from "@/lib/session";
+import { updateUserStatusSchema } from "@/lib/validations/user";
+import { handleApiError } from "@/lib/api-errors";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
@@ -17,7 +17,10 @@ export async function PATCH(
     const validated = updateUserStatusSchema.parse(body);
 
     if (auth.data.userId === targetId) {
-      return NextResponse.json({ error: 'Cannot change own status' }, { status: 403 });
+      return NextResponse.json(
+        { error: "Cannot change own status" },
+        { status: 403 },
+      );
     }
 
     const target = await prisma.user.findUnique({
@@ -26,14 +29,30 @@ export async function PATCH(
     });
 
     if (!target) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const ownerCheck = await requireOwnerSafe(auth.data, targetId, target.email);
+    const ownerCheck = await requireOwnerSafe(
+      auth.data,
+      targetId,
+      target.email,
+    );
     if (!ownerCheck.ok) return ownerCheck.response;
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const updated = await prisma.user.update({
+      where: { id: targetId },
+      data: { status: validated.status },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        status: true,
+        role: true,
+      },
+    });
+
+    return NextResponse.json(updated);
   } catch (err) {
-    return handleApiError(err, '[users [id] status PATCH]');
+    return handleApiError(err, "[users [id] status PATCH]");
   }
 }

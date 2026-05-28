@@ -1,3 +1,17 @@
+// Schema reconciliation status (see REBUILD_PLAN.md §8):
+//
+// Reconciled with server/index.ts runMigrations():
+//   - Event.imageFocalX/Y, Event.plannedDistance/Elevation/Duration added (this commit).
+//
+// Suspect drift, pending `prisma db pull` against a prod clone to confirm:
+//   - Event.actualDuration: in schema, NOT in runMigrations() — likely added via `prisma db push`.
+//   - WikiArticle.tags, WikiArticle.authorName: in schema, NOT in CREATE TABLE in runMigrations().
+//   - GpxSubmission.order, mapLink, mapEmbed, status: in schema, no CREATE TABLE for GpxSubmission
+//     in runMigrations() at all (assumed to predate that mechanism).
+//   - Notification: schema relation has no explicit onDelete; runMigrations() CREATE TABLE sets
+//     FK ON DELETE CASCADE. Drift between schema and DB until the relation is annotated.
+// These are deferred to Phase 0 schema baseline.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -28,38 +42,43 @@ model User {
 }
 
 model Event {
-  id               String               @id
-  title            String
-  dateStart        DateTime
-  dateEnd          DateTime?
-  type             String
-  mapLink          String?
-  gearRequired     String[]
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  description      String?
-  image            String?
-  location         String?
-  featured         Boolean              @default(false)
-  difficulty       Int?
-  spots            Int?
-  highlighted      Boolean              @default(false)
-  isExpedition     Boolean              @default(false)
-  gearCritical     String[]             @default([])
-  mapEmbed         String?
-  isDraft          Boolean              @default(false)
-  isFinalized      Boolean              @default(false)
-  organizer        String?
-  meetingPointName String?
-  meetingPointLink String?
+  id                String               @id
+  title             String
+  dateStart         DateTime
+  dateEnd           DateTime?
+  type              String
+  mapLink           String?
+  gearRequired      String[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  description       String?
+  image             String?
+  location          String?
+  featured          Boolean              @default(false)
+  difficulty        Int?
+  spots             Int?
+  highlighted       Boolean              @default(false)
+  isExpedition      Boolean              @default(false)
+  gearCritical      String[]             @default([])
+  mapEmbed          String?
+  isDraft           Boolean              @default(false)
+  isFinalized       Boolean              @default(false)
+  organizer         String?
+  meetingPointName  String?
+  meetingPointLink  String?
   meetingPointEmbed String?
-  transport        String?
-  weatherInfo      String?
-  actualDistance   Float?
-  actualElevation  Float?
-  actualDuration   Float?
-  participants     EventParticipation[]
-  gpxSubmissions   GpxSubmission[]
+  transport         String?
+  weatherInfo       String?
+  actualDistance    Float?
+  actualElevation   Float?
+  actualDuration    Float?
+  imageFocalX       Float?               @default(50)
+  imageFocalY       Float?               @default(50)
+  plannedDistance   Float?
+  plannedElevation  Float?
+  plannedDuration   Float?
+  participants      EventParticipation[]
+  gpxSubmissions    GpxSubmission[]
 }
 
 model EventParticipation {

@@ -6,6 +6,7 @@ import { Providers } from './providers';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Toaster } from 'sonner';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 const bebasNeue = Bebas_Neue({
   variable: '--font-display',
@@ -54,6 +55,7 @@ export default function RootLayout({
               },
             }}
           />
+          <ConfirmationModal />
         </Providers>
       </body>
     </html>

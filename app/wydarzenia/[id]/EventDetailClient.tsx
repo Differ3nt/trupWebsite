@@ -455,7 +455,7 @@ export function EventDetailClient({
         const isShort = url.includes('mapy.cz/s/');
         if (isShort) {
           content = (
-            <div className="aspect-video w-full bg-[#1A1C18] relative flex flex-col items-center justify-center overflow-hidden">
+            <div className="aspect-video w-full bg-surface-dim relative flex flex-col items-center justify-center overflow-hidden">
               <div className="relative z-10 text-center p-8">
                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 mx-auto border border-primary/30">
                   <MapPin size={32} className="text-primary" />
@@ -513,7 +513,7 @@ export function EventDetailClient({
               </h4>
             </div>
           )}
-          <div className="bg-[#121212] border-4 border-white/5 p-2 overflow-hidden shadow-xl relative group">
+          <div className="bg-frame border-4 border-white/5 p-2 overflow-hidden shadow-xl relative group">
             {content}
           </div>
         </div>
@@ -544,7 +544,7 @@ export function EventDetailClient({
 
                   {/* GPX Preview Placeholder */}
                   {g.filePath && (
-                    <div className="bg-[#121212] border-4 border-white/5 overflow-hidden shadow-xl relative group">
+                    <div className="bg-frame border-4 border-white/5 overflow-hidden shadow-xl relative group">
                       <div className="h-64 bg-surface-container-highest flex items-center justify-center text-on-surface-variant/40 text-[10px] uppercase tracking-widest">
                         Podgląd Trasy GPX
                       </div>
@@ -591,7 +591,7 @@ export function EventDetailClient({
         {(event.mapEmbed || event.mapLink) && officialGpx.length === 0 && (
           <div className="space-y-8">
             {event.mapEmbed ? (
-              <div className="bg-[#121212] border-4 border-white/5 p-2 overflow-hidden shadow-xl relative group">
+              <div className="bg-frame border-4 border-white/5 p-2 overflow-hidden shadow-xl relative group">
                 <div
                   className="aspect-video w-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-0 grayscale-[20%] brightness-[0.85] hover:grayscale-0 transition-all duration-700"
                   dangerouslySetInnerHTML={{ __html: event.mapEmbed }}
@@ -629,7 +629,7 @@ export function EventDetailClient({
           </div>
         )}
         {event.meetingPointEmbed && (
-          <div className="bg-[#121212] border-4 border-white/5 p-2 overflow-hidden shadow-xl">
+          <div className="bg-frame border-4 border-white/5 p-2 overflow-hidden shadow-xl">
             <div
               className="h-48 md:h-64 w-full relative [&>iframe]:absolute [&>iframe]:inset-0 [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-0 grayscale-[20%] brightness-[0.85] hover:grayscale-0 transition-all duration-700"
               dangerouslySetInnerHTML={{ __html: event.meetingPointEmbed }}
@@ -644,7 +644,7 @@ export function EventDetailClient({
     <div className="pb-24">
       {/* Hero Header */}
       <div className="relative h-[70vh] min-h-[500px] flex items-end pb-16 overflow-hidden -mt-16 md:-mt-20">
-        <div className="absolute inset-0 bg-[#121212]">
+        <div className="absolute inset-0 bg-frame">
           {event.image && (
             <img
               src={event.image}
@@ -741,7 +741,7 @@ export function EventDetailClient({
               <>
                 {event.spots !== null && event.spots > 0 ? (
                   <div
-                    className={`bg-[#121212] border border-white/10 shadow-xl overflow-hidden h-12 flex items-stretch`}
+                    className={`bg-frame border border-white/10 shadow-xl overflow-hidden h-12 flex items-stretch`}
                   >
                     <div
                       className={`${
@@ -759,7 +759,7 @@ export function EventDetailClient({
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-[#121212] border border-white/10 shadow-xl overflow-hidden h-12 flex items-stretch">
+                  <div className="bg-frame border border-white/10 shadow-xl overflow-hidden h-12 flex items-stretch">
                     <div className="bg-primary px-3 flex items-center justify-center text-surface">
                       <Users size={16} />
                     </div>
@@ -774,7 +774,7 @@ export function EventDetailClient({
             )}
 
             {isPast && (
-              <div className="bg-[#121212] border border-white/10 shadow-xl overflow-hidden h-12 flex items-stretch">
+              <div className="bg-frame border border-white/10 shadow-xl overflow-hidden h-12 flex items-stretch">
                 <div
                   className={cn(
                     'px-3 flex items-center justify-center text-surface',

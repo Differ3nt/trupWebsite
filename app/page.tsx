@@ -87,7 +87,7 @@ export default async function HomePage() {
       </section>
 
       {/* Stats Section */}
-      <section className="bg-[#0a0a0a] py-24 border-y border-white/5">
+      <section className="bg-ink py-24 border-y border-white/5">
         <div className="container mx-auto px-6 md:px-12">
           <HomeClient stats={stats} />
         </div>
@@ -189,13 +189,13 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
-        <section className="relative py-32 md:py-48 flex items-center bg-[#f9f9f8]">
+        <section className="relative py-32 md:py-48 flex items-center bg-on-surface">
           <div className="container mx-auto px-6 md:px-12 relative z-10 flex justify-end">
             <div className="max-w-xl text-right">
-              <h2 className="font-display font-black text-5xl md:text-8xl uppercase mb-6 text-[#37392E]">
+              <h2 className="font-display font-black text-5xl md:text-8xl uppercase mb-6 text-surface">
                 LUDZIE
               </h2>
-              <p className="font-medium text-base md:text-xl leading-relaxed text-[#37392E]">
+              <p className="font-medium text-base md:text-xl leading-relaxed text-surface">
                 Tożsamość wykuwa się we wspólnej wytrzymałości. TRUP to sieć odkrywców połączonych estetyką
                 Monolitu.
               </p>

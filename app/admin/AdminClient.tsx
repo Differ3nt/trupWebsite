@@ -22,6 +22,7 @@ import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { FormField } from '@/components/ui/FormField';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useUIStore } from '@/lib/store/ui';
 
 const ALL_HARDWARE = [
   'Kask',
@@ -89,6 +90,7 @@ const TABS = [
 ];
 
 export function AdminClient() {
+  const { openConfirm } = useUIStore();
   const [activeTab, setActiveTab] = useState<string>('create');
 
   // Events
@@ -596,11 +598,16 @@ export function AdminClient() {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={async () => {
-                        if (window.confirm('Usunąć wydarzenie?')) {
-                          await fetch(`/api/events/${event.id}`, { method: 'DELETE' });
-                          fetchEvents();
-                        }
+                      onClick={() => {
+                        openConfirm({
+                          title: 'Usuń Wydarzenie',
+                          message: 'Czy na pewno chcesz usunąć to wydarzenie?',
+                          variant: 'danger',
+                          onConfirm: async () => {
+                            await fetch(`/api/events/${event.id}`, { method: 'DELETE' });
+                            fetchEvents();
+                          }
+                        });
                       }}
                     >
                       Usuń
@@ -772,11 +779,16 @@ export function AdminClient() {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={async () => {
-                        if (window.confirm('Usunąć artykuł?')) {
-                          await fetch(`/api/wiki/${article.id}`, { method: 'DELETE' });
-                          fetchWikiArticles();
-                        }
+                      onClick={() => {
+                        openConfirm({
+                          title: 'Usuń Artykuł',
+                          message: 'Czy na pewno chcesz usunąć ten artykuł?',
+                          variant: 'danger',
+                          onConfirm: async () => {
+                            await fetch(`/api/wiki/${article.id}`, { method: 'DELETE' });
+                            fetchWikiArticles();
+                          }
+                        });
                       }}
                     >
                       Usuń
@@ -879,11 +891,16 @@ export function AdminClient() {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={async () => {
-                        if (window.confirm('Usunąć aktualność?')) {
-                          await fetch(`/api/news/${item.id}`, { method: 'DELETE' });
-                          fetchNews();
-                        }
+                      onClick={() => {
+                        openConfirm({
+                          title: 'Usuń Aktualność',
+                          message: 'Czy na pewno chcesz usunąć tę aktualność?',
+                          variant: 'danger',
+                          onConfirm: async () => {
+                            await fetch(`/api/news/${item.id}`, { method: 'DELETE' });
+                            fetchNews();
+                          }
+                        });
                       }}
                     >
                       Usuń
@@ -935,11 +952,16 @@ export function AdminClient() {
                   <Button
                     size="sm"
                     variant="danger"
-                    onClick={async () => {
-                      if (window.confirm('Usunąć użytkownika?')) {
-                        await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
-                        fetchUsers();
-                      }
+                    onClick={() => {
+                      openConfirm({
+                        title: 'Usuń Użytkownika',
+                        message: 'Czy na pewno chcesz usunąć tego użytkownika?',
+                        variant: 'danger',
+                        onConfirm: async () => {
+                          await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
+                          fetchUsers();
+                        }
+                      });
                     }}
                   >
                     Usuń

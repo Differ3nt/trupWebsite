@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { FormField } from '@/components/ui/FormField';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useUIStore } from '@/lib/store/ui';
 
 interface Image {
   id: string;
@@ -26,6 +27,7 @@ interface Tag {
 }
 
 export function AdminGalleryClient() {
+  const { openConfirm } = useUIStore();
   const [images, setImages] = useState<Image[]>([]);
   const [filteredImages, setFilteredImages] = useState<Image[]>([]);
   const [selectedImage, setSelectedImage] = useState<Image | null>(null);
@@ -116,21 +118,27 @@ export function AdminGalleryClient() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm('Usunąć obraz?')) return;
-    try {
-      const r = await fetch(`/api/images/${id}`, { method: 'DELETE' });
-      if (r.ok) {
-        setSelectedImage(null);
-        fetchImages();
-        alert('Usunięto!');
-      } else {
-        alert('Błąd usuwania.');
+  function handleDelete(id: string) {
+    openConfirm({
+      title: 'Usuń Obraz',
+      message: 'Czy na pewno chcesz usunąć ten obraz?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const r = await fetch(`/api/images/${id}`, { method: 'DELETE' });
+          if (r.ok) {
+            setSelectedImage(null);
+            fetchImages();
+            alert('Usunięto!');
+          } else {
+            alert('Błąd usuwania.');
+          }
+        } catch (e) {
+          console.error(e);
+          alert('Błąd usuwania.');
+        }
       }
-    } catch (e) {
-      console.error(e);
-      alert('Błąd usuwania.');
-    }
+    });
   }
 
   return (

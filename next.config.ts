@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const securityHeaders = [
   // Only send via HTTPS; include subdomains; preload-eligible.
@@ -40,4 +41,12 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withSentryConfig(config, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  sourcemaps: { disable: true },
+  disableLogger: true,
+  automaticVercelMonitors: false,
+});

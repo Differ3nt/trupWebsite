@@ -73,7 +73,26 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const validated = updateProfileSchema.parse(body);
 
-    return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+    const updated = await prisma.user.update({
+      where: { id: auth.data.userId },
+      data: {
+        name: validated.name,
+        nickname: validated.nickname ?? undefined,
+        phoneNumber: validated.phoneNumber ?? undefined,
+        hardware: validated.hardware || [],
+      },
+      select: {
+        id: true,
+        name: true,
+        nickname: true,
+        email: true,
+        avatarUrl: true,
+        phoneNumber: true,
+        hardware: true,
+      },
+    });
+
+    return NextResponse.json(updated);
   } catch (err) {
     console.error('[users me PATCH]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

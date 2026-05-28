@@ -224,7 +224,7 @@ export function AdminClient() {
     setLoading(true);
     try {
       const url = editingWikiId ? `/api/wiki/${editingWikiId}` : '/api/wiki';
-      const method = editingWikiId ? 'PATCH' : 'POST';
+      const method = editingWikiId ? 'PUT' : 'POST';
       const r = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -642,7 +642,7 @@ export function AdminClient() {
                     size="sm"
                     variant="primary"
                     onClick={async () => {
-                      await fetch(`/api/gpx/${item.id}/approve`, { method: 'PATCH' });
+                      await fetch(`/api/gpx/${item.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'APPROVED' }) });
                       fetchGpxQueue();
                     }}
                   >
@@ -652,7 +652,7 @@ export function AdminClient() {
                     size="sm"
                     variant="danger"
                     onClick={async () => {
-                      await fetch(`/api/gpx/${item.id}/reject`, { method: 'PATCH' });
+                      await fetch(`/api/gpx/${item.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'REJECTED' }) });
                       fetchGpxQueue();
                     }}
                   >
@@ -981,7 +981,7 @@ export function AdminClient() {
               className="mt-6"
               onClick={async () => {
                 try {
-                  await fetch('/api/push/broadcast', {
+                  await fetch('/api/push/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title: pushTitle, message: pushMessage }),

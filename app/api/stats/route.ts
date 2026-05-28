@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cacheGet, cacheSet } from '@/lib/cache';
+import { handleApiError } from '@/lib/api-errors';
 
 type Stats = {
   expeditions: number;
@@ -38,7 +39,6 @@ export async function GET() {
     cacheSet(CACHE_KEY, stats, CACHE_TTL);
     return NextResponse.json(stats);
   } catch (err) {
-    console.error('[stats]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[stats]');
   }
 }

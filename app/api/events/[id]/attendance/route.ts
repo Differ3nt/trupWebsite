@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/session';
 import { idSchema } from '@/lib/validations/common';
+import { handleApiError } from '@/lib/api-errors';
 
 const attendanceSchema = z.object({
   userId: z.string().uuid(),
@@ -21,7 +22,6 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[events attendance PATCH]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[events attendance PATCH]');
   }
 }

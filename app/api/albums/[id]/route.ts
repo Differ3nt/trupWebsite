@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   try {
@@ -25,7 +26,6 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
 
     return NextResponse.json(album);
   } catch (err) {
-    console.error('[albums [id] GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[albums [id] GET]');
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requireAdmin } from '@/lib/session';
 import { createWikiArticleSchema } from '@/lib/validations/wiki';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET() {
   try {
@@ -22,8 +23,7 @@ export async function GET() {
 
     return NextResponse.json(articles);
   } catch (err) {
-    console.error('[wiki GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[wiki GET]');
   }
 }
 
@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[wiki POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[wiki POST]');
   }
 }

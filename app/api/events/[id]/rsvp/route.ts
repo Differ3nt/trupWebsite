@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/session';
 import { rsvpSchema } from '@/lib/validations/rsvp';
 import { idSchema } from '@/lib/validations/common';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const auth = await requireUser();
@@ -16,7 +17,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[events rsvp POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[events rsvp POST]');
   }
 }

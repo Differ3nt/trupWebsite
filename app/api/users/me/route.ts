@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireUser } from '@/lib/session';
 import { updateProfileSchema } from '@/lib/validations/user';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET() {
   const auth = await requireUser();
@@ -60,8 +61,7 @@ export async function GET() {
 
     return NextResponse.json({ ...user, personalStats });
   } catch (err) {
-    console.error('[users me GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[users me GET]');
   }
 }
 
@@ -94,7 +94,6 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(updated);
   } catch (err) {
-    console.error('[users me PATCH]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[users me PATCH]');
   }
 }

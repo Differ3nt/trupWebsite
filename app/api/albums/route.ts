@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET() {
   try {
@@ -36,7 +37,6 @@ export async function GET() {
     const albums = await prisma.album.findMany(query);
     return NextResponse.json(albums);
   } catch (err) {
-    console.error('[albums GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[albums GET]');
   }
 }

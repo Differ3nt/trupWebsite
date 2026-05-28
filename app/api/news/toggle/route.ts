@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { newsToggleSchema } from '@/lib/validations/news';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin();
@@ -12,7 +13,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[news toggle POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[news toggle POST]');
   }
 }

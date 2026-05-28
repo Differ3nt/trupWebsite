@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, requireOwnerSafe } from '@/lib/session';
 import { updateUserRoleSchema } from '@/lib/validations/user';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function PATCH(
   request: NextRequest,
@@ -33,7 +34,6 @@ export async function PATCH(
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[users [id] role PATCH]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[users [id] role PATCH]');
   }
 }

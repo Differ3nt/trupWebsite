@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireUser } from '@/lib/session';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function POST() {
   const auth = await requireUser();
@@ -22,7 +23,6 @@ export async function POST() {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[auth make-admin POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[auth make-admin POST]');
   }
 }

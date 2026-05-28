@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin();
@@ -10,7 +11,6 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[news [id] DELETE]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[news [id] DELETE]');
   }
 }

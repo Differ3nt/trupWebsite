@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/session';
 import { idSchema } from '@/lib/validations/common';
+import { handleApiError } from '@/lib/api-errors';
 
 const updateImageSchema = z.object({
   name: z.string().max(255).optional(),
@@ -21,8 +22,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[images PUT]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[images PUT]');
   }
 }
 
@@ -36,7 +36,6 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[images DELETE]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[images DELETE]');
   }
 }

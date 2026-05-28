@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requireAdmin } from '@/lib/session';
+import { handleApiError } from '@/lib/api-errors';
 
 const SENSITIVE_FIELDS = [
   'mapLink',
@@ -80,8 +81,7 @@ export async function GET(
 
     return NextResponse.json(event);
   } catch (err) {
-    console.error('[events [id] GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[events [id] GET]');
   }
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
 import { createNewsSchema } from '@/lib/validations/news';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET() {
   try {
@@ -42,8 +43,7 @@ export async function GET() {
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error('[news GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[news GET]');
   }
 }
 
@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[news POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[news POST]');
   }
 }

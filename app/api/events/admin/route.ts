@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/session';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin();
@@ -51,7 +52,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(events);
   } catch (err) {
-    console.error('[events admin GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[events admin GET]');
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requireAdmin } from '@/lib/session';
 import { createEventSchema } from '@/lib/validations/event';
+import { handleApiError } from '@/lib/api-errors';
 
 const SENSITIVE_FIELDS = [
   'mapLink',
@@ -100,8 +101,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(filtered);
   } catch (err) {
-    console.error('[events GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[events GET]');
   }
 }
 
@@ -115,7 +115,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[events POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[events POST]');
   }
 }

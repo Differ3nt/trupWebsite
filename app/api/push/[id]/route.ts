@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireUser } from '@/lib/session';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function DELETE(
   request: NextRequest,
@@ -14,7 +15,6 @@ export async function DELETE(
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[push [id] DELETE]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[push [id] DELETE]');
   }
 }

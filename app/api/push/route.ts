@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireUser } from '@/lib/session';
 import { pushSubscriptionSchema } from '@/lib/validations/push';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET() {
   const auth = await requireUser();
@@ -16,8 +17,7 @@ export async function GET() {
 
     return NextResponse.json(notifications);
   } catch (err) {
-    console.error('[push GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[push GET]');
   }
 }
 
@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[push POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[push POST]');
   }
 }

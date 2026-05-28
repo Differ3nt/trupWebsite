@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/session';
 import { gpxUploadSchema } from '@/lib/validations/gpx';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function POST(request: NextRequest) {
   const auth = await requireUser();
@@ -28,7 +29,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[gpx POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[gpx POST]');
   }
 }

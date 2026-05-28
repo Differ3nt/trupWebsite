@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAdmin } from '@/lib/session';
 import { invalidateStatsCache } from '@/lib/cache';
 import { idSchema } from '@/lib/validations/common';
+import { handleApiError } from '@/lib/api-errors';
 
 const finalizeSchema = z.object({
   attendedUserIds: z.array(z.string().uuid()),
@@ -26,7 +27,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[events finalize POST]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[events finalize POST]');
   }
 }

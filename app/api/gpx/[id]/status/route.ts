@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAdmin } from '@/lib/session';
 import { invalidateStatsCache } from '@/lib/cache';
 import { idSchema } from '@/lib/validations/common';
+import { handleApiError } from '@/lib/api-errors';
 
 const statusSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED']),
@@ -23,7 +24,6 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[gpx status PATCH]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[gpx status PATCH]');
   }
 }

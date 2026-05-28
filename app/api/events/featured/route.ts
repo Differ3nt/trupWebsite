@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET() {
   try {
@@ -33,7 +34,6 @@ export async function GET() {
 
     return NextResponse.json(events);
   } catch (err) {
-    console.error('[events featured GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[events featured GET]');
   }
 }

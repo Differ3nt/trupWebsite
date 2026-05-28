@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { updateGpxSchema } from '@/lib/validations/gpx';
 import { idSchema } from '@/lib/validations/common';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin();
@@ -16,8 +17,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[gpx PATCH]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[gpx PATCH]');
   }
 }
 
@@ -31,7 +31,6 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[gpx DELETE]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[gpx DELETE]');
   }
 }

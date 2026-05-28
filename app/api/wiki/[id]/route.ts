@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requireAdmin } from '@/lib/session';
 import { updateWikiArticleSchema } from '@/lib/validations/wiki';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   try {
@@ -25,8 +26,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
 
     return NextResponse.json(article);
   } catch (err) {
-    console.error('[wiki [id] GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[wiki [id] GET]');
   }
 }
 
@@ -41,8 +41,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[wiki [id] PUT]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[wiki [id] PUT]');
   }
 }
 
@@ -55,7 +54,6 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
 
     return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
   } catch (err) {
-    console.error('[wiki [id] DELETE]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(err, '[wiki [id] DELETE]');
   }
 }

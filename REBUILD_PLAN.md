@@ -6,6 +6,62 @@ A holistic, production-grade rewrite of the TRUP club website. This document is 
 
 ---
 
+## 0. Progress Tracker
+
+Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked on infrastructure, ❌ not started.
+
+**Phase 0 — Foundation & De-risking** — 🔶 partial
+- ✅ Next.js 15 + TS strict + Tailwind v4 + App Router scaffolded on `rewrite/nextjs`
+- ✅ NextAuth v5 edge-split: `lib/auth.config.ts` (no adapter) + `lib/auth.ts` (Prisma adapter); `middleware.ts` imports only the config
+- ✅ Prisma singleton at `lib/prisma.ts`
+- ✅ CSP nonce scaffold in `middleware.ts` + propagated to `app/layout.tsx`
+- ⏸ Baseline Prisma migration — blocked on DB access (Neon clone or Cloudflare Tunnel)
+- ⏸ Real Google login → session → logout cycle — blocked on `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`
+- ⏸ LXC + Caddy + systemd + Cloudflare origin firewall — deferred (deployment infra)
+- ❌ Prisma `connection_limit` documented in `.env.example`
+- ❌ Schema reconciliation (§8) executed against real DB
+
+**Phase 1 — API Layer** — 🔶 partial (skeleton only)
+- ✅ 38 Route Handler files at `app/api/**/route.ts` (stubs)
+- ✅ Zod schemas in `lib/validations/` wired into stubs via `.parse(body)`
+- ✅ Shared session helpers in `lib/session.ts`: `getSession`, `requireUser`, `requireAdmin`, `requireOwnerSafe` — no local auth copies
+- ✅ Centralized error handler `lib/api-errors.ts`: ZodError → 400 with issues, else → 500 (applied to all 38 route files, 47 catch blocks)
+- ⏸ Real implementations behind the stubs — blocked on DB
+- ❌ `lib/storage.ts` (currently a stub)
+- ❌ `lib/watermark.ts` (passthrough stub, needs sharp port from `legacy/server/middleware/watermark.ts`)
+- ❌ Upload Route Handler real implementation (multer → multipart + sharp + storage)
+- ❌ Cloudflare WAF rate-limit rules
+- ❌ Smoke tests against the API surface
+
+**Phase 2 — Frontend Migration** — 🔶 mostly done
+- ✅ Design tokens consolidated in `app/globals.css`
+- ✅ `Button` unified on CVA at `components/ui/Button.tsx`; legacy `.btn-*` CSS deleted
+- ✅ `components/icons.ts` registry (verify all imports route through it — see audit below)
+- ✅ `Navbar` + `MobileDrawer` + `Footer` + `Breadcrumbs` + `NavItem` (a11y states)
+- ✅ Form primitives: `Input`, `Textarea`, `Select`, `Checkbox`, `FormField` (forwardRef + error states)
+- ✅ State components: `EmptyState`, `ErrorState`, `Skeleton`
+- ✅ All 13 pages ported (Home, Events + Detail, Calendar, Profile, Admin, AdminGallery, Gallery + Detail, Wiki + Article, News, About). Pages call API stubs; gracefully handle empty/null DB
+- ✅ Events page: panel ↔ calendar view toggle with shared filters
+- ✅ `/styleguide` route exists
+- ❌ Icon import audit — confirm every `lucide-react` import in the new app routes through `components/icons.ts`
+- ❌ Hex-color audit (§6.15) — confirm no hard-coded hex outside tokens
+- ❌ Accessibility checklist (§6.11) run against core flows
+- ❌ Toast (Sonner) + `confirmAction` modal system migrated into a Zustand store
+- ❌ Visual parity sweep vs. live site on mobile
+
+**Phase 3 — Security Hardening** — ❌ not started (foundation in Phase 0 only)
+- Items to do: CSP audit, env validation with Zod (`lib/env.ts`), HSTS + security headers in `next.config.ts`, NextAuth state/PKCE verification, replace any `$queryRawUnsafe` ports
+
+**Phase 4 — Feature Completion** — ❌ not started
+- The four "ComingSoon" pages already exist as ports in the rewrite. Remaining: `generateMetadata` / OG tags on detail pages, real `/o-nas` content, `app/error.tsx` and `app/not-found.tsx`
+
+**Phase 5 — Production Readiness & Cutover** — ❌ not started
+
+**Cross-cutting deferred (blocks Phase 0/1 completion — see §10.1):**
+- DB clone access · Google OAuth dev credentials · LXC + Caddy + systemd + Cloudflare origin firewall
+
+---
+
 ## 1. Why Rebuild
 
 The current app (React 19 SPA + Express) works, but has structural problems that cannot be fixed with patches:

@@ -14,6 +14,11 @@ These are non-negotiable process rules. Follow them on every task, every session
 4. **Keep it simple.** TRUP is a small club site. Avoid over-engineering: no abstractions for hypothetical future requirements, no premature generalization. Three similar lines is better than a premature abstraction.
 5. **Prefer modularity.** New backend functionality goes in its own route file. New UI functionality goes in its own component. Keep files focused and small.
 6. **No silent scope creep.** If you notice something unrelated that could be improved while doing a task, mention it — don't just fix it.
+7. **Close every task by referencing the plan.** When a task finishes, do these four things in order, every time:
+   1. Open `REBUILD_PLAN.md` and identify which phase/section the work belongs to.
+   2. Update the plan's progress markers (✅ done, ⏸ blocked, ❌ not started) so future sessions can pick up cold.
+   3. Briefly summarize what just changed and what state the rewrite is now in.
+   4. Ask the user what to do next with `AskUserQuestion`, offering 2–4 concrete options pulled from the plan. Never end with an open-ended "what's next?" — propose choices grounded in the plan.
 
 ---
 

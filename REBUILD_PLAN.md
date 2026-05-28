@@ -28,7 +28,7 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ✅ Centralized error handler `lib/api-errors.ts`: ZodError → 400 with issues, else → 500 (applied to all 38 route files, 47 catch blocks)
 - ⏸ Real implementations behind the stubs — blocked on DB
 - ❌ `lib/storage.ts` (currently a stub)
-- ❌ `lib/watermark.ts` (passthrough stub, needs sharp port from `legacy/server/middleware/watermark.ts`)
+- ✅ `lib/watermark.ts` — real sharp watermark pipeline ported from legacy; `watermarkImage(buffer, opts)` pure function; logo sizing, drop-shadow, jpeg/webp output; smoke tested
 - ❌ Upload Route Handler real implementation (multer → multipart + sharp + storage)
 - ❌ Cloudflare WAF rate-limit rules
 - ❌ Smoke tests against the API surface

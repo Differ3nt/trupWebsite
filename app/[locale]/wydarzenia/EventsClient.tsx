@@ -7,6 +7,7 @@ import { Calendar, MapPin, Users, Star, LayoutGrid, CalendarDays, ChevronLeft, C
 import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { EventCountdown } from '@/components/EventCountdown';
 
 interface EventItem {
   id: string;
@@ -171,6 +172,11 @@ export function EventsClient({ events }: EventsClientProps) {
               {renderDifficultyStars(event.difficulty)}
             </div>
           )}
+
+          <EventCountdown
+            dateStart={event.dateStart}
+            className="text-[10px] font-bold uppercase tracking-widest text-primary"
+          />
         </div>
 
         <div className="pt-3 border-t border-outline-variant/20">

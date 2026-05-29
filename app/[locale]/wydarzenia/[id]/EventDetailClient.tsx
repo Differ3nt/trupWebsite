@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EventCountdown } from '@/components/EventCountdown';
 
 // Type definitions for event and participation
 type User = { id: string; name: string | null; avatarUrl: string | null };
@@ -956,6 +957,10 @@ export function EventDetailClient({
                         year: 'numeric',
                       })}
                     </p>
+                    <EventCountdown
+                      dateStart={event.dateStart}
+                      className="text-[9px] font-bold uppercase tracking-widest text-primary mt-0.5 block"
+                    />
                   </div>
                 </Link>
 

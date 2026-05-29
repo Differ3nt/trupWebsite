@@ -145,12 +145,26 @@ export function EventsClient({ events }: EventsClientProps) {
             </div>
           )}
 
-          {event.spots && (
-            <div className="flex items-center gap-2 text-[10px] text-on-surface-variant uppercase tracking-widest">
-              <Users size={12} className="text-primary" />
-              {event._count.participations}/{event.spots} {t('participantsLabel')}
-            </div>
-          )}
+          {event.spots ? (
+            (() => {
+              const isFull = event._count.participations >= event.spots;
+              return (
+                <div className="flex items-center gap-2 text-[10px] text-on-surface-variant uppercase tracking-widest">
+                  {isFull ? (
+                    <span className="w-2 h-2 rounded-full bg-error flex-shrink-0" />
+                  ) : (
+                    <span className="relative flex w-2 h-2 flex-shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                      <span className="relative inline-flex rounded-full w-2 h-2 bg-primary" />
+                    </span>
+                  )}
+                  {isFull
+                    ? t('spotsFull')
+                    : `${event._count.participations}/${event.spots} ${t('participantsLabel')}`}
+                </div>
+              );
+            })()
+          ) : null}
 
           {event.difficulty && (
             <div className="flex items-center gap-2">

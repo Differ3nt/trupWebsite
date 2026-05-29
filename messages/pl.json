@@ -178,7 +178,8 @@
         "friday": "Pt",
         "saturday": "Sb",
         "sunday": "Nd"
-      }
+      },
+      "spotsFull": "Brak miejsc"
     },
     "detail": {
       "backToEvents": "Wróć do wydarzeń",

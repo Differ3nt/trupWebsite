@@ -297,6 +297,41 @@ The full, detailed rebuild plan lives in **`REBUILD_PLAN.md`** at the project ro
 
 ---
 
+## Rewrite Architecture (Next.js 15 on `rewrite/nextjs`)
+
+### Frontend Components (Next.js rewrite)
+
+**Layout components:**
+- `NotificationDropdown` — SWR-powered notification bell dropdown; polls `/api/push` every 60s; mark-read + dismiss; wired into Navbar for authenticated users
+- `PwaBanner` — iOS PWA add-to-home-screen banner; localStorage dismiss; shown only on iOS Safari when not already installed
+
+**UI primitives:**
+- `ConfirmationModal` — Global confirm dialog driven by Zustand `useUIStore`
+
+(Other UI components and feature components TBD as rewrite progresses.)
+
+### Backend Libraries (Next.js rewrite)
+
+**`lib/cache.ts`** — In-memory key/TTL cache utility:
+- `cacheGet(key)` — retrieve cached value or `null`
+- `cacheSet(key, value, ttlSeconds)` — store value with TTL
+- `cacheInvalidate(key)` — manually invalidate a cache entry
+- `invalidateStatsCache()` — called after event finalization or GPX approval to refresh stats
+
+**`lib/rate-limit.ts`** — Fixed-window in-memory rate limiter:
+- `enforceRateLimit(req, opts)` — returns `429 NextResponse` if limit exceeded, otherwise `null`
+- Applied to: upload (30/min), upload-asset (30/min), upload-avatar (20/min), gpx-upload (20/min), search (60/min), push-broadcast (5/min), push-subscribe (30/min)
+- Cloudflare WAF remains the primary edge rate limit
+
+### Stats Cache Invalidation (Next.js rewrite)
+
+The rewrite uses `lib/cache.ts` `invalidateStatsCache()` called from:
+- `app/api/events/[id]/finalize/route.ts` (on finalize)
+- `app/api/gpx/[id]/status/route.ts` (on approve/reject)
+- `app/api/users/[id]/status/route.ts` (on ACTIVE user count change)
+
+---
+
 ## CLAUDE.md Self-Update
 
 This file should be kept up to date as the codebase evolves. Two mechanisms exist for this:

@@ -52,6 +52,9 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ✅ iOS PWA banner: `PwaBanner.tsx`, detects iOS Safari + not-installed, dismissible with localStorage persistence
 - ✅ Dirty-form guards: `beforeunload` on Profile settings tab (isDirty computed from name/nickname/phone/hardware) and Admin event creator (form title non-empty)
 - ✅ Profile enhancements: avatar hover-to-upload (`/api/images/upload-simple`), "Do Rozliczenia" section (past unfinalized GÓRY events with "Wgraj GPX" button), expanded participation data (isFinalized, isDraft, image, focalX/Y)
+- ✅ Admin gallery: 8-col grid, grayscale hover, resolution badge, name+≤2 tags, multi-file upload (parallel, shared counter), adaptive KB/MB size, "Pełny rozmiar" link, 6s delete UNDO
+- ✅ Admin event creator: 3-state gear toggle (none → Warto mieć → Trzeba mieć), featured/highlighted toggles in event list (Star/Trophy icon-buttons with optimistic update), Rozliczenia tab (completion queue with attendance checkboxes, actual stats, finalize button)
+- ✅ `EventCountdown` component: "Za X dni / Za Xh Ymin / Dziś!" on event cards and detail sidebar; updates every 60s
 - ❌ Visual parity sweep vs. live site on mobile
 
 **Phase 3 — Security Hardening** — 🔶 partial

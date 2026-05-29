@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Trash2, Upload } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -28,6 +29,7 @@ interface Tag {
 
 export function AdminGalleryClient() {
   const { openConfirm } = useUIStore();
+  const t = useTranslations('admin.galleryAdmin');
   const [images, setImages] = useState<Image[]>([]);
   const [filteredImages, setFilteredImages] = useState<Image[]>([]);
   const [selectedImage, setSelectedImage] = useState<Image | null>(null);
@@ -78,14 +80,14 @@ export function AdminGalleryClient() {
       const r = await fetch('/api/images', { method: 'POST', body: fd });
       if (r.ok) {
         fetchImages();
-        alert('Wysłano!');
+        alert(t('uploadSuccess'));
         if (fileInputRef.current) fileInputRef.current.value = '';
       } else {
-        alert('Błąd wysyłania.');
+        alert(t('uploadError'));
       }
     } catch (e) {
       console.error(e);
-      alert('Błąd wysyłania.');
+      alert(t('uploadError'));
     } finally {
       setUploading(false);
     }
@@ -106,13 +108,13 @@ export function AdminGalleryClient() {
       });
       if (r.ok) {
         fetchImages();
-        alert('Zapisano!');
+        alert(t('saveSuccess'));
       } else {
-        alert('Błąd zapisu.');
+        alert(t('saveError'));
       }
     } catch (e) {
       console.error(e);
-      alert('Błąd zapisu.');
+      alert(t('saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -120,8 +122,8 @@ export function AdminGalleryClient() {
 
   function handleDelete(id: string) {
     openConfirm({
-      title: 'Usuń Obraz',
-      message: 'Czy na pewno chcesz usunąć ten obraz?',
+      title: t('deleteConfirmTitle'),
+      message: t('deleteConfirmMessage'),
       variant: 'danger',
       onConfirm: async () => {
         try {
@@ -129,13 +131,13 @@ export function AdminGalleryClient() {
           if (r.ok) {
             setSelectedImage(null);
             fetchImages();
-            alert('Usunięto!');
+            alert(t('deleteSuccess'));
           } else {
-            alert('Błąd usuwania.');
+            alert(t('deleteError'));
           }
         } catch (e) {
           console.error(e);
-          alert('Błąd usuwania.');
+          alert(t('deleteError'));
         }
       }
     });
@@ -146,7 +148,7 @@ export function AdminGalleryClient() {
       {/* Left: Upload & Grid */}
       <div className="md:col-span-2">
         <div className="mb-8">
-          <h2 className="font-display font-black text-2xl uppercase mb-4">Prześlij Obraz</h2>
+          <h2 className="font-display font-black text-2xl uppercase mb-4">{t('uploadHeading')}</h2>
           <div className="border-2 border-dashed border-outline-variant/30 rounded-lg p-8 text-center">
             <Upload className="mx-auto mb-4 text-on-surface-variant/50" size={32} />
             <input
@@ -163,22 +165,22 @@ export function AdminGalleryClient() {
             />
             <label htmlFor="imageUpload" className="cursor-pointer block">
               <Button variant="primary" isLoading={uploading} asChild>
-                <span>Wybierz Obraz</span>
+                <span>{t('selectImageButton')}</span>
               </Button>
             </label>
             <p className="text-[10px] text-on-surface-variant/60 mt-4">
-              PNG, JPG, WebP. Max 5MB.
+              {t('fileTypeHint')}
             </p>
           </div>
         </div>
 
         <div className="mb-8">
-          <h2 className="font-display font-black text-2xl uppercase mb-4">Galeria ({filteredImages.length})</h2>
-          <FormField label="Szukaj">
+          <h2 className="font-display font-black text-2xl uppercase mb-4">{t('galleryHeading')} ({filteredImages.length})</h2>
+          <FormField label={t('searchLabel')}>
             <Input
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Wyszukaj po nazwie lub tagu..."
+              placeholder={t('searchPlaceholder')}
             />
           </FormField>
         </div>
@@ -209,7 +211,7 @@ export function AdminGalleryClient() {
         </div>
 
         {filteredImages.length === 0 && (
-          <p className="text-center py-12 text-on-surface-variant">Brak obrazów.</p>
+          <p className="text-center py-12 text-on-surface-variant">{t('emptyState')}</p>
         )}
       </div>
 
@@ -219,7 +221,7 @@ export function AdminGalleryClient() {
           <div className="sticky top-28 bg-surface-container-low border border-outline-variant/20 rounded-lg p-6 space-y-6">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
-                Podgląd
+                {t('previewLabel')}
               </p>
               <img
                 src={selectedImage.originalUrl}
@@ -229,34 +231,34 @@ export function AdminGalleryClient() {
             </div>
 
             <div className="text-[10px] space-y-1">
-              <p className="font-bold uppercase tracking-widest text-on-surface-variant">Info</p>
-              <p>URL: <code className="text-[8px] break-all text-on-surface-variant/70">{selectedImage.originalUrl}</code></p>
-              <p>Wymiary: {selectedImage.width} x {selectedImage.height}px</p>
-              <p>Rozmiar: {(selectedImage.size / 1024).toFixed(2)}KB</p>
-              <p>Data: {new Date(selectedImage.createdAt).toLocaleDateString('pl-PL')}</p>
+              <p className="font-bold uppercase tracking-widest text-on-surface-variant">{t('infoLabel')}</p>
+              <p>{t('urlLabel')} <code className="text-[8px] break-all text-on-surface-variant/70">{selectedImage.originalUrl}</code></p>
+              <p>{t('dimensionsLabel')} {selectedImage.width} x {selectedImage.height}px</p>
+              <p>{t('sizeLabel')} {(selectedImage.size / 1024).toFixed(2)}KB</p>
+              <p>{t('dateLabel')} {new Date(selectedImage.createdAt).toLocaleDateString('pl-PL')}</p>
             </div>
 
             <div className="space-y-4">
-              <FormField label="Nazwa">
+              <FormField label={t('nameLabel')}>
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Nazwa obrazu"
+                  placeholder={t('namePlaceholder')}
                 />
               </FormField>
 
-              <FormField label="Tagi (rozdzielone przecinkami)">
+              <FormField label={t('tagsLabel')}>
                 <Input
                   value={editTags}
                   onChange={(e) => setEditTags(e.target.value)}
-                  placeholder="tag1, tag2, tag3"
+                  placeholder={t('tagsPlaceholder')}
                 />
               </FormField>
 
               {selectedImage.tags.length > 0 && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
-                    Tagi
+                    {t('tagsHeading')}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {selectedImage.tags.map((tag) => (
@@ -276,13 +278,13 @@ export function AdminGalleryClient() {
                 isLoading={isSaving}
                 onClick={handleSave}
               >
-                Zapisz
+                {t('saveButton')}
               </Button>
               <Button
                 variant="danger"
                 size="sm"
                 onClick={() => handleDelete(selectedImage.id)}
-                title="Usuń obraz"
+                title={t('deleteButtonTitle')}
               >
                 <Trash2 size={16} />
               </Button>
@@ -290,7 +292,7 @@ export function AdminGalleryClient() {
           </div>
         ) : (
           <div className="sticky top-28 bg-surface-container-low border border-outline-variant/20 rounded-lg p-6 text-center py-12">
-            <p className="text-on-surface-variant">Wybierz obraz, aby edytować</p>
+            <p className="text-on-surface-variant">{t('selectImagePrompt')}</p>
           </div>
         )}
       </div>

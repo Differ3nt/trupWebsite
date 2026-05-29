@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Plus,
   List,
@@ -79,18 +80,28 @@ const EMPTY_EVENT = {
   plannedDuration: '',
 };
 
-const TABS = [
-  { id: 'create', label: 'Utwórz Wydarzenie', icon: <Plus size={14} /> },
-  { id: 'list', label: 'Zarządzaj', icon: <List size={14} /> },
-  { id: 'gpx', label: 'Kolejka GPX', icon: <UploadCloud size={14} /> },
-  { id: 'wiki', label: 'Wiki', icon: <Book size={14} /> },
-  { id: 'news', label: 'Aktualności', icon: <FileText size={14} /> },
-  { id: 'members', label: 'Członkowie', icon: <User size={14} /> },
-  { id: 'push', label: 'Push', icon: <Bell size={14} /> },
-];
-
 export function AdminClient() {
   const { openConfirm } = useUIStore();
+  const t = useTranslations('admin');
+  const tTabs = useTranslations('admin.tabs');
+  const tCommon = useTranslations('admin.common');
+  const tEvents = useTranslations('admin.events');
+  const tGpx = useTranslations('admin.gpx');
+  const tWiki = useTranslations('admin.wikiAdmin');
+  const tNews = useTranslations('admin.newsAdmin');
+  const tMembers = useTranslations('admin.membersAdmin');
+  const tPush = useTranslations('admin.pushAdmin');
+
+  const TABS = [
+    { id: 'create', label: tTabs('create'), icon: <Plus size={14} /> },
+    { id: 'list', label: tTabs('list'), icon: <List size={14} /> },
+    { id: 'gpx', label: tTabs('gpx'), icon: <UploadCloud size={14} /> },
+    { id: 'wiki', label: tTabs('wiki'), icon: <Book size={14} /> },
+    { id: 'news', label: tTabs('news'), icon: <FileText size={14} /> },
+    { id: 'members', label: tTabs('members'), icon: <User size={14} /> },
+    { id: 'push', label: tTabs('push'), icon: <Bell size={14} /> },
+  ];
+
   const [activeTab, setActiveTab] = useState<string>('create');
 
   // Events
@@ -212,11 +223,11 @@ export function AdminClient() {
         setActiveTab('list');
         fetchEvents();
       } else {
-        alert('Błąd zapisu.');
+        alert(tCommon('saveError'));
       }
     } catch (e) {
       console.error(e);
-      alert('Błąd zapisu.');
+      alert(tCommon('saveError'));
     } finally {
       setLoading(false);
     }
@@ -235,7 +246,7 @@ export function AdminClient() {
       if (r.ok) {
         setNewWikiArticle({
           title: '',
-          category: 'Poradnik',
+          category: tWiki('categoryGuide'),
           content: '',
           tags: [],
           authorName: '',
@@ -243,11 +254,11 @@ export function AdminClient() {
         setEditingWikiId(null);
         fetchWikiArticles();
       } else {
-        alert('Błąd zapisu.');
+        alert(tCommon('saveError'));
       }
     } catch (e) {
       console.error(e);
-      alert('Błąd zapisu.');
+      alert(tCommon('saveError'));
     } finally {
       setLoading(false);
     }
@@ -268,11 +279,11 @@ export function AdminClient() {
         setEditingNewsId(null);
         fetchNews();
       } else {
-        alert('Błąd zapisu.');
+        alert(tCommon('saveError'));
       }
     } catch (e) {
       console.error(e);
-      alert('Błąd zapisu.');
+      alert(tCommon('saveError'));
     } finally {
       setLoading(false);
     }
@@ -299,36 +310,36 @@ export function AdminClient() {
       {activeTab === 'create' && (
         <div className="px-6 py-8">
           <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4">
-            {editingId ? 'Edytuj Wydarzenie' : 'Nowe Wydarzenie'}
+            {editingId ? tEvents('editTitle') : tEvents('sectionTitle')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <FormField label="Nazwa" required>
+              <FormField label={tEvents('nameLabel')} required>
                 <Input
                   value={newEvent.title}
                   onChange={(e) => setNewEvent((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="Nazwa wyprawy"
+                  placeholder={tEvents('namePlaceholder')}
                 />
               </FormField>
-              <FormField label="Typ">
+              <FormField label={tEvents('typeLabel')}>
                 <Select
                   value={newEvent.type}
                   onChange={(e) => setNewEvent((p) => ({ ...p, type: e.target.value }))}
                 >
-                  <option value="GÓRY">Góry</option>
-                  <option value="INTEGRACJA">Integracja</option>
-                  <option value="KULTURA">Kultura</option>
+                  <option value="GÓRY">{tEvents('typeMountains')}</option>
+                  <option value="INTEGRACJA">{tEvents('typeIntegration')}</option>
+                  <option value="KULTURA">{tEvents('typeCulture')}</option>
                 </Select>
               </FormField>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Data Start" required>
+                <FormField label={tEvents('dateStartLabel')} required>
                   <Input
                     type="date"
                     value={newEvent.dateStart}
                     onChange={(e) => setNewEvent((p) => ({ ...p, dateStart: e.target.value }))}
                   />
                 </FormField>
-                <FormField label="Data Koniec">
+                <FormField label={tEvents('dateEndLabel')}>
                   <Input
                     type="date"
                     value={newEvent.dateEnd}
@@ -336,13 +347,13 @@ export function AdminClient() {
                   />
                 </FormField>
               </div>
-              <FormField label="Lokalizacja">
+              <FormField label={tEvents('locationLabel')}>
                 <Input
                   value={newEvent.location}
                   onChange={(e) => setNewEvent((p) => ({ ...p, location: e.target.value }))}
                 />
               </FormField>
-              <FormField label="Liczba miejsc">
+              <FormField label={tEvents('spotsLabel')}>
                 <Input
                   type="number"
                   value={newEvent.spots}
@@ -350,7 +361,7 @@ export function AdminClient() {
                 />
               </FormField>
               {newEvent.type === 'GÓRY' && (
-                <FormField label="Trudność">
+                <FormField label={tEvents('difficultyLabel')}>
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <button
@@ -367,28 +378,28 @@ export function AdminClient() {
                   </div>
                 </FormField>
               )}
-              <FormField label="Organizator">
+              <FormField label={tEvents('organizerLabel')}>
                 <Input
                   value={newEvent.organizer}
                   onChange={(e) => setNewEvent((p) => ({ ...p, organizer: e.target.value }))}
                 />
               </FormField>
-              <FormField label="Opis" required>
+              <FormField label={tEvents('descriptionLabel')} required>
                 <Textarea
                   rows={8}
                   value={newEvent.description}
                   onChange={(e) => setNewEvent((p) => ({ ...p, description: e.target.value }))}
-                  placeholder="Markdown supported..."
+                  placeholder={tEvents('descriptionPlaceholder')}
                 />
               </FormField>
-              <FormField label="Dojazd">
+              <FormField label={tEvents('transportLabel')}>
                 <Textarea
                   rows={3}
                   value={newEvent.transport}
                   onChange={(e) => setNewEvent((p) => ({ ...p, transport: e.target.value }))}
                 />
               </FormField>
-              <FormField label="Pogoda">
+              <FormField label={tEvents('weatherLabel')}>
                 <Textarea
                   rows={3}
                   value={newEvent.weatherInfo}
@@ -398,36 +409,36 @@ export function AdminClient() {
             </div>
 
             <div className="space-y-4">
-              <FormField label="URL Obrazu">
+              <FormField label={tEvents('imageUrlLabel')}>
                 <Input
                   value={newEvent.image}
                   onChange={(e) => setNewEvent((p) => ({ ...p, image: e.target.value }))}
-                  placeholder="/uploads/..."
+                  placeholder={tEvents('imageUrlPlaceholder')}
                 />
                 <p className="text-[10px] text-on-surface-variant/50 mt-1">
-                  Wybierz obraz z panelu Galerii i wklej URL
+                  {tEvents('imageUrlHint')}
                 </p>
               </FormField>
-              <FormField label="Link do Mapy">
+              <FormField label={tEvents('mapLinkLabel')}>
                 <Input
                   value={newEvent.mapLink}
                   onChange={(e) => setNewEvent((p) => ({ ...p, mapLink: e.target.value }))}
                 />
               </FormField>
-              <FormField label="Embed Mapy">
+              <FormField label={tEvents('mapEmbedLabel')}>
                 <Textarea
                   rows={3}
                   value={newEvent.mapEmbed}
                   onChange={(e) => setNewEvent((p) => ({ ...p, mapEmbed: e.target.value }))}
                 />
               </FormField>
-              <FormField label="Miejsce Zbiórki">
+              <FormField label={tEvents('meetingPointLabel')}>
                 <Input
                   value={newEvent.meetingPointName}
                   onChange={(e) => setNewEvent((p) => ({ ...p, meetingPointName: e.target.value }))}
                 />
               </FormField>
-              <FormField label="Link Zbiórki">
+              <FormField label={tEvents('meetingPointLinkLabel')}>
                 <Input
                   value={newEvent.meetingPointLink}
                   onChange={(e) => setNewEvent((p) => ({ ...p, meetingPointLink: e.target.value }))}
@@ -436,21 +447,21 @@ export function AdminClient() {
 
               {/* Planned stats */}
               <div className="grid grid-cols-3 gap-2">
-                <FormField label="Dyst. (km)">
+                <FormField label={tEvents('plannedDistanceLabel')}>
                   <Input
                     type="number"
                     value={newEvent.plannedDistance}
                     onChange={(e) => setNewEvent((p) => ({ ...p, plannedDistance: e.target.value }))}
                   />
                 </FormField>
-                <FormField label="Wznios. (m)">
+                <FormField label={tEvents('plannedElevationLabel')}>
                   <Input
                     type="number"
                     value={newEvent.plannedElevation}
                     onChange={(e) => setNewEvent((p) => ({ ...p, plannedElevation: e.target.value }))}
                   />
                 </FormField>
-                <FormField label="Czas (min)">
+                <FormField label={tEvents('plannedDurationLabel')}>
                   <Input
                     type="number"
                     value={newEvent.plannedDuration}
@@ -462,22 +473,22 @@ export function AdminClient() {
               {/* Toggles */}
               <div className="space-y-2 pt-4">
                 <Checkbox
-                  label="Ekspedycja"
+                  label={tEvents('expeditionCheckbox')}
                   checked={newEvent.isExpedition}
                   onChange={(e) => setNewEvent((p) => ({ ...p, isExpedition: e.target.checked }))}
                 />
                 <Checkbox
-                  label="Wyróżnione (osiągnięcia)"
+                  label={tEvents('highlightedCheckbox')}
                   checked={newEvent.highlighted}
                   onChange={(e) => setNewEvent((p) => ({ ...p, highlighted: e.target.checked }))}
                 />
                 <Checkbox
-                  label="Polecane (featured)"
+                  label={tEvents('featuredCheckbox')}
                   checked={newEvent.featured}
                   onChange={(e) => setNewEvent((p) => ({ ...p, featured: e.target.checked }))}
                 />
                 <Checkbox
-                  label="Szkic"
+                  label={tEvents('draftCheckbox')}
                   checked={newEvent.isDraft}
                   onChange={(e) => setNewEvent((p) => ({ ...p, isDraft: e.target.checked }))}
                 />
@@ -486,7 +497,7 @@ export function AdminClient() {
               {/* Gear */}
               <div className="pt-4">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">
-                  Wymagany Sprzęt (krytyczny)
+                  {tEvents('criticalGearLabel')}
                 </p>
                 <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
                   {ALL_HARDWARE.map((item) => (
@@ -507,7 +518,7 @@ export function AdminClient() {
                 </div>
 
                 <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3 mt-4">
-                  Sugerowany Sprzęt
+                  {tEvents('suggestedGearLabel')}
                 </p>
                 <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
                   {ALL_HARDWARE.map((item) => (
@@ -532,10 +543,10 @@ export function AdminClient() {
 
           <div className="flex gap-4 mt-8">
             <Button variant="secondary" onClick={() => handleCreateOrUpdate(true)} isLoading={loading}>
-              Zapisz Szkic
+              {tEvents('saveDraftButton')}
             </Button>
             <Button variant="primary" onClick={() => handleCreateOrUpdate(false)} isLoading={loading}>
-              Opublikuj
+              {tEvents('publishButton')}
             </Button>
             {editingId && (
               <Button
@@ -545,7 +556,7 @@ export function AdminClient() {
                   setNewEvent({ ...EMPTY_EVENT });
                 }}
               >
-                Anuluj edycję
+                {tEvents('cancelEditButton')}
               </Button>
             )}
           </div>
@@ -555,7 +566,7 @@ export function AdminClient() {
       {/* List Tab */}
       {activeTab === 'list' && (
         <div className="px-6 py-8">
-          <h2 className="font-display font-black text-2xl uppercase mb-6">Zarządzanie Wydarzeniami</h2>
+          <h2 className="font-display font-black text-2xl uppercase mb-6">{tEvents('manageSectionTitle')}</h2>
           {eventsLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : (
@@ -569,7 +580,7 @@ export function AdminClient() {
                     <p className="font-display font-black text-lg uppercase truncate">{event.title}</p>
                     <div className="flex gap-3 mt-1">
                       <Badge variant={event.isDraft ? 'warning' : 'success'}>
-                        {event.isDraft ? 'Szkic' : 'Publiczne'}
+                        {event.isDraft ? tEvents('draftStatusBadge') : tEvents('publicStatusBadge')}
                       </Badge>
                       <Badge variant="secondary">{event.type}</Badge>
                       <span className="text-[10px] text-on-surface-variant">
@@ -593,15 +604,15 @@ export function AdminClient() {
                         setActiveTab('create');
                       }}
                     >
-                      Edytuj
+                      {tEvents('editButton')}
                     </Button>
                     <Button
                       size="sm"
                       variant="danger"
                       onClick={() => {
                         openConfirm({
-                          title: 'Usuń Wydarzenie',
-                          message: 'Czy na pewno chcesz usunąć to wydarzenie?',
+                          title: tEvents('deleteConfirmTitle'),
+                          message: tEvents('deleteConfirmMessage'),
                           variant: 'danger',
                           onConfirm: async () => {
                             await fetch(`/api/events/${event.id}`, { method: 'DELETE' });
@@ -610,13 +621,13 @@ export function AdminClient() {
                         });
                       }}
                     >
-                      Usuń
+                      {tEvents('deleteButton')}
                     </Button>
                   </div>
                 </div>
               ))}
               {events.length === 0 && (
-                <p className="text-center py-12 text-on-surface-variant">Brak wydarzeń.</p>
+                <p className="text-center py-12 text-on-surface-variant">{tCommon('noEvents')}</p>
               )}
             </div>
           )}
@@ -626,10 +637,10 @@ export function AdminClient() {
       {/* GPX Tab */}
       {activeTab === 'gpx' && (
         <div className="px-6 py-8">
-          <h2 className="font-display font-black text-2xl uppercase mb-6">Kolejka GPX</h2>
+          <h2 className="font-display font-black text-2xl uppercase mb-6">{tGpx('sectionTitle')}</h2>
           <div className="space-y-4">
             {gpxQueue.length === 0 && (
-              <p className="text-on-surface-variant text-center py-12">Kolejka pusta.</p>
+              <p className="text-on-surface-variant text-center py-12">{tCommon('emptyQueue')}</p>
             )}
             {gpxQueue.map((item) => (
               <div
@@ -637,12 +648,12 @@ export function AdminClient() {
                 className="p-6 bg-surface-container-low border border-outline-variant/20"
               >
                 <p className="font-display font-black text-xl uppercase mb-2">
-                  {item.event?.title || 'Brak wydarzenia'}
+                  {item.event?.title || tGpx('noEvent')}
                 </p>
                 <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-4">
-                  <span>Dystans: {item.distance}km</span>
-                  <span>Wznios: {item.elevationGain}m</span>
-                  <span>Label: {item.label || '-'}</span>
+                  <span>{tGpx('distanceLabel')} {item.distance}km</span>
+                  <span>{tGpx('elevationLabel')} {item.elevationGain}m</span>
+                  <span>{tGpx('labelLabel')} {item.label || '-'}</span>
                 </div>
                 <div className="flex gap-3">
                   <Button
@@ -653,7 +664,7 @@ export function AdminClient() {
                       fetchGpxQueue();
                     }}
                   >
-                    Zatwierdź
+                    {tGpx('approveButton')}
                   </Button>
                   <Button
                     size="sm"
@@ -663,7 +674,7 @@ export function AdminClient() {
                       fetchGpxQueue();
                     }}
                   >
-                    Odrzuć
+                    {tGpx('rejectButton')}
                   </Button>
                 </div>
               </div>
@@ -676,58 +687,58 @@ export function AdminClient() {
       {activeTab === 'wiki' && (
         <div className="px-6 py-8">
           <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4">
-            {editingWikiId ? 'Edytuj Artykuł' : 'Nowy Artykuł'}
+            {editingWikiId ? tWiki('editTitle') : tWiki('sectionTitle')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div className="space-y-4">
-              <FormField label="Tytuł" required>
+              <FormField label={tWiki('titleLabel')} required>
                 <Input
                   value={newWikiArticle.title}
                   onChange={(e) => setNewWikiArticle((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="Tytuł artykułu"
+                  placeholder={tWiki('titlePlaceholder')}
                 />
               </FormField>
-              <FormField label="Kategoria">
+              <FormField label={tWiki('categoryLabel')}>
                 <Select
                   value={newWikiArticle.category}
                   onChange={(e) => setNewWikiArticle((p) => ({ ...p, category: e.target.value }))}
                 >
-                  <option value="Poradnik">Poradnik</option>
-                  <option value="Recenzja">Recenzja</option>
-                  <option value="Artykuł">Artykuł</option>
+                  <option value="Poradnik">{tWiki('categoryGuide')}</option>
+                  <option value="Recenzja">{tWiki('categoryReview')}</option>
+                  <option value="Artykuł">{tWiki('categoryArticle')}</option>
                 </Select>
               </FormField>
-              <FormField label="Autor">
+              <FormField label={tWiki('authorLabel')}>
                 <Input
                   value={newWikiArticle.authorName}
                   onChange={(e) => setNewWikiArticle((p) => ({ ...p, authorName: e.target.value }))}
-                  placeholder="Imię i nazwisko"
+                  placeholder={tWiki('authorPlaceholder')}
                 />
               </FormField>
-              <FormField label="Tagi (rozdzielone przecinkami)">
+              <FormField label={tWiki('tagsLabel')}>
                 <Input
                   value={newWikiArticle.tags.join(', ')}
                   onChange={(e) =>
                     setNewWikiArticle((p) => ({ ...p, tags: e.target.value.split(',').map((t) => t.trim()) }))
                   }
-                  placeholder="tag1, tag2, tag3"
+                  placeholder={tWiki('tagsPlaceholder')}
                 />
               </FormField>
             </div>
             <div className="space-y-4">
-              <FormField label="Treść" required>
+              <FormField label={tWiki('contentLabel')} required>
                 <Textarea
                   rows={12}
                   value={newWikiArticle.content}
                   onChange={(e) => setNewWikiArticle((p) => ({ ...p, content: e.target.value }))}
-                  placeholder="Markdown supported..."
+                  placeholder={tWiki('contentPlaceholder')}
                 />
               </FormField>
             </div>
           </div>
           <div className="flex gap-4 mb-12">
             <Button variant="primary" onClick={() => handleCreateOrUpdateWiki()} isLoading={loading}>
-              Zapisz
+              {tWiki('saveButton')}
             </Button>
             {editingWikiId && (
               <Button
@@ -743,12 +754,12 @@ export function AdminClient() {
                   });
                 }}
               >
-                Anuluj edycję
+                {tWiki('cancelEditButton')}
               </Button>
             )}
           </div>
 
-          <h2 className="font-display font-black text-2xl uppercase mb-6">Artykuły</h2>
+          <h2 className="font-display font-black text-2xl uppercase mb-6">{tWiki('articlesHeading')}</h2>
           {wikiLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : (
@@ -762,7 +773,7 @@ export function AdminClient() {
                     <p className="font-display font-black text-lg uppercase truncate">{article.title}</p>
                     <div className="flex gap-3 mt-1">
                       <Badge variant="secondary">{article.category}</Badge>
-                      <span className="text-[10px] text-on-surface-variant">by {article.authorName}</span>
+                      <span className="text-[10px] text-on-surface-variant">{tWiki('byAuthor')} {article.authorName}</span>
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -774,15 +785,15 @@ export function AdminClient() {
                         setEditingWikiId(article.id);
                       }}
                     >
-                      Edytuj
+                      {tWiki('editButton')}
                     </Button>
                     <Button
                       size="sm"
                       variant="danger"
                       onClick={() => {
                         openConfirm({
-                          title: 'Usuń Artykuł',
-                          message: 'Czy na pewno chcesz usunąć ten artykuł?',
+                          title: tWiki('deleteConfirmTitle'),
+                          message: tWiki('deleteConfirmMessage'),
                           variant: 'danger',
                           onConfirm: async () => {
                             await fetch(`/api/wiki/${article.id}`, { method: 'DELETE' });
@@ -791,13 +802,13 @@ export function AdminClient() {
                         });
                       }}
                     >
-                      Usuń
+                      {tWiki('deleteButton')}
                     </Button>
                   </div>
                 </div>
               ))}
               {wikiArticles.length === 0 && (
-                <p className="text-center py-12 text-on-surface-variant">Brak artykułów.</p>
+                <p className="text-center py-12 text-on-surface-variant">{tCommon('noArticles')}</p>
               )}
             </div>
           )}
@@ -808,42 +819,42 @@ export function AdminClient() {
       {activeTab === 'news' && (
         <div className="px-6 py-8">
           <h2 className="font-display font-black text-2xl uppercase mb-6 border-b border-outline-variant/30 pb-4">
-            {editingNewsId ? 'Edytuj Aktualność' : 'Nowa Aktualność'}
+            {editingNewsId ? tNews('editTitle') : tNews('sectionTitle')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div className="space-y-4">
-              <FormField label="Tytuł" required>
+              <FormField label={tNews('titleLabel')} required>
                 <Input
                   value={newNewsItem.title}
                   onChange={(e) => setNewNewsItem((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="Tytuł aktualności"
+                  placeholder={tNews('titlePlaceholder')}
                 />
               </FormField>
-              <FormField label="Typ">
+              <FormField label={tNews('typeLabel')}>
                 <Select
                   value={newNewsItem.type}
                   onChange={(e) => setNewNewsItem((p) => ({ ...p, type: e.target.value }))}
                 >
-                  <option value="GENERAL">Ogólne</option>
-                  <option value="ALERT">Ostrzeżenie</option>
-                  <option value="ANNOUNCEMENT">Ogłoszenie</option>
+                  <option value="GENERAL">{tNews('typeGeneral')}</option>
+                  <option value="ALERT">{tNews('typeAlert')}</option>
+                  <option value="ANNOUNCEMENT">{tNews('typeAnnouncement')}</option>
                 </Select>
               </FormField>
             </div>
             <div className="space-y-4">
-              <FormField label="Treść" required>
+              <FormField label={tNews('contentLabel')} required>
                 <Textarea
                   rows={12}
                   value={newNewsItem.content}
                   onChange={(e) => setNewNewsItem((p) => ({ ...p, content: e.target.value }))}
-                  placeholder="Markdown supported..."
+                  placeholder={tNews('contentPlaceholder')}
                 />
               </FormField>
             </div>
           </div>
           <div className="flex gap-4 mb-12">
             <Button variant="primary" onClick={() => handleCreateOrUpdateNews()} isLoading={loading}>
-              Zapisz
+              {tNews('saveButton')}
             </Button>
             {editingNewsId && (
               <Button
@@ -853,12 +864,12 @@ export function AdminClient() {
                   setNewNewsItem({ title: '', content: '', type: 'GENERAL' });
                 }}
               >
-                Anuluj edycję
+                {tNews('cancelEditButton')}
               </Button>
             )}
           </div>
 
-          <h2 className="font-display font-black text-2xl uppercase mb-6">Aktualności</h2>
+          <h2 className="font-display font-black text-2xl uppercase mb-6">{tNews('newsHeading')}</h2>
           {newsLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : (
@@ -886,15 +897,15 @@ export function AdminClient() {
                         setEditingNewsId(item.id);
                       }}
                     >
-                      Edytuj
+                      {tNews('editButton')}
                     </Button>
                     <Button
                       size="sm"
                       variant="danger"
                       onClick={() => {
                         openConfirm({
-                          title: 'Usuń Aktualność',
-                          message: 'Czy na pewno chcesz usunąć tę aktualność?',
+                          title: tNews('deleteConfirmTitle'),
+                          message: tNews('deleteConfirmMessage'),
                           variant: 'danger',
                           onConfirm: async () => {
                             await fetch(`/api/news/${item.id}`, { method: 'DELETE' });
@@ -903,13 +914,13 @@ export function AdminClient() {
                         });
                       }}
                     >
-                      Usuń
+                      {tNews('deleteButton')}
                     </Button>
                   </div>
                 </div>
               ))}
               {news.length === 0 && (
-                <p className="text-center py-12 text-on-surface-variant">Brak aktualności.</p>
+                <p className="text-center py-12 text-on-surface-variant">{tCommon('noNews')}</p>
               )}
             </div>
           )}
@@ -919,7 +930,7 @@ export function AdminClient() {
       {/* Members Tab */}
       {activeTab === 'members' && (
         <div className="px-6 py-8">
-          <h2 className="font-display font-black text-2xl uppercase mb-6">Członkowie</h2>
+          <h2 className="font-display font-black text-2xl uppercase mb-6">{tMembers('heading')}</h2>
           <div className="space-y-2">
             {allUsers.map((user) => (
               <div
@@ -947,15 +958,15 @@ export function AdminClient() {
                       fetchUsers();
                     }}
                   >
-                    {user.role === 'ADMIN' ? 'Zdegraduj' : 'Promuj'}
+                    {user.role === 'ADMIN' ? tMembers('demoteButton') : tMembers('promoteButton')}
                   </Button>
                   <Button
                     size="sm"
                     variant="danger"
                     onClick={() => {
                       openConfirm({
-                        title: 'Usuń Użytkownika',
-                        message: 'Czy na pewno chcesz usunąć tego użytkownika?',
+                        title: tMembers('deleteConfirmTitle'),
+                        message: tMembers('deleteConfirmMessage'),
                         variant: 'danger',
                         onConfirm: async () => {
                           await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
@@ -964,13 +975,13 @@ export function AdminClient() {
                       });
                     }}
                   >
-                    Usuń
+                    {tMembers('deleteButton')}
                   </Button>
                 </div>
               </div>
             ))}
             {allUsers.length === 0 && (
-              <p className="text-center py-12 text-on-surface-variant">Brak użytkowników.</p>
+              <p className="text-center py-12 text-on-surface-variant">{tCommon('noUsers')}</p>
             )}
           </div>
         </div>
@@ -979,22 +990,22 @@ export function AdminClient() {
       {/* Push Tab */}
       {activeTab === 'push' && (
         <div className="px-6 py-8">
-          <h2 className="font-display font-black text-2xl uppercase mb-6">Wyślij Powiadomienie</h2>
+          <h2 className="font-display font-black text-2xl uppercase mb-6">{tPush('heading')}</h2>
           <div className="max-w-2xl">
             <div className="space-y-4">
-              <FormField label="Tytuł" required>
+              <FormField label={tPush('titleLabel')} required>
                 <Input
                   value={pushTitle}
                   onChange={(e) => setPushTitle(e.target.value)}
-                  placeholder="Tytuł powiadomienia"
+                  placeholder={tPush('titlePlaceholder')}
                 />
               </FormField>
-              <FormField label="Wiadomość" required>
+              <FormField label={tPush('messageLabel')} required>
                 <Textarea
                   rows={6}
                   value={pushMessage}
                   onChange={(e) => setPushMessage(e.target.value)}
-                  placeholder="Treść wiadomości"
+                  placeholder={tPush('messagePlaceholder')}
                 />
               </FormField>
             </div>
@@ -1010,14 +1021,14 @@ export function AdminClient() {
                   });
                   setPushTitle('');
                   setPushMessage('');
-                  alert('Powiadomienie wysłane!');
+                  alert(tPush('sendSuccess'));
                 } catch (e) {
                   console.error(e);
-                  alert('Błąd wysyłania.');
+                  alert(tPush('sendError'));
                 }
               }}
             >
-              Wyślij
+              {tPush('sendButton')}
             </Button>
           </div>
         </div>

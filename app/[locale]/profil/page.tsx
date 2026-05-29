@@ -48,6 +48,7 @@ async function fetchUserData(userId: string) {
           OR: [{ userId }, { participantIds: { has: userId } }],
         },
         select: {
+          eventId: true,
           distance: true,
           elevationGain: true,
           duration: true,
@@ -68,7 +69,7 @@ async function fetchUserData(userId: string) {
       { distance: 0, elevation: 0, duration: 0 }
     );
 
-    return { user, participations, personalStats };
+    return { user, participations, personalStats, gpxSubmissions };
   } catch (error) {
     console.error('[profil page fetch]', error);
     return { user: null, participations: [], personalStats: { distance: 0, elevation: 0, duration: 0 } };
@@ -82,9 +83,9 @@ export default async function ProfilPage(props: { params: Promise<{ locale: stri
   const session = await getSession();
   if (!session) redirect('/');
 
-  const { user, participations, personalStats } = await fetchUserData(session.userId);
+  const { user, participations, personalStats, gpxSubmissions } = await fetchUserData(session.userId);
 
   if (!user) redirect('/');
 
-  return <ProfileClient user={user} personalStats={personalStats} participations={participations} />;
+  return <ProfileClient user={user} personalStats={personalStats} participations={participations} gpxSubmissions={gpxSubmissions} />;
 }

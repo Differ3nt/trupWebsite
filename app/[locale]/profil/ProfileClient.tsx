@@ -55,13 +55,21 @@ interface PersonalStats {
   duration: number;
 }
 
+interface GpxSubmission {
+  eventId: string;
+  distance: number;
+  elevationGain: number | null;
+  duration: number;
+}
+
 interface ProfileClientProps {
   user: User;
   personalStats: PersonalStats;
   participations: EventParticipation[];
+  gpxSubmissions: GpxSubmission[];
 }
 
-export function ProfileClient({ user, personalStats, participations }: ProfileClientProps) {
+export function ProfileClient({ user, personalStats, participations, gpxSubmissions }: ProfileClientProps) {
   const session = useSession();
   const t = useTranslations('profile');
   const [tab, setTab] = useState<'overview' | 'settings'>('overview');
@@ -373,6 +381,71 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
             </div>
           </div>
 
+          {/* Upcoming Expeditions Section */}
+          {(() => {
+            const upcomingExpeditions = participations.filter(p =>
+              p.status === 'GOING' &&
+              new Date(p.event.dateStart) >= new Date() &&
+              !p.event.isDraft
+            );
+
+            if (upcomingExpeditions.length === 0) return null;
+
+            return (
+              <div>
+                <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-on-surface mb-6">
+                  {t('upcoming.heading')}
+                </h3>
+                <div className="space-y-3">
+                  {upcomingExpeditions.map((participation) => (
+                    <Link
+                      key={participation.event.id}
+                      href={`/wydarzenia/${participation.event.id}`}
+                    >
+                      <Card className="overflow-hidden hover:border-primary transition-colors cursor-pointer">
+                        <CardContent className="p-6 flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                                {formatDate(participation.event.dateStart)}
+                              </span>
+                              <Badge variant="outline">{participation.event.type}</Badge>
+                            </div>
+                            <h4 className="font-bold text-on-surface mb-1">
+                              {participation.event.title}
+                            </h4>
+                            {participation.event.location && (
+                              <p className="text-xs text-on-surface-variant flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {participation.event.location}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-primary font-bold text-xs ml-4">→</span>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Ready for More CTA */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-6 border border-outline-variant/20 bg-surface-container-low">
+            <div>
+              <p className="font-display font-black text-xl uppercase tracking-tight text-on-surface">
+                {t('cta.heading')}
+              </p>
+              <p className="text-sm text-on-surface-variant">
+                {t('cta.subheading')}
+              </p>
+            </div>
+            <Button asChild variant="primary">
+              <Link href="/kalendarz">{t('cta.button')}</Link>
+            </Button>
+          </div>
+
           {/* Do Rozliczenia Section */}
           {(() => {
             const pendingSettlement = participations.filter(p =>
@@ -427,52 +500,108 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
             );
           })()}
 
-          {/* Events Attended */}
+          {/* Events Attended - Past Expeditions Grid */}
           <div>
             <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-on-surface mb-6">
               {t('events.heading')}
             </h3>
 
-            {participations.length === 0 ? (
-              <Card className="overflow-hidden">
-                <CardContent className="p-8 text-center">
-                  <Calendar className="w-12 h-12 text-on-surface-variant/30 mx-auto mb-4" />
-                  <p className="text-on-surface-variant">{t('events.emptyState')}</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {participations.map((participation) => (
-                  <Link
-                    key={participation.event.id}
-                    href={`/wydarzenia/${participation.event.id}`}
-                  >
-                    <Card className="overflow-hidden hover:border-primary transition-colors cursor-pointer">
-                      <CardContent className="p-6 flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                              {formatDate(participation.event.dateStart)}
-                            </span>
-                            <Badge variant="outline">{participation.event.type}</Badge>
-                          </div>
-                          <h4 className="font-bold text-on-surface mb-1">
-                            {participation.event.title}
-                          </h4>
-                          {participation.event.location && (
-                            <p className="text-xs text-on-surface-variant flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {participation.event.location}
-                            </p>
+            {(() => {
+              const pastExpeditions = participations.filter(p =>
+                new Date(p.event.dateStart) < new Date() &&
+                !p.event.isDraft
+              );
+
+              if (pastExpeditions.length === 0) {
+                return (
+                  <Card className="overflow-hidden">
+                    <CardContent className="p-8 text-center">
+                      <Calendar className="w-12 h-12 text-on-surface-variant/30 mx-auto mb-4" />
+                      <p className="text-on-surface-variant">{t('events.emptyState')}</p>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {pastExpeditions.map((participation) => {
+                    const gpxForEvent = gpxSubmissions.filter(g => g.eventId === participation.event.id);
+                    const totalDistance = gpxForEvent.reduce((sum, g) => sum + (g.distance || 0), 0);
+                    const totalElevation = gpxForEvent.reduce((sum, g) => sum + (g.elevationGain || 0), 0);
+
+                    return (
+                      <Link
+                        key={participation.event.id}
+                        href={`/wydarzenia/${participation.event.id}`}
+                      >
+                        <Card className="overflow-hidden hover:border-primary transition-colors cursor-pointer h-full flex flex-col">
+                          {/* Image */}
+                          {participation.event.image ? (
+                            <div
+                              className="w-full h-48 bg-surface-variant overflow-hidden"
+                              style={{
+                                objectPosition: `${participation.event.imageFocalX || 50}% ${participation.event.imageFocalY || 50}%`,
+                              }}
+                            >
+                              <img
+                                src={participation.event.image}
+                                alt={participation.event.title}
+                                className="w-full h-full object-cover"
+                                style={{
+                                  objectPosition: `${participation.event.imageFocalX || 50}% ${participation.event.imageFocalY || 50}%`,
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-full h-48 bg-surface-variant flex items-center justify-center">
+                              <Calendar className="w-12 h-12 text-on-surface-variant/30" />
+                            </div>
                           )}
-                        </div>
-                        <span className="text-primary font-bold text-xs ml-4">→</span>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            )}
+
+                          <CardContent className="p-6 flex-1 flex flex-col">
+                            {/* Date and Type */}
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                                {formatDate(participation.event.dateStart)}
+                              </span>
+                              <Badge variant="outline">{participation.event.type}</Badge>
+                            </div>
+
+                            {/* Title */}
+                            <h4 className="font-bold text-on-surface mb-2 flex-1">
+                              {participation.event.title}
+                            </h4>
+
+                            {/* Location */}
+                            {participation.event.location && (
+                              <p className="text-xs text-on-surface-variant flex items-center gap-1 mb-4">
+                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                {participation.event.location}
+                              </p>
+                            )}
+
+                            {/* Distance and Elevation (GÓRY only) */}
+                            {participation.event.type === 'GÓRY' && gpxForEvent.length > 0 && (
+                              <div className="flex gap-4 text-xs text-on-surface-variant border-t border-outline-variant/20 pt-3">
+                                <div>
+                                  <p className="font-bold text-on-surface">{totalDistance.toFixed(1)}</p>
+                                  <p className="text-[10px] uppercase tracking-widest">km</p>
+                                </div>
+                                <div>
+                                  <p className="font-bold text-on-surface">{Math.round(totalElevation)}</p>
+                                  <p className="text-[10px] uppercase tracking-widest">m</p>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

@@ -350,6 +350,14 @@
       "avatarSaved": "Zdjęcie profilowe zaktualizowane!",
       "avatarError": "Błąd podczas przesyłania zdjęcia"
     },
+    "upcoming": {
+      "heading": "Nadchodzące Wyprawy"
+    },
+    "cta": {
+      "heading": "Gotowy na więcej?",
+      "subheading": "Sprawdź nadchodzące wydarzenia i zarezerwuj miejsce.",
+      "button": "Zobacz Kalendarz"
+    },
     "settlements": {
       "heading": "Do Rozliczenia",
       "empty": "Brak nierozliczonych wypraw",

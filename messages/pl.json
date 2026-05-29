@@ -73,5 +73,127 @@
     "authMessage": "Komunikaty dostępne są wyłącznie dla zalogowanych członków grupy TRUP.",
     "empty": "Brak aktualności",
     "emptyDesc": "Nie ma jeszcze żadnych aktualności."
+  },
+  "events": {
+    "pageTitle": "wydarzenia",
+    "pageSubtitle": "DOKUMENTACJA WYPRAW, SZKOLEŃ I EKSPEDYCJI GRUPY GÓRSKIEJ.",
+    "pageCategory": "Wyprawy i szkolenia",
+    "list": {
+      "filterAll": "Wszystkie",
+      "filterMountains": "GÓRY",
+      "filterIntegration": "INTEGRACJA",
+      "filterCulture": "KULTURA",
+      "viewPanel": "Panel",
+      "viewCalendar": "Kalendarz",
+      "viewPanelLabel": "Widok panelu",
+      "viewCalendarLabel": "Widok kalendarza",
+      "upcomingSection": "Nadchodzące",
+      "archivedSection": "Archiwalne",
+      "emptyTitle": "Brak wydarzeń",
+      "emptyDesc": "Nie ma jeszcze żadnych planowanych gebeurteneń.",
+      "emptyFilteredDesc": "Nie ma żadnych wydarzeń typu {filter}.",
+      "authMessage": "Zaloguj się, aby zobaczyć szczegóły wypraw i zapisać się na wyjazd.",
+      "cardHint": "Kliknij, aby zobaczyć szczegóły",
+      "participantsLabel": "uczestników",
+      "prevMonth": "Poprzedni miesiąc",
+      "nextMonth": "Następny miesiąc",
+      "months": {
+        "january": "Styczeń",
+        "february": "Luty",
+        "march": "Marzec",
+        "april": "Kwiecień",
+        "may": "Maj",
+        "june": "Czerwiec",
+        "july": "Lipiec",
+        "august": "Sierpień",
+        "september": "Wrzesień",
+        "october": "Październik",
+        "november": "Listopad",
+        "december": "Grudzień"
+      },
+      "weekdays": {
+        "monday": "Pn",
+        "tuesday": "Wt",
+        "wednesday": "Śr",
+        "thursday": "Cz",
+        "friday": "Pt",
+        "saturday": "Sb",
+        "sunday": "Nd"
+      }
+    },
+    "detail": {
+      "backToEvents": "Wróć do wydarzeń",
+      "description": "Opis",
+      "weather": "Pogoda",
+      "transport": "Dojazd",
+      "route": "Trasa",
+      "meetingPoint": "Miejsce Zbiórki",
+      "noDescription": "Brak opisu.",
+      "spotsAvailable": "WOLNE MIEJSCA: {count}",
+      "spotsUnavailable": "BRAK MIEJSC",
+      "spotsTotal": "{current} ZAPISANYCH",
+      "finalized": "WYPRAWA ROZLICZONA",
+      "archived": "WYDARZENIE ARCHIWALNE",
+      "sidebarTitle": "TLDR",
+      "changeRsvpStatus": "Zmień status udziału",
+      "pastEventDisabled": "Wydarzenie archiwalne (zapisy wyłączone)",
+      "missingGearMessage": "Brakuje Ci wymaganego sprzętu",
+      "noGearRequirements": "Brak specjalnych wymagań sprzętowych.",
+      "loginToJoin": "ZALOGUJ SIĘ, BY DOŁĄCZYĆ",
+      "plannedPrefix": "Plan:"
+    },
+    "rsvp": {
+      "title": "Uczestnictwo",
+      "statusGoing": "Idę",
+      "statusInterested": "Zainteresowany",
+      "confirm": "Zatwierdź",
+      "cancel": "Rezygnuję z wyprawy",
+      "statusButtonGoing": "Zapisany",
+      "statusButtonInterested": "Zainteresowany",
+      "statusButtonDefault": "Zapisz się"
+    },
+    "notifications": {
+      "title": "Powiadomienia",
+      "prompt": "Powiadom mnie przed wyprawą:",
+      "none": "Nie powiadamiaj",
+      "daysBefore": "{days} {days, plural, one {dzień} other {dni}} przed",
+      "save": "Zapisz ustawienia",
+      "buttonTooltip": "Powiadomienia",
+      "daysSingular": "dzień",
+      "daysPlural": "dni"
+    },
+    "infoTiles": {
+      "when": "Kiedy",
+      "where": "Gdzie",
+      "difficulty": "Trudność",
+      "meetingPointLabel": "Miejsce Zbiórki",
+      "organizer": "Organizator",
+      "checkMap": "Sprawdź mapę"
+    },
+    "equipment": {
+      "title": "WYPOSAŻENIE",
+      "legendHint": "Legenda: zielony = posiadasz, czerwony = brakuje",
+      "critical": "Wymagany",
+      "suggested": "Sugerowany"
+    },
+    "routes": {
+      "title": "PRZEBYTE TRASY",
+      "defaultLabel": "Trasa",
+      "linkText": "Link do trasy"
+    },
+    "participants": {
+      "title": "ZAPISANI",
+      "authMessage": "Zaloguj się, aby zobaczyć listę uczestników",
+      "loginVia": "Logowanie przez Google",
+      "noParticipants": "Brak zadeklarowanych uczestników."
+    },
+    "maps": {
+      "title": "Mapa trasy",
+      "openButton": "OTWÓRZ MAPĘ",
+      "openExternal": "Otwórz mapę zewnętrzną",
+      "openOnMap": "Otwórz na mapie",
+      "gpxPreview": "Podgląd Trasy GPX",
+      "mapRoutePlaceholder": "Mapa trasy"
+    }
   }
 }

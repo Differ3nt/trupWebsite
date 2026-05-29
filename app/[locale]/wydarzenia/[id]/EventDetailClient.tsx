@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
+import { useTranslations } from 'next-intl';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -127,6 +128,7 @@ function StatusModal({
   const [status, setStatus] = useState<'GOING' | 'INTERESTED'>(
     (initialStatus as 'GOING' | 'INTERESTED') || 'GOING'
   );
+  const t = useTranslations('events.rsvp');
 
   return (
     <div
@@ -139,7 +141,7 @@ function StatusModal({
       >
         <div className="flex justify-between items-start mb-8">
           <h3 className="font-display font-black text-3xl uppercase tracking-tighter text-on-surface">
-            Uczestnictwo
+            {t('title')}
           </h3>
           <button
             onClick={onClose}
@@ -158,7 +160,7 @@ function StatusModal({
                 : 'border-outline-variant/50 text-on-surface-variant hover:border-primary'
             }`}
           >
-            <CheckCircle2 size={20} /> Idę
+            <CheckCircle2 size={20} /> {t('statusGoing')}
           </button>
           <button
             onClick={() => setStatus('INTERESTED')}
@@ -172,7 +174,7 @@ function StatusModal({
               size={20}
               fill={status === 'INTERESTED' ? 'currentColor' : 'none'}
             />{' '}
-            Zainteresowany
+            {t('statusInterested')}
           </button>
         </div>
 
@@ -181,7 +183,7 @@ function StatusModal({
             onClick={() => onConfirm(status)}
             className="w-full py-5 font-display font-black text-lg uppercase tracking-wider bg-primary text-surface hover:bg-primary/90 transition-all flex items-center justify-center gap-3"
           >
-            Zatwierdź <ChevronRight size={20} />
+            {t('confirm')} <ChevronRight size={20} />
           </button>
 
           {initialStatus && (
@@ -193,7 +195,7 @@ function StatusModal({
               }}
               className="w-full py-3 font-bold text-[10px] uppercase tracking-widest text-red-600 hover:bg-red-600 hover:text-white border border-red-600/30 transition-all mt-4"
             >
-              Rezygnuję z wyprawy
+              {t('cancel')}
             </button>
           )}
         </div>
@@ -217,6 +219,7 @@ function NotifyModal({
   const [notifyDays, setNotifyDays] = useState<number | null>(
     initialNotify !== undefined ? initialNotify : null
   );
+  const t = useTranslations('events.notifications');
 
   const daysToEvent = useMemo(() => {
     const today = new Date();
@@ -238,7 +241,7 @@ function NotifyModal({
       >
         <div className="flex justify-between items-start mb-8">
           <h3 className="font-display font-black text-3xl uppercase tracking-tighter text-on-surface">
-            Powiadomienia
+            {t('title')}
           </h3>
           <button
             onClick={onClose}
@@ -249,7 +252,7 @@ function NotifyModal({
         </div>
 
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant mb-6">
-          Powiadom mnie przed wyprawą:
+          {t('prompt')}
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
@@ -261,7 +264,7 @@ function NotifyModal({
                 : 'border-outline-variant/50 text-on-surface-variant hover:border-primary'
             }`}
           >
-            Nie powiadamiaj
+            {t('none')}
           </button>
           {options.map((days) => (
             <button
@@ -273,7 +276,7 @@ function NotifyModal({
                   : 'border-outline-variant/50 text-on-surface-variant hover:border-primary'
               }`}
             >
-              {days} {days === 1 ? 'dzień' : 'dni'} przed
+              {days} {days === 1 ? t('daysSingular') : t('daysPlural')} przed
             </button>
           ))}
         </div>
@@ -282,7 +285,7 @@ function NotifyModal({
           onClick={() => onConfirm(notifyDays)}
           className="w-full py-5 font-display font-black text-lg uppercase tracking-wider bg-primary text-surface hover:bg-primary/90 transition-all shadow-lg"
         >
-          Zapisz ustawienia
+          {t('save')}
         </button>
       </div>
     </div>
@@ -299,6 +302,14 @@ export function EventDetailClient({
 }: Props) {
   const router = useRouter();
   const { data: session } = useSession();
+  const t = useTranslations('events.detail');
+  const tRsvp = useTranslations('events.rsvp');
+  const tNotify = useTranslations('events.notifications');
+  const tTiles = useTranslations('events.infoTiles');
+  const tEquip = useTranslations('events.equipment');
+  const tRoutes = useTranslations('events.routes');
+  const tParticipants = useTranslations('events.participants');
+  const tMaps = useTranslations('events.maps');
 
   // State
   const [rsvpStatus, setRsvpStatus] = useState<string | null>(
@@ -461,7 +472,7 @@ export function EventDetailClient({
                   <MapPin size={32} className="text-primary" />
                 </div>
                 <h3 className="font-display font-black text-3xl uppercase tracking-tighter mb-4 text-white">
-                  Mapa trasy
+                  {tMaps('mapRoutePlaceholder')}
                 </h3>
                 <a
                   href={url}
@@ -469,7 +480,7 @@ export function EventDetailClient({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-4 bg-primary text-surface px-8 py-3 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white hover:scale-105 transition-all"
                 >
-                  OTWÓRZ MAPĘ <ExternalLink size={16} />
+                  {tMaps('openButton')} <ExternalLink size={16} />
                 </a>
               </div>
             </div>
@@ -497,7 +508,7 @@ export function EventDetailClient({
               rel="noopener noreferrer"
               className="text-[10px] font-black uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2"
             >
-              Otwórz mapę zewnętrzną <ExternalLink size={12} />
+              {tMaps('openExternal')} <ExternalLink size={12} />
             </a>
           </div>
         );
@@ -523,7 +534,7 @@ export function EventDetailClient({
     return (
       <div className="mt-12 border-t border-outline-variant/20 pt-10 space-y-12">
         <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-4">
-          Trasa
+          {t('route')}
         </h3>
 
         {/* Render Official GPX Tracks */}
@@ -546,7 +557,7 @@ export function EventDetailClient({
                   {g.filePath && (
                     <div className="bg-frame border-4 border-white/5 overflow-hidden shadow-xl relative group">
                       <div className="h-64 bg-surface-container-highest flex items-center justify-center text-on-surface-variant/40 text-[10px] uppercase tracking-widest">
-                        Podgląd Trasy GPX
+                        {tMaps('gpxPreview')}
                       </div>
                     </div>
                   )}
@@ -611,7 +622,7 @@ export function EventDetailClient({
     return (
       <div className="mt-12 border-t border-outline-variant/20 pt-10">
         <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-4">
-          Miejsce Zbiórki
+          {t('meetingPoint')}
         </h3>
         <p className="font-bold uppercase tracking-widest text-on-surface-variant text-sm mb-6">
           {event.meetingPointName}
@@ -624,7 +635,7 @@ export function EventDetailClient({
               rel="noopener noreferrer"
               className="text-[10px] font-black uppercase tracking-[0.2em] text-primary hover:underline flex items-center gap-2"
             >
-              Otwórz na mapie <ExternalLink size={12} />
+              {tMaps('openOnMap')} <ExternalLink size={12} />
             </a>
           </div>
         )}
@@ -664,7 +675,7 @@ export function EventDetailClient({
             href="/wydarzenia"
             className="inline-flex items-center gap-3 mb-8 px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors"
           >
-            <ArrowLeft size={16} /> Wróć do wydarzeń
+            <ArrowLeft size={16} /> {t('backToEvents')}
           </Link>
           <h1 className="font-display font-black text-5xl md:text-8xl text-white uppercase leading-[0.85] drop-shadow-2xl mb-4">
             {event.title}
@@ -708,7 +719,7 @@ export function EventDetailClient({
                   <div className="flex flex-wrap gap-3 border-l border-white/10 pl-6 items-center">
                     {!showActual && (
                       <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">
-                        Plan:
+                        {t('plannedPrefix')}
                       </span>
                     )}
                     {dist && dist > 0 && (
@@ -753,8 +764,8 @@ export function EventDetailClient({
                     <div className="px-6 flex items-center">
                       <p className="text-[12px] font-black uppercase tracking-[0.2em] text-white">
                         {goingList.length >= event.spots
-                          ? 'BRAK MIEJSC'
-                          : `WOLNE MIEJSCA: ${event.spots - goingList.length}`}
+                          ? t('spotsUnavailable')
+                          : t('spotsAvailable', { count: event.spots - goingList.length })}
                       </p>
                     </div>
                   </div>
@@ -765,7 +776,7 @@ export function EventDetailClient({
                     </div>
                     <div className="px-6 flex items-center">
                       <p className="text-[12px] font-black uppercase tracking-[0.2em] text-white">
-                        {goingList.length} ZAPISANYCH
+                        {t('spotsTotal', { current: goingList.length })}
                       </p>
                     </div>
                   </div>
@@ -790,8 +801,8 @@ export function EventDetailClient({
                 <div className="px-6 flex items-center">
                   <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
                     {event.isFinalized
-                      ? 'WYPRAWA ROZLICZONA'
-                      : 'WYDARZENIE ARCHIWALNE'}
+                      ? t('finalized')
+                      : t('archived')}
                   </p>
                 </div>
               </div>
@@ -806,18 +817,18 @@ export function EventDetailClient({
           <div className="lg:col-span-2">
             <section className="mb-20">
               <h2 className="font-display font-black text-4xl uppercase mb-10 flex items-center gap-4">
-                Opis
+                {t('description')}
               </h2>
               <div className="text-on-surface-variant text-base leading-relaxed font-medium max-w-3xl markdown-content">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {event.description || 'Brak opisu.'}
+                  {event.description || t('noDescription')}
                 </ReactMarkdown>
               </div>
 
               {event.weatherInfo && (
                 <div className="mt-12 border-t border-outline-variant/20 pt-10">
                   <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-4">
-                    Pogoda
+                    {t('weather')}
                   </h3>
                   <p className="text-on-surface-variant text-base leading-relaxed font-medium max-w-3xl whitespace-pre-line">
                     {event.weatherInfo}
@@ -828,7 +839,7 @@ export function EventDetailClient({
               {event.transport && (
                 <div className="mt-12 border-t border-outline-variant/20 pt-10">
                   <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-4">
-                    Dojazd
+                    {t('transport')}
                   </h3>
                   <p className="text-on-surface-variant text-base leading-relaxed font-medium max-w-3xl whitespace-pre-line">
                     {event.transport}
@@ -846,7 +857,7 @@ export function EventDetailClient({
             <div className="sticky top-28 bg-surface-container-low border border-outline-variant/30 p-8 text-on-surface shadow-2xl">
               <div className="flex items-center justify-between mb-8 border-b-4 border-primary pb-4">
                 <h3 className="font-display font-black text-2xl uppercase">
-                  TLDR
+                  {t('sidebarTitle')}
                 </h3>
                 <div className="flex gap-4">
                   {/* RSVP Button */}
@@ -858,10 +869,10 @@ export function EventDetailClient({
                     }}
                     title={
                       isPast
-                        ? 'Wydarzenie archiwalne (zapisy wyłączone)'
+                        ? t('pastEventDisabled')
                         : missingCriticalGear && !rsvpStatus
-                          ? 'Brakuje Ci wymaganego sprzętu'
-                          : 'Zmień status udziału'
+                          ? t('missingGearMessage')
+                          : t('changeRsvpStatus')
                     }
                     className={cn(
                       'flex items-center gap-3 px-4 py-2 transition-all group/btn ring-1 ring-inset font-black uppercase tracking-[0.1em] text-[10px]',
@@ -891,10 +902,10 @@ export function EventDetailClient({
                     </div>
                     <span>
                       {rsvpStatus === 'GOING'
-                        ? 'Zapisany'
+                        ? tRsvp('statusButtonGoing')
                         : rsvpStatus === 'INTERESTED'
-                          ? 'Zainteresowany'
-                          : 'Zapisz się'}
+                          ? tRsvp('statusButtonInterested')
+                          : tRsvp('statusButtonDefault')}
                     </span>
                   </button>
 
@@ -905,7 +916,7 @@ export function EventDetailClient({
                       setShowNotifyModal(true);
                     }}
                     disabled={isPast || !rsvpStatus}
-                    title="Powiadomienia"
+                    title={tNotify('buttonTooltip')}
                     className={cn(
                       'flex items-center gap-3 px-4 py-2 transition-all group/btn ring-1 ring-inset font-black uppercase tracking-[0.1em] text-[10px]',
                       rsvpStatus && !isPast
@@ -936,7 +947,7 @@ export function EventDetailClient({
                   </div>
                   <div className="min-w-0">
                     <p className="font-black uppercase text-[9px] tracking-widest text-on-surface-variant mb-0.5">
-                      Kiedy
+                      {tTiles('when')}
                     </p>
                     <p className="font-display font-black text-sm uppercase truncate">
                       {new Date(event.dateStart).toLocaleDateString('pl-PL', {
@@ -964,10 +975,10 @@ export function EventDetailClient({
                     </div>
                     <div className="min-w-0">
                       <p className="font-black uppercase text-[9px] tracking-widest text-on-surface-variant mb-0.5">
-                        Gdzie
+                        {tTiles('where')}
                       </p>
                       <p className="font-display font-black text-sm uppercase truncate">
-                        {event.location || 'Sprawdź mapę'}
+                        {event.location || tTiles('checkMap')}
                       </p>
                     </div>
                   </a>
@@ -984,7 +995,7 @@ export function EventDetailClient({
                     </div>
                     <div className="min-w-0">
                       <p className="font-black uppercase text-[9px] tracking-widest text-on-surface-variant mb-0.5">
-                        Trudność
+                        {tTiles('difficulty')}
                       </p>
                       <div className="flex gap-1.5">
                         {Array.from({ length: 5 }).map((_, i) => (
@@ -1024,7 +1035,7 @@ export function EventDetailClient({
                     </div>
                     <div className="min-w-0">
                       <p className="font-black uppercase text-[9px] tracking-widest text-on-surface-variant mb-0.5">
-                        Miejsce Zbiórki
+                        {tTiles('meetingPointLabel')}
                       </p>
                       <p className="font-display font-black text-sm uppercase leading-tight">
                         {event.meetingPointName}
@@ -1041,7 +1052,7 @@ export function EventDetailClient({
                     </div>
                     <div className="min-w-0">
                       <p className="font-black uppercase text-[9px] tracking-widest text-on-surface-variant mb-0.5">
-                        Organizator
+                        {tTiles('organizer')}
                       </p>
                       <p className="font-display font-black text-sm uppercase truncate">
                         {event.organizer}
@@ -1055,10 +1066,10 @@ export function EventDetailClient({
               <div className="mb-10">
                 <div className="flex items-center gap-3 mb-6">
                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface-variant border-l-4 border-primary pl-3">
-                    WYPOSAŻENIE
+                    {tEquip('title')}
                   </h4>
                   <div
-                    title="Legenda: zielony = posiadasz, czerwony = brakuje"
+                    title={tEquip('legendHint')}
                     className="cursor-help"
                   >
                     <HelpCircle size={14} className="text-on-surface-variant/40 hover:text-primary transition-colors" />
@@ -1071,7 +1082,7 @@ export function EventDetailClient({
                     <div className="space-y-2">
                       <p className="text-[9px] font-black text-red-500 uppercase tracking-[0.2em] flex items-center gap-2">
                         <div className="w-1 h-1 bg-red-500 rounded-full" />{' '}
-                        Wymagany
+                        {tEquip('critical')}
                       </p>
                       <div className="space-y-1">
                         {(event.gearCritical || [])
@@ -1119,7 +1130,7 @@ export function EventDetailClient({
                     <div className="space-y-2">
                       <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.2em] flex items-center gap-2">
                         <div className="w-1 h-1 bg-orange-500 rounded-full" />{' '}
-                        Sugerowany
+                        {tEquip('suggested')}
                       </p>
                       <div className="space-y-1">
                         {(event.gearRequired || [])
@@ -1164,7 +1175,7 @@ export function EventDetailClient({
 
                   {!event.gearCritical?.length && !event.gearRequired?.length && (
                     <p className="text-[10px] italic text-on-surface-variant/60">
-                      Brak specjalnych wymagań sprzętowych.
+                      {t('noGearRequirements')}
                     </p>
                   )}
                 </div>
@@ -1174,7 +1185,7 @@ export function EventDetailClient({
               {event.isFinalized && event.gpxSubmissions?.length > 0 && (
                 <div className="mb-10 bg-surface p-6 border border-outline-variant/20">
                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-6 border-l-4 border-primary pl-3">
-                    PRZEBYTE TRASY
+                    {tRoutes('title')}
                   </h4>
                   <div className="space-y-6">
                     {event.gpxSubmissions
@@ -1186,7 +1197,7 @@ export function EventDetailClient({
                         >
                           <div className="flex justify-between items-start mb-2">
                             <p className="font-display font-black text-sm uppercase tracking-tight">
-                              {route.label || 'Trasa'}
+                              {route.label || tRoutes('defaultLabel')}
                             </p>
                             {route.filePath && (
                               <a
@@ -1195,7 +1206,7 @@ export function EventDetailClient({
                                 rel="noopener noreferrer"
                                 className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
                               >
-                                Link do trasy
+                                {tRoutes('linkText')}
                               </a>
                             )}
                           </div>
@@ -1228,19 +1239,19 @@ export function EventDetailClient({
               {/* Participants Section */}
               <div className="mb-10">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface-variant mb-4 border-l-4 border-primary pl-3">
-                  ZAPISANI
+                  {tParticipants('title')}
                 </h4>
                 <div className="space-y-4">
                   {!isAuthenticated ? (
                     <div className="bg-primary/5 border border-primary/10 p-4 text-center">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/70 mb-3 leading-relaxed">
-                        Zaloguj się, aby zobaczyć listę uczestników
+                        {tParticipants('authMessage')}
                       </p>
                       <button
                         onClick={() => signIn()}
                         className="text-[9px] font-black uppercase tracking-[0.2em] text-primary hover:underline"
                       >
-                        Logowanie przez Google
+                        {tParticipants('loginVia')}
                       </button>
                     </div>
                   ) : participants.length > 0 ? (
@@ -1289,7 +1300,7 @@ export function EventDetailClient({
                     </div>
                   ) : (
                     <p className="text-[10px] italic text-on-surface-variant/60">
-                      Brak zadeklarowanych uczestników.
+                      {tParticipants('noParticipants')}
                     </p>
                   )}
                 </div>
@@ -1300,7 +1311,7 @@ export function EventDetailClient({
                   onClick={() => signIn()}
                   className="w-full py-5 px-6 bg-primary text-surface font-display font-black text-lg uppercase tracking-wider hover:bg-primary/90 transition-all"
                 >
-                  ZALOGUJ SIĘ, BY DOŁĄCZYĆ
+                  {t('loginToJoin')}
                 </button>
               )}
             </div>

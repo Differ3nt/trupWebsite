@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { EventDetailClient } from './EventDetailClient';
 
 type Props = {
-  params: Promise<{ id: string }>;
+  params: Promise<{ locale: string; id: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -32,7 +33,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function EventDetailPage({ params }: Props) {
-  const { id } = await params;
+  const { locale, id } = await params;
+  setRequestLocale(locale);
+
   const session = await getSession();
 
   let event = null;

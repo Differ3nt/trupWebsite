@@ -1,3 +1,4 @@
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { EventsClient } from './EventsClient';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -29,7 +30,15 @@ async function getEvents() {
   }
 }
 
-export default async function EventsPage() {
+type Props = {
+  params: Promise<{ locale: string }>;
+};
+
+export default async function EventsPage({ params }: Props) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const t = await getTranslations('events');
   const eventsData = await getEvents();
 
   // Transform the data to match EventItem interface
@@ -41,9 +50,9 @@ export default async function EventsPage() {
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
       <PageHeader
-        title="wydarzenia"
-        subtitle="DOKUMENTACJA WYPRAW, SZKOLEŃ I EKSPEDYCJI GRUPY GÓRSKIEJ."
-        category="Wyprawy i szkolenia"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
+        category={t('pageCategory')}
       />
       <EventsClient events={events} />
     </div>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Calendar, MapPin, Users, Star, LayoutGrid, CalendarDays, ChevronLeft, ChevronRight } from '@/components/icons';
 import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
@@ -28,8 +29,9 @@ interface EventsClientProps {
   events: EventItem[];
 }
 
-const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
-const WEEK_DAYS = ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
+// Months and weekdays are now fetched from translations
+// const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+// const WEEK_DAYS = ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
 const TYPE_COLORS: Record<string, string> = {
   'GÓRY': 'bg-primary text-surface',
   'INTEGRACJA': 'bg-yellow-500 text-surface',
@@ -37,18 +39,44 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export function EventsClient({ events }: EventsClientProps) {
-  const [activeFilter, setActiveFilter] = useState('Wszystkie');
+  const t = useTranslations('events.list');
+  const [activeFilter, setActiveFilter] = useState(t('filterAll'));
   const [view, setView] = useState<'panel' | 'calendar'>('panel');
   const [calendarDate, setCalendarDate] = useState(() => new Date());
 
-  const filters = ['Wszystkie', 'GÓRY', 'INTEGRACJA', 'KULTURA'];
+  // Build month and weekday arrays from translations
+  const monthNames = [
+    t('months.january'),
+    t('months.february'),
+    t('months.march'),
+    t('months.april'),
+    t('months.may'),
+    t('months.june'),
+    t('months.july'),
+    t('months.august'),
+    t('months.september'),
+    t('months.october'),
+    t('months.november'),
+    t('months.december'),
+  ];
+  const weekDays = [
+    t('weekdays.monday'),
+    t('weekdays.tuesday'),
+    t('weekdays.wednesday'),
+    t('weekdays.thursday'),
+    t('weekdays.friday'),
+    t('weekdays.saturday'),
+    t('weekdays.sunday'),
+  ];
+
+  const filters = [t('filterAll'), 'GÓRY', 'INTEGRACJA', 'KULTURA'];
 
   const filteredEvents = useMemo(() => {
-    if (activeFilter === 'Wszystkie') {
+    if (activeFilter === t('filterAll')) {
       return events;
     }
     return events.filter((event) => event.type === activeFilter);
-  }, [events, activeFilter]);
+  }, [events, activeFilter, t]);
 
   const now = new Date();
   const upcoming = filteredEvents.filter((e) => new Date(e.dateStart) >= now);
@@ -120,7 +148,7 @@ export function EventsClient({ events }: EventsClientProps) {
           {event.spots && (
             <div className="flex items-center gap-2 text-[10px] text-on-surface-variant uppercase tracking-widest">
               <Users size={12} className="text-primary" />
-              {event._count.participations}/{event.spots} uczestników
+              {event._count.participations}/{event.spots} {t('participantsLabel')}
             </div>
           )}
 
@@ -133,7 +161,7 @@ export function EventsClient({ events }: EventsClientProps) {
 
         <div className="pt-3 border-t border-outline-variant/20">
           <span className="text-[9px] text-on-surface-variant/60 uppercase tracking-widest">
-            Kliknij, aby zobaczyć szczegóły
+            {t('cardHint')}
           </span>
         </div>
       </div>
@@ -144,14 +172,14 @@ export function EventsClient({ events }: EventsClientProps) {
     return (
       <EmptyState
         icon={<Calendar size={48} />}
-        title="Brak wydarzeń"
-        description="Nie ma jeszcze żadnych planowanych wydarzeń."
+        title={t('emptyTitle')}
+        description={t('emptyDesc')}
       />
     );
   }
 
   return (
-    <AuthGate message="Zaloguj się, aby zobaczyć szczegóły wypraw i zapisać się na wyjazd.">
+    <AuthGate message={t('authMessage')}>
       <div className="space-y-8">
         {/* Toolbar: filters + view toggle */}
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -173,20 +201,20 @@ export function EventsClient({ events }: EventsClientProps) {
               className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${
                 view === 'panel' ? 'bg-primary text-surface' : 'text-on-surface-variant hover:text-primary'
               }`}
-              aria-label="Widok panelu"
+              aria-label={t('viewPanelLabel')}
             >
               <LayoutGrid size={14} />
-              <span className="hidden sm:inline">Panel</span>
+              <span className="hidden sm:inline">{t('viewPanel')}</span>
             </button>
             <button
               onClick={() => setView('calendar')}
               className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border-l border-outline-variant/30 transition-colors ${
                 view === 'calendar' ? 'bg-primary text-surface' : 'text-on-surface-variant hover:text-primary'
               }`}
-              aria-label="Widok kalendarza"
+              aria-label={t('viewCalendarLabel')}
             >
               <CalendarDays size={14} />
-              <span className="hidden sm:inline">Kalendarz</span>
+              <span className="hidden sm:inline">{t('viewCalendar')}</span>
             </button>
           </div>
         </div>
@@ -197,7 +225,7 @@ export function EventsClient({ events }: EventsClientProps) {
             {upcoming.length > 0 && (
               <div>
                 <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-6 border-l-4 border-primary pl-4">
-                  Nadchodzące
+                  {t('upcomingSection')}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {upcoming.map((event) => (
@@ -209,7 +237,7 @@ export function EventsClient({ events }: EventsClientProps) {
             {archived.length > 0 && (
               <div>
                 <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface-variant/60 mb-6 border-l-4 border-outline-variant pl-4">
-                  Archiwalne
+                  {t('archivedSection')}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60 hover:opacity-100 transition-opacity">
                   {archived.map((event) => (
@@ -221,8 +249,8 @@ export function EventsClient({ events }: EventsClientProps) {
             {upcoming.length === 0 && archived.length === 0 && (
               <EmptyState
                 icon={<Calendar size={48} />}
-                title="Brak wydarzeń"
-                description={`Nie ma żadnych wydarzeń typu ${activeFilter}.`}
+                title={t('emptyTitle')}
+                description={activeFilter === t('filterAll') ? t('emptyDesc') : t('emptyFilteredDesc', { filter: activeFilter })}
               />
             )}
           </div>
@@ -235,6 +263,9 @@ export function EventsClient({ events }: EventsClientProps) {
             currentDate={calendarDate}
             onPrev={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
             onNext={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+            t={t}
+            monthNames={monthNames}
+            weekDays={weekDays}
           />
         )}
       </div>
@@ -249,9 +280,12 @@ interface CalendarViewProps {
   currentDate: Date;
   onPrev: () => void;
   onNext: () => void;
+  t: ReturnType<typeof useTranslations>;
+  monthNames: string[];
+  weekDays: string[];
 }
 
-function EventsCalendarView({ events, currentDate, onPrev, onNext }: CalendarViewProps) {
+function EventsCalendarView({ events, currentDate, onPrev, onNext, t, monthNames, weekDays }: CalendarViewProps) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -281,13 +315,13 @@ function EventsCalendarView({ events, currentDate, onPrev, onNext }: CalendarVie
       {/* Month navigation */}
       <div className="flex items-center justify-between bg-surface-container-low border border-outline-variant/30 px-6 py-4">
         <h2 className="font-display font-black text-2xl uppercase tracking-tight">
-          {MONTH_NAMES[month]} {year}
+          {monthNames[month]} {year}
         </h2>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={onPrev} aria-label="Poprzedni miesiąc">
+          <Button variant="outline" size="icon" onClick={onPrev} aria-label={t('prevMonth')}>
             <ChevronLeft size={18} />
           </Button>
-          <Button variant="outline" size="icon" onClick={onNext} aria-label="Następny miesiąc">
+          <Button variant="outline" size="icon" onClick={onNext} aria-label={t('nextMonth')}>
             <ChevronRight size={18} />
           </Button>
         </div>
@@ -297,8 +331,8 @@ function EventsCalendarView({ events, currentDate, onPrev, onNext }: CalendarVie
       <div className="border border-outline-variant/30">
         {/* Weekday headers */}
         <div className="grid grid-cols-7 border-b border-outline-variant/30">
-          {WEEK_DAYS.map(d => (
-            <div key={d} className="py-2 text-center text-[10px] font-bold uppercase tracking-widest text-on-surface-variant bg-surface-container-high">
+          {weekDays.map((d, idx) => (
+            <div key={idx} className="py-2 text-center text-[10px] font-bold uppercase tracking-widest text-on-surface-variant bg-surface-container-high">
               {d}
             </div>
           ))}

@@ -387,6 +387,7 @@
     "tabs": {
       "create": "Utwórz Wydarzenie",
       "list": "Zarządzaj",
+      "completion": "Rozliczenia",
       "gpx": "Kolejka GPX",
       "wiki": "Wiki",
       "news": "Aktualności",
@@ -461,6 +462,21 @@
       "deleteConfirmMessage": "Czy na pewno chcesz usunąć to wydarzenie?",
       "draftStatusBadge": "Szkic",
       "publicStatusBadge": "Publiczne"
+    },
+    "completion": {
+      "sectionTitle": "Rozliczenia",
+      "sectionDescription": "Zakończone wydarzenia wymagające zatwierdzenia i wpisu rzeczywistych danych.",
+      "emptyQueue": "Brak wydarzeń do rozliczenia.",
+      "participantsLabel": "uczestników",
+      "attendanceLabel": "Obecność",
+      "actualStatsLabel": "Rzeczywiste Dane",
+      "distanceLabel": "Dystans (km)",
+      "elevationLabel": "Przewyższenie (m)",
+      "durationLabel": "Czas (h)",
+      "durationPlaceholder": "godz",
+      "finalizeButton": "Zatwierdź i Rozlicz",
+      "finalizeSuccess": "Wydarzenie rozliczone!",
+      "finalizeError": "Błąd rozliczenia."
     },
     "gpx": {
       "sectionTitle": "Kolejka GPX",

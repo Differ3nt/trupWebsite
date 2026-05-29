@@ -91,6 +91,7 @@ export function AdminClient() {
   const tCommon = useTranslations('admin.common');
   const tEvents = useTranslations('admin.events');
   const tGpx = useTranslations('admin.gpx');
+  const tCompletion = useTranslations('admin.completion');
   const tWiki = useTranslations('admin.wikiAdmin');
   const tNews = useTranslations('admin.newsAdmin');
   const tMembers = useTranslations('admin.membersAdmin');
@@ -99,6 +100,7 @@ export function AdminClient() {
   const TABS = [
     { id: 'create', label: tTabs('create'), icon: <Plus size={14} /> },
     { id: 'list', label: tTabs('list'), icon: <List size={14} /> },
+    { id: 'completion', label: tTabs('completion'), icon: <Star size={14} /> },
     { id: 'gpx', label: tTabs('gpx'), icon: <UploadCloud size={14} /> },
     { id: 'wiki', label: tTabs('wiki'), icon: <Book size={14} /> },
     { id: 'news', label: tTabs('news'), icon: <FileText size={14} /> },
@@ -114,6 +116,13 @@ export function AdminClient() {
   const [loading, setLoading] = useState(false);
   const [newEvent, setNewEvent] = useState({ ...EMPTY_EVENT });
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Completion queue (Rozliczenia)
+  const [completionQueue, setCompletionQueue] = useState<any[]>([]);
+  const [completionLoading, setCompletionLoading] = useState(false);
+  const [finalizingId, setFinalizingId] = useState<string | null>(null);
+  const [attendedMap, setAttendedMap] = useState<Record<string, Set<string>>>({});
+  const [statsMap, setStatsMap] = useState<Record<string, { distance: string; elevation: string; duration: string }>>({});
 
   // GPX queue
   const [gpxQueue, setGpxQueue] = useState<any[]>([]);
@@ -145,6 +154,7 @@ export function AdminClient() {
 
   useEffect(() => {
     if (activeTab === 'list') fetchEvents();
+    if (activeTab === 'completion') fetchCompletionQueue();
     if (activeTab === 'gpx') fetchGpxQueue();
     if (activeTab === 'wiki') fetchWikiArticles();
     if (activeTab === 'news') fetchNews();
@@ -174,6 +184,31 @@ export function AdminClient() {
       console.error(e);
     } finally {
       setEventsLoading(false);
+    }
+  }
+
+  async function fetchCompletionQueue() {
+    setCompletionLoading(true);
+    try {
+      const r = await fetch('/api/events/admin/completion-queue');
+      const data = await r.json();
+      if (Array.isArray(data)) {
+        setCompletionQueue(data);
+        const initAttended: Record<string, Set<string>> = {};
+        const initStats: Record<string, { distance: string; elevation: string; duration: string }> = {};
+        data.forEach((event: any) => {
+          initAttended[event.id] = new Set(
+            event.participants.filter((p: any) => p.status === 'GOING').map((p: any) => p.userId)
+          );
+          initStats[event.id] = { distance: '', elevation: '', duration: '' };
+        });
+        setAttendedMap(initAttended);
+        setStatsMap(initStats);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCompletionLoading(false);
     }
   }
 
@@ -744,6 +779,132 @@ export function AdminClient() {
               {events.length === 0 && (
                 <p className="text-center py-12 text-on-surface-variant">{tCommon('noEvents')}</p>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Completion / Rozliczenia Tab */}
+      {activeTab === 'completion' && (
+        <div className="px-6 py-8">
+          <h2 className="font-display font-black text-2xl uppercase mb-2">{tCompletion('sectionTitle')}</h2>
+          <p className="text-xs text-on-surface-variant mb-6">{tCompletion('sectionDescription')}</p>
+          {completionLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : completionQueue.length === 0 ? (
+            <p className="text-on-surface-variant text-center py-12">{tCompletion('emptyQueue')}</p>
+          ) : (
+            <div className="space-y-8">
+              {completionQueue.map((event) => {
+                const attended = attendedMap[event.id] ?? new Set();
+                const stats = statsMap[event.id] ?? { distance: '', elevation: '', duration: '' };
+                return (
+                  <div key={event.id} className="border border-outline-variant/20 bg-surface-container-low">
+                    <div className="p-6 border-b border-outline-variant/20 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-display font-black text-xl uppercase">{event.title}</p>
+                        <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mt-1">
+                          {new Date(event.dateStart).toLocaleDateString('pl-PL')} · {event.type}
+                        </p>
+                      </div>
+                      <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 border border-outline-variant/30 text-on-surface-variant">
+                        {event.participants?.length ?? 0} {tCompletion('participantsLabel')}
+                      </span>
+                    </div>
+
+                    {/* Attendance checkboxes */}
+                    {event.participants?.length > 0 && (
+                      <div className="p-6 border-b border-outline-variant/20">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">
+                          {tCompletion('attendanceLabel')}
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {event.participants.map((p: any) => (
+                            <Checkbox
+                              key={p.userId}
+                              label={p.user?.nickname || p.user?.name || p.userId}
+                              checked={attended.has(p.userId)}
+                              onChange={(e) => {
+                                const next = new Set(attended);
+                                e.target.checked ? next.add(p.userId) : next.delete(p.userId);
+                                setAttendedMap((m) => ({ ...m, [event.id]: next }));
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actual stats */}
+                    <div className="p-6 border-b border-outline-variant/20">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">
+                        {tCompletion('actualStatsLabel')}
+                      </p>
+                      <div className="grid grid-cols-3 gap-4">
+                        <FormField label={tCompletion('distanceLabel')}>
+                          <Input
+                            type="number"
+                            value={stats.distance}
+                            onChange={(e) => setStatsMap((m) => ({ ...m, [event.id]: { ...stats, distance: e.target.value } }))}
+                            placeholder="km"
+                          />
+                        </FormField>
+                        <FormField label={tCompletion('elevationLabel')}>
+                          <Input
+                            type="number"
+                            value={stats.elevation}
+                            onChange={(e) => setStatsMap((m) => ({ ...m, [event.id]: { ...stats, elevation: e.target.value } }))}
+                            placeholder="m"
+                          />
+                        </FormField>
+                        <FormField label={tCompletion('durationLabel')}>
+                          <Input
+                            type="number"
+                            value={stats.duration}
+                            onChange={(e) => setStatsMap((m) => ({ ...m, [event.id]: { ...stats, duration: e.target.value } }))}
+                            placeholder={tCompletion('durationPlaceholder')}
+                          />
+                        </FormField>
+                      </div>
+                    </div>
+
+                    {/* Finalize button */}
+                    <div className="p-6 flex justify-end">
+                      <Button
+                        variant="primary"
+                        isLoading={finalizingId === event.id}
+                        onClick={async () => {
+                          setFinalizingId(event.id);
+                          try {
+                            const r = await fetch(`/api/events/${event.id}/finalize`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                attendedUserIds: Array.from(attended),
+                                ...(stats.distance && { actualDistance: parseFloat(stats.distance) }),
+                                ...(stats.elevation && { actualElevation: parseFloat(stats.elevation) }),
+                                ...(stats.duration && { actualDuration: parseFloat(stats.duration) }),
+                              }),
+                            });
+                            if (r.ok) {
+                              toast.success(tCompletion('finalizeSuccess'));
+                              setCompletionQueue((prev) => prev.filter((e) => e.id !== event.id));
+                            } else {
+                              toast.error(tCompletion('finalizeError'));
+                            }
+                          } catch {
+                            toast.error(tCompletion('finalizeError'));
+                          } finally {
+                            setFinalizingId(null);
+                          }
+                        }}
+                      >
+                        {tCompletion('finalizeButton')}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

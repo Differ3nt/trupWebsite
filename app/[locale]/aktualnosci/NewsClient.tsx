@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { FileText } from '@/components/icons';
 import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
@@ -24,13 +25,14 @@ interface NewsClientProps {
 }
 
 export function NewsClient({ news }: NewsClientProps) {
+  const t = useTranslations('news');
   return (
-    <AuthGate message="Komunikaty dostępne są wyłącznie dla zalogowanych członków grupy TRUP.">
+    <AuthGate message={t('authMessage')}>
       {news.length === 0 ? (
         <EmptyState
           icon={<FileText size={48} />}
-          title="Brak aktualności"
-          description="Nie ma jeszcze żadnych aktualności."
+          title={t('empty')}
+          description={t('emptyDesc')}
         />
       ) : (
         <div className="space-y-8">
@@ -51,7 +53,7 @@ export function NewsClient({ news }: NewsClientProps) {
               <div className="flex-1 pb-8">
                 <div className="bg-surface-container-low border border-outline-variant/30 p-6">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">
-                    {item.type || 'Komunikat'}
+                    {item.type || t('defaultType')}
                   </p>
                   <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface mb-3">
                     {item.title}
@@ -69,7 +71,7 @@ export function NewsClient({ news }: NewsClientProps) {
                       rel="noopener noreferrer"
                       className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline transition-colors inline-block"
                     >
-                      → Przeczytaj więcej
+                      {t('readMore')}
                     </a>
                   )}
 

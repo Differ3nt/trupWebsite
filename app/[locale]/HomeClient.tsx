@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Mountain, Route, TrendingUp, Clock, Users } from '@/components/icons';
 
 interface HomeStats {
@@ -43,6 +44,7 @@ function AnimatedNumber({ target, duration = 2000 }: { target: number; duration?
 }
 
 export function HomeClient({ stats }: HomeClientProps) {
+  const t = useTranslations('home');
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -69,35 +71,35 @@ export function HomeClient({ stats }: HomeClientProps) {
       icon: <Mountain size={32} />,
       value: stats.expeditions,
       unit: '',
-      label: 'Ekspedycji',
+      label: t('statsExpeditions'),
       format: (v: number) => v.toString(),
     },
     {
       icon: <Route size={32} />,
       value: stats.distance,
       unit: 'km',
-      label: 'Pokonanych',
+      label: t('statsDistance'),
       format: (v: number) => v.toFixed(1),
     },
     {
       icon: <TrendingUp size={32} />,
       value: stats.elevation,
       unit: 'm',
-      label: 'Przewyższenia',
+      label: t('statsElevation'),
       format: (v: number) => v.toString(),
     },
     {
       icon: <Clock size={32} />,
       value: Math.round(stats.duration / 60),
       unit: 'h',
-      label: 'Godzin',
+      label: t('statsDuration'),
       format: (v: number) => v.toString(),
     },
     {
       icon: <Users size={32} />,
       value: stats.members,
       unit: '',
-      label: 'Członków',
+      label: t('statsMembers'),
       format: (v: number) => v.toString(),
     },
   ];

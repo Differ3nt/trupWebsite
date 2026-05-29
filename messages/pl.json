@@ -26,5 +26,52 @@
     "edit": "Edytuj",
     "confirm": "Potwierdź",
     "back": "Wstecz"
+  },
+  "home": {
+    "heroAltText": "Tatry",
+    "heroLogoAlt": "TRUP Logo",
+    "heroTaglineStart": "Robimy to czego",
+    "heroTaglineEmphasis": "innym się nie chce",
+    "scrollHint": "Eksploruj",
+    "newsLabel": "Na Radarze",
+    "newsHeading": "Aktualności",
+    "newsAllLink": "Wszystkie wydarzenia →",
+    "achievementsHeading": "Nasze Osiągnięcia",
+    "stripsSection1Title": "GÓRY",
+    "stripsSection1Text": "Szczyty to nasza katedra. Poruszamy się po ostrych graniach Tatr Wysokich z precyzją i w absolutnej ciszy.",
+    "stripsSection2Title": "PLANSZÓWKI",
+    "stripsSection2Text": "Strategia to przedłużenie wspinaczki. Gromadzimy się przy stole, by opanować złożone systemy.",
+    "stripsSection3Title": "LUDZIE",
+    "stripsSection3Text": "Tożsamość wykuwa się we wspólnej wytrzymałości. TRUP to sieć odkrywców połączonych estetyką Monolitu.",
+    "ctaHeading": "CHCESZ WYJŚĆ Z NAMI?",
+    "ctaSubtitle": "Dołącz do ekspedycji. Nasze wyjścia są prywatne, wyselekcjonowane i rygorystyczne.",
+    "ctaInstagram": "INSTAGRAM",
+    "ctaFacebook": "FACEBOOK",
+    "statsExpeditions": "Ekspedycji",
+    "statsDistance": "Pokonanych",
+    "statsElevation": "Przewyższenia",
+    "statsDuration": "Godzin",
+    "statsMembers": "Członków",
+    "newsAuthMessage": "Loguj się, aby zobaczyć ostatnie aktualności i wydarzenia.",
+    "newsEmpty": "Brak aktualności",
+    "newsEmptyDesc": "Nie ma jeszcze żadnych aktualności.",
+    "news": {
+      "defaultType": "Komunikat",
+      "readMore": "→ Przeczytaj więcej",
+      "showMore": "Pokaż więcej",
+      "allNewsLink": "Wszystkie aktualności →"
+    }
+  },
+  "news": {
+    "pageTitle": "Aktualności",
+    "pageSubtitle": "KOMUNIKATY I INFORMACJE GRUPY TRUP.",
+    "pageCategory": "Komunikaty grupy",
+    "defaultType": "Komunikat",
+    "readMore": "→ Przeczytaj więcej",
+    "showMore": "Pokaż więcej",
+    "allNewsLink": "Wszystkie aktualności →",
+    "authMessage": "Komunikaty dostępne są wyłącznie dla zalogowanych członków grupy TRUP.",
+    "empty": "Brak aktualności",
+    "emptyDesc": "Nie ma jeszcze żadnych aktualności."
   }
 }

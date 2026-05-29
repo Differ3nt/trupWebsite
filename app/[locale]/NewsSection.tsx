@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { FileText } from '@/components/icons';
 import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
@@ -26,15 +27,16 @@ interface NewsSectionProps {
 }
 
 export function NewsSection({ items }: NewsSectionProps) {
+  const t = useTranslations('home');
   const [visibleCount, setVisibleCount] = useState(3);
 
   if (items.length === 0) {
     return (
-      <AuthGate message="Loguj się, aby zobaczyć ostatnie aktualności i wydarzenia.">
+      <AuthGate message={t('newsAuthMessage')}>
         <EmptyState
           icon={<FileText size={48} />}
-          title="Brak aktualności"
-          description="Nie ma jeszcze żadnych aktualności."
+          title={t('newsEmpty')}
+          description={t('newsEmptyDesc')}
         />
       </AuthGate>
     );
@@ -44,13 +46,13 @@ export function NewsSection({ items }: NewsSectionProps) {
   const hasMore = visibleCount < items.length;
 
   return (
-    <AuthGate message="Loguj się, aby zobaczyć ostatnie aktualności i wydarzenia.">
+    <AuthGate message={t('newsAuthMessage')}>
       <div className="space-y-6">
         {visibleItems.map((item) => (
           <div key={item.id} className="border-b border-outline-variant/20 pb-6 last:border-b-0 last:pb-0">
             <div className="flex items-start justify-between mb-3">
               <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
-                {item.type || 'Komunikat'}
+                {item.type || t('news.defaultType')}
               </span>
               <span className="text-[9px] text-on-surface-variant/60 uppercase tracking-widest">
                 {new Date(item.createdAt).toLocaleDateString('pl-PL', {
@@ -78,7 +80,7 @@ export function NewsSection({ items }: NewsSectionProps) {
                 rel="noopener noreferrer"
                 className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline transition-colors inline-block"
               >
-                → Przeczytaj więcej
+                {t('news.readMore')}
               </a>
             )}
           </div>
@@ -92,7 +94,7 @@ export function NewsSection({ items }: NewsSectionProps) {
               size="sm"
               className="uppercase tracking-widest"
             >
-              Pokaż więcej
+              {t('news.showMore')}
             </Button>
           </div>
         )}
@@ -102,7 +104,7 @@ export function NewsSection({ items }: NewsSectionProps) {
             href="/aktualnosci"
             className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors inline-flex items-center gap-2"
           >
-            Wszystkie aktualności →
+            {t('news.allNewsLink')}
           </Link>
         </div>
       </div>

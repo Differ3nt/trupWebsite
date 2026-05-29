@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import {
   Plus,
@@ -81,6 +82,7 @@ const EMPTY_EVENT = {
 };
 
 export function AdminClient() {
+  const { data: session, update: updateSession } = useSession();
   const { openConfirm } = useUIStore();
   const t = useTranslations('admin');
   const tTabs = useTranslations('admin.tabs');
@@ -300,6 +302,50 @@ export function AdminClient() {
     } finally {
       setLoading(false);
     }
+  }
+
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
+  const handleMakeAdmin = async () => {
+    setIsUpgrading(true);
+    try {
+      const res = await fetch('/api/auth/make-admin', { method: 'POST' });
+      if (res.ok) {
+        await updateSession();
+        window.location.reload();
+      }
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  // Bootstrap banner: show only when the user is not yet an admin
+  if (session?.user?.role !== 'ADMIN') {
+    return (
+      <div className="mt-12 flex items-center justify-center min-h-[40vh]">
+        <div className="max-w-md w-full border border-primary/30 bg-surface-container-low p-8 text-center space-y-6">
+          <div className="w-16 h-16 bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+            <User size={32} className="text-primary" />
+          </div>
+          <div>
+            <h2 className="font-display font-black text-3xl uppercase tracking-tighter text-on-surface mb-3">
+              {t('bootstrap.title')}
+            </h2>
+            <p className="text-sm text-on-surface-variant">
+              {t('bootstrap.description')}
+            </p>
+          </div>
+          <Button
+            onClick={handleMakeAdmin}
+            isLoading={isUpgrading}
+            disabled={isUpgrading}
+            size="lg"
+          >
+            {t('bootstrap.button')}
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (

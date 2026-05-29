@@ -634,6 +634,11 @@
       "saveError": "Błąd zapisu.",
       "deleteSuccess": "Usunięto!",
       "deleteError": "Błąd usuwania."
+    },
+    "bootstrap": {
+      "title": "Zostań Administratorem",
+      "description": "Brak administratorów w systemie. Kliknij przycisk, aby nadać sobie uprawnienia administratora (tylko raz).",
+      "button": "Zostań Administratorem"
     }
   },
   "confirm": {

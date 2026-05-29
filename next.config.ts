@@ -28,6 +28,18 @@ const config: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   poweredByHeader: false,
+  serverExternalPackages: [
+    '@prisma/client',
+    'pino',
+    'pino-pretty',
+    'thread-stream',
+    'sonic-boom',
+    'atomic-sleep',
+    'on-exit-leak-free',
+    'pino-std-serializers',
+    'quick-format-unescaped',
+    'safe-stable-stringify',
+  ],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },

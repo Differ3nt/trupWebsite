@@ -147,6 +147,19 @@ export function AdminClient() {
     if (activeTab === 'members') fetchUsers();
   }, [activeTab]);
 
+  // Warn user about unsaved changes in create form
+  useEffect(() => {
+    const isFormDirty = activeTab === 'create' && newEvent.title !== '';
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isFormDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [activeTab, newEvent.title]);
+
   async function fetchEvents() {
     setEventsLoading(true);
     try {

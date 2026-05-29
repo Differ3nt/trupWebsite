@@ -9,6 +9,7 @@ import { routing } from '@/i18n/routing';
 import { Providers } from '../providers';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { PwaBanner } from '@/components/layout/PwaBanner';
 import { Toaster } from 'sonner';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
@@ -71,6 +72,7 @@ export default async function LocaleLayout({
               }}
             />
             <ConfirmationModal />
+            <PwaBanner />
           </Providers>
         </NextIntlClientProvider>
       </body>

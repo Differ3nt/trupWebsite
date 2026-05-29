@@ -14,20 +14,20 @@ export async function DELETE(
     const { id } = await params;
 
     // Verify ownership before deleting
-    const subscription = await prisma.pushSubscription.findUnique({
+    const notification = await prisma.notification.findUnique({
       where: { id },
       select: { userId: true },
     });
 
-    if (!subscription) {
-      return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+    if (!notification) {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
     }
 
-    if (subscription.userId !== auth.data.userId) {
+    if (notification.userId !== auth.data.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    await prisma.pushSubscription.delete({
+    await prisma.notification.delete({
       where: { id },
     });
 

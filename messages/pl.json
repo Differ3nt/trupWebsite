@@ -342,7 +342,15 @@
       "saveButton": "Zapisz zmiany",
       "signOutButton": "Wyloguj się",
       "saveSuccess": "Profil zaktualizowany pomyślnie!",
-      "saveError": "Błąd podczas zapisywania. Spróbuj ponownie."
+      "saveError": "Błąd podczas zapisywania. Spróbuj ponownie.",
+      "avatarSaved": "Zdjęcie profilowe zaktualizowane!",
+      "avatarError": "Błąd podczas przesyłania zdjęcia"
+    },
+    "settlements": {
+      "heading": "Do Rozliczenia",
+      "empty": "Brak nierozliczonych wypraw",
+      "uploadGpx": "Wgraj GPX",
+      "uploadGpxSoon": "Upload GPX będzie dostępny wkrótce"
     },
     "hardware": {
       "backpack": "Plecak wspinaczkowy",
@@ -635,5 +643,16 @@
     "defaultMessage": "Zaloguj się, aby zobaczyć pełne informacje",
     "restrictedAccess": "Dostęp Ograniczony",
     "membersOnly": "Tylko dla członków"
+  },
+  "notifications": {
+    "title": "Powiadomienia",
+    "empty": "Brak powiadomień",
+    "dismiss": "Usuń",
+    "unreadSuffix": "nieprzeczytane"
+  },
+  "pwa": {
+    "banner": "Zainstaluj aplikację TRUP!",
+    "instructions": "Kliknij ikonę udostępniania, a następnie \"Dodaj do ekranu głównego\"",
+    "dismiss": "Nie teraz"
   }
 }

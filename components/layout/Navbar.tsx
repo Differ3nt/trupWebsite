@@ -4,10 +4,11 @@ import { usePathname } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
-import { Menu, X, Bell, User } from '@/components/icons';
+import { Menu, X, User } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { NavItem } from './NavItem';
 import { MobileDrawer } from './MobileDrawer';
+import { NotificationDropdown } from './NotificationDropdown';
 
 export function Navbar() {
   const t = useTranslations('nav');
@@ -68,7 +69,7 @@ export function Navbar() {
                 {session.user.role === 'ADMIN' && (
                   <NavItem href="/admin" label={t('panel')} />
                 )}
-                <NavItem icon={<Bell size={16} />} aria-label={t('notifications')} />
+                <NotificationDropdown />
                 <NavItem href="/profil" icon={<User size={16} />} />
               </>
             ) : status === 'authenticated' ? (

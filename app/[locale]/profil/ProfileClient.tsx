@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useSession } from 'next-auth/react';
 import { signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -13,7 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { FormField } from '@/components/ui/FormField';
 import { Checkbox } from '@/components/ui/Checkbox';
-import { Calendar, MapPin, Zap, Mountain, LogOut } from '@/components/icons';
+import { Calendar, MapPin, Zap, Mountain, LogOut, Upload } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
 // Hardware options are now loaded from translations
@@ -32,12 +33,19 @@ interface User {
 }
 
 interface EventParticipation {
+  status: string;
+  attended: boolean;
   event: {
     id: string;
     title: string;
     dateStart: Date;
     type: string;
     location: string | null;
+    isFinalized: boolean;
+    isDraft: boolean;
+    image: string | null;
+    imageFocalX: number | null;
+    imageFocalY: number | null;
   };
 }
 
@@ -81,10 +89,32 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Avatar upload state
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [displayAvatarUrl, setDisplayAvatarUrl] = useState(user.avatarUrl);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleHardwareChange = (item: string) => {
     setHardware((prev) =>
       prev.includes(item) ? prev.filter((h) => h !== item) : [...prev, item]
     );
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    setAvatarUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/images/upload-simple', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setDisplayAvatarUrl(data.url);
+      toast.success(t('settings.avatarSaved'));
+    } catch {
+      toast.error(t('settings.avatarError'));
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -119,6 +149,24 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
   const handleSignOut = async () => {
     await signOut({ redirect: true, callbackUrl: '/' });
   };
+
+  // Dirty-form guard
+  const isDirty =
+    name !== (user.name || '') ||
+    nickname !== (user.nickname || '') ||
+    phoneNumber !== (user.phoneNumber || '') ||
+    [...hardware].sort().join(',') !== [...(user.hardware || [])].sort().join(',');
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   const attendedCount = participations.filter((p) => p.event.dateStart < new Date()).length;
   const getInitials = (name: string | null) => {
@@ -183,19 +231,35 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
               <div className="flex flex-col md:flex-row gap-8 items-start">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
-                  {user.avatarUrl ? (
-                    <img
-                      src={user.avatarUrl}
-                      alt={user.name || 'Avatar'}
-                      className="w-24 h-24 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full bg-surface-variant flex items-center justify-center">
-                      <span className="text-2xl font-bold text-on-surface-variant">
-                        {getInitials(user.name)}
-                      </span>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="relative group"
+                  >
+                    {displayAvatarUrl ? (
+                      <img
+                        src={displayAvatarUrl}
+                        alt={user.name || 'Avatar'}
+                        className="w-24 h-24 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-surface-variant flex items-center justify-center">
+                        <span className="text-2xl font-bold text-on-surface-variant">
+                          {getInitials(user.name)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                      <Upload className="w-6 h-6 text-white" />
                     </div>
-                  )}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && handleAvatarUpload(e.target.files[0])}
+                    />
+                  </button>
                 </div>
 
                 {/* User Details */}
@@ -308,6 +372,60 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
               </Card>
             </div>
           </div>
+
+          {/* Do Rozliczenia Section */}
+          {(() => {
+            const pendingSettlement = participations.filter(p =>
+              p.status === 'GOING' &&
+              !p.event.isFinalized &&
+              !p.event.isDraft &&
+              p.event.type === 'GÓRY' &&
+              new Date(p.event.dateStart) < new Date()
+            );
+
+            if (pendingSettlement.length === 0) return null;
+
+            return (
+              <div>
+                <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-on-surface mb-6">
+                  {t('settlements.heading')}
+                </h3>
+                <div className="space-y-3">
+                  {pendingSettlement.map((participation) => (
+                    <Card key={participation.event.id} className="overflow-hidden">
+                      <CardContent className="p-6 flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                              {formatDate(participation.event.dateStart)}
+                            </span>
+                            <Badge variant="outline">{participation.event.type}</Badge>
+                          </div>
+                          <h4 className="font-bold text-on-surface mb-1">
+                            {participation.event.title}
+                          </h4>
+                          {participation.event.location && (
+                            <p className="text-xs text-on-surface-variant flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {participation.event.location}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toast.info(t('settlements.uploadGpxSoon'))}
+                          className="ml-4"
+                        >
+                          {t('settlements.uploadGpx')}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Events Attended */}
           <div>

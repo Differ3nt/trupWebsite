@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Mountain } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 
@@ -19,23 +20,6 @@ interface CalendarClientProps {
   events: CalendarEvent[];
 }
 
-const weekDays = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
-
-const monthNames = [
-  'Styczeń',
-  'Luty',
-  'Marzec',
-  'Kwiecień',
-  'Maj',
-  'Czerwiec',
-  'Lipiec',
-  'Sierpień',
-  'Wrzesień',
-  'Październik',
-  'Listopad',
-  'Grudzień',
-];
-
 const eventTypeColors: Record<string, string> = {
   GÓRY: 'bg-primary text-surface',
   INTEGRACJA: 'bg-yellow-500 text-surface',
@@ -44,6 +28,10 @@ const eventTypeColors: Record<string, string> = {
 
 export function CalendarClient({ events }: CalendarClientProps) {
   const searchParams = useSearchParams();
+  const t = useTranslations('calendar');
+  const tMonths = useTranslations('calendar.months');
+  const tWeekdays = useTranslations('calendar.weekdays');
+
   const [currentDate, setCurrentDate] = useState<Date>(() => {
     const dateParam = searchParams.get('date');
     if (dateParam) {
@@ -54,6 +42,31 @@ export function CalendarClient({ events }: CalendarClientProps) {
     }
     return new Date();
   });
+
+  const monthNames = [
+    tMonths('january'),
+    tMonths('february'),
+    tMonths('march'),
+    tMonths('april'),
+    tMonths('may'),
+    tMonths('june'),
+    tMonths('july'),
+    tMonths('august'),
+    tMonths('september'),
+    tMonths('october'),
+    tMonths('november'),
+    tMonths('december'),
+  ];
+
+  const weekDays = [
+    tWeekdays('monday'),
+    tWeekdays('tuesday'),
+    tWeekdays('wednesday'),
+    tWeekdays('thursday'),
+    tWeekdays('friday'),
+    tWeekdays('saturday'),
+    tWeekdays('sunday'),
+  ];
 
   // Track events that occur on each day
   const getDayEvents = (year: number, month: number, day: number): CalendarEvent[] => {
@@ -127,7 +140,7 @@ export function CalendarClient({ events }: CalendarClientProps) {
               variant="outline"
               size="icon"
               onClick={prevMonth}
-              aria-label="Poprzedni miesiąc"
+              aria-label={t('prevMonth')}
             >
               <ChevronLeft size={20} />
             </Button>
@@ -135,7 +148,7 @@ export function CalendarClient({ events }: CalendarClientProps) {
               variant="outline"
               size="icon"
               onClick={nextMonth}
-              aria-label="Następny miesiąc"
+              aria-label={t('nextMonth')}
             >
               <ChevronRight size={20} />
             </Button>
@@ -211,7 +224,7 @@ export function CalendarClient({ events }: CalendarClientProps) {
       <div className="flex flex-wrap gap-6 justify-center md:justify-start">
         <div className="text-center">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
-            Legenda
+            {t('legend')}
           </span>
           <div className="space-y-2">
             {Object.entries(eventTypeColors).map(([type, colorClass]) => (
@@ -229,10 +242,10 @@ export function CalendarClient({ events }: CalendarClientProps) {
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Mountain size={48} className="text-on-surface-variant/30 mb-4" />
           <h3 className="font-display text-xl uppercase tracking-tighter text-on-surface mb-2">
-            Brak zaplanowanych wypraw
+            {t('emptyTitle')}
           </h3>
           <p className="text-sm text-on-surface-variant">
-            Sprawdź wkrótce nowy harmonogram
+            {t('emptyDesc')}
           </p>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { CalendarClient } from './CalendarClient';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -22,15 +23,18 @@ async function getEvents() {
   }
 }
 
-export default async function KalendarzPage() {
+export default async function KalendarzPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations('calendar');
   const events = await getEvents();
 
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
       <PageHeader
-        title="Kalendarz Wypraw"
-        subtitle="HARMONOGRAM DZIAŁAŃ GRUPY TRUP W TERENIE."
-        category="Plany operacyjne"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
+        category={t('pageCategory')}
       />
       {/* CalendarClient reads useSearchParams — needs a Suspense boundary to prerender. */}
       <Suspense>

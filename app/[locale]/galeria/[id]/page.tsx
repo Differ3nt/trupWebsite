@@ -1,10 +1,12 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { GalleryDetailClient } from './GalleryDetailClient';
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
+export async function generateMetadata({ params }: { params: Promise<{ id: string; locale: string }> }): Promise<Metadata> {
+  const { id, locale } = await params;
+  setRequestLocale(locale);
   try {
     const album = await prisma.album.findUnique({
       where: { id },
@@ -14,10 +16,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         images: { take: 1, select: { thumbnailUrl: true }, orderBy: { createdAt: 'asc' } },
       },
     });
-    if (!album) return { title: 'Galeria | TRUP' };
+    if (!album) return { title: 'Archiwum Wizualne | TRUP' };
     const coverImage = album.images[0]?.thumbnailUrl;
     return {
-      title: `${album.title} | Galeria TRUP`,
+      title: `${album.title} | Archiwum Wizualne TRUP`,
       description: album.description?.slice(0, 160) ?? 'Album zdjęć Grupy Górskiej TRUP',
       openGraph: {
         title: album.title,
@@ -27,12 +29,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       },
     };
   } catch {
-    return { title: 'Galeria | TRUP' };
+    return { title: 'Archiwum Wizualne | TRUP' };
   }
 }
 
-export default async function GalleryDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function GalleryDetailPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
+  const { id, locale } = await params;
+  setRequestLocale(locale);
 
   let album;
   try {

@@ -74,6 +74,62 @@
     "empty": "Brak aktualności",
     "emptyDesc": "Nie ma jeszcze żadnych aktualności."
   },
+  "calendar": {
+    "pageTitle": "Kalendarz Wypraw",
+    "pageSubtitle": "HARMONOGRAM DZIAŁAŃ GRUPY TRUP W TERENIE.",
+    "pageCategory": "Plany operacyjne",
+    "prevMonth": "Poprzedni miesiąc",
+    "nextMonth": "Następny miesiąc",
+    "legend": "Legenda",
+    "emptyTitle": "Brak zaplanowanych wypraw",
+    "emptyDesc": "Sprawdź wkrótce nowy harmonogram",
+    "months": {
+      "january": "Styczeń",
+      "february": "Luty",
+      "march": "Marzec",
+      "april": "Kwiecień",
+      "may": "Maj",
+      "june": "Czerwiec",
+      "july": "Lipiec",
+      "august": "Sierpień",
+      "september": "Wrzesień",
+      "october": "Październik",
+      "november": "Listopad",
+      "december": "Grudzień"
+    },
+    "weekdays": {
+      "monday": "Pn",
+      "tuesday": "Wt",
+      "wednesday": "Śr",
+      "thursday": "Cz",
+      "friday": "Pt",
+      "saturday": "Sb",
+      "sunday": "Nd"
+    }
+  },
+  "gallery": {
+    "pageTitle": "Archiwum Wizualne",
+    "pageSubtitle": "DOKUMENTACJA WYPRAW, SZKOLEŃ I EKSPEDYCJI GRUPY GÓRSKIEJ.",
+    "pageCategory": "Multimedia i wspomnienia",
+    "emptyTitle": "Brak albumów",
+    "emptyDesc": "Nie ma jeszcze żadnych albumów ze zdjęciami.",
+    "photoCount": "zdjęć",
+    "fullAlbum": "Pełny Album",
+    "loginPrompt": "Zaloguj się, aby zobaczyć więcej",
+    "authMessage": "Albomy dostępne są wyłącznie dla zalogowanych członków grupy TRUP.",
+    "loginLink": "Zaloguj się",
+    "backToGallery": "Powrót do galerii",
+    "expandText": "Czytaj więcej",
+    "collapseText": "Zwiń",
+    "lightbox": {
+      "openImage": "Otwórz zdjęcie",
+      "closeButton": "Zamknij lightbox",
+      "prevImage": "Poprzednie zdjęcie",
+      "nextImage": "Następne zdjęcie",
+      "imageCounter": "{current} / {total}",
+      "imageAlt": "Zdjęcie {number} z albumu {album}"
+    }
+  },
   "events": {
     "pageTitle": "wydarzenia",
     "pageSubtitle": "DOKUMENTACJA WYPRAW, SZKOLEŃ I EKSPEDYCJI GRUPY GÓRSKIEJ.",

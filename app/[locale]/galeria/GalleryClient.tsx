@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Lock, MapPin, Calendar } from '@/components/icons';
 import { EmptyState } from '@/components/states/EmptyState';
 
@@ -27,6 +28,7 @@ interface GalleryClientProps {
 }
 
 export function GalleryClient({ albums }: GalleryClientProps) {
+  const t = useTranslations('gallery');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
@@ -47,8 +49,8 @@ export function GalleryClient({ albums }: GalleryClientProps) {
     return (
       <EmptyState
         icon={<Lock size={48} />}
-        title="Brak albumów"
-        description="Nie ma jeszcze żadnych albumów ze zdjęciami."
+        title={t('emptyTitle')}
+        description={t('emptyDesc')}
       />
     );
   }
@@ -78,7 +80,7 @@ export function GalleryClient({ albums }: GalleryClientProps) {
                     </div>
                   )}
                   <div className="text-on-surface-variant/60">
-                    {album.images.length} zdjęć
+                    {album.images.length} {t('photoCount')}
                   </div>
                 </div>
               </div>
@@ -112,7 +114,7 @@ export function GalleryClient({ albums }: GalleryClientProps) {
                 >
                   <div className="text-center">
                     <div className="text-3xl font-black mb-2">+{album.images.length - displayImages.length}</div>
-                    <div className="text-[9px]">Pełny Album</div>
+                    <div className="text-[9px]">{t('fullAlbum')}</div>
                   </div>
                 </Link>
               )}
@@ -122,7 +124,7 @@ export function GalleryClient({ albums }: GalleryClientProps) {
                 <div className="aspect-square bg-surface-container-low border border-outline-variant/30 flex flex-col items-center justify-center text-center p-4">
                   <Lock size={24} className="text-on-surface-variant/40 mb-2" />
                   <p className="text-[9px] text-on-surface-variant/60 font-bold uppercase tracking-widest">
-                    Zaloguj się, aby zobaczyć więcej
+                    {t('loginPrompt')}
                   </p>
                 </div>
               )}
@@ -135,10 +137,10 @@ export function GalleryClient({ albums }: GalleryClientProps) {
         <div className="p-8 bg-surface-container-low border border-outline-variant/30 text-center rounded">
           <Lock size={32} className="mx-auto mb-4 text-on-surface-variant/40" />
           <p className="text-sm text-on-surface-variant mb-4">
-            Albomy dostępne są wyłącznie dla zalogowanych członków grupy TRUP.
+            {t('authMessage')}
           </p>
           <a href="/api/auth/signin" className="text-primary font-bold uppercase tracking-widest hover:underline">
-            Zaloguj się
+            {t('loginLink')}
           </a>
         </div>
       )}

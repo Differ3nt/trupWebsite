@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { X, ChevronLeft, ChevronRight, ArrowLeft } from '@/components/icons';
 
 interface AlbumImage {
@@ -23,6 +24,7 @@ interface GalleryDetailClientProps {
 }
 
 export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
+  const t = useTranslations('gallery');
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -60,7 +62,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
         href="/galeria"
         className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors mb-12"
       >
-        <ArrowLeft size={14} /> Powrót do galerii
+        <ArrowLeft size={14} /> {t('backToGallery')}
       </Link>
 
       {/* Header */}
@@ -85,7 +87,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline mt-2"
               >
-                {isExpanded ? 'Zwiń' : 'Czytaj więcej'}
+                {isExpanded ? t('collapseText') : t('expandText')}
               </button>
             )}
           </div>
@@ -99,7 +101,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
             key={image.id}
             onClick={() => setLightboxIdx(idx)}
             className="group relative aspect-square overflow-hidden bg-surface-container-low border border-outline-variant/30 hover:border-primary transition-colors cursor-pointer"
-            aria-label={`Otwórz zdjęcie ${idx + 1} z ${album.images.length}`}
+            aria-label={t('lightbox.openImage') + ` ${idx + 1} z ${album.images.length}`}
           >
             <img
               src={image.thumbnailUrl || image.originalUrl}
@@ -129,7 +131,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
           <div className="relative w-full h-full flex items-center justify-center max-w-5xl max-h-[90vh]">
             <img
               src={album.images[lightboxIdx].originalUrl}
-              alt={`Zdjęcie ${lightboxIdx + 1} z albumu ${album.title}`}
+              alt={t('lightbox.imageAlt', { number: lightboxIdx + 1, album: album.title })}
               className="max-w-full max-h-full object-contain"
               onClick={(e) => e.stopPropagation()}
             />
@@ -138,7 +140,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
             <button
               onClick={() => setLightboxIdx(null)}
               className="absolute top-4 right-4 bg-black/60 hover:bg-black text-white p-3 transition-colors rounded-full"
-              aria-label="Zamknij lightbox"
+              aria-label={t('lightbox.closeButton')}
             >
               <X size={24} />
             </button>
@@ -152,7 +154,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
                     navigateLightbox('prev');
                   }}
                   className="absolute left-4 bg-black/60 hover:bg-black text-white p-3 transition-colors rounded-full"
-                  aria-label="Poprzednie zdjęcie"
+                  aria-label={t('lightbox.prevImage')}
                 >
                   <ChevronLeft size={24} />
                 </button>
@@ -162,7 +164,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
                     navigateLightbox('next');
                   }}
                   className="absolute right-4 bg-black/60 hover:bg-black text-white p-3 transition-colors rounded-full"
-                  aria-label="Następne zdjęcie"
+                  aria-label={t('lightbox.nextImage')}
                 >
                   <ChevronRight size={24} />
                 </button>
@@ -171,7 +173,7 @@ export function GalleryDetailClient({ album }: GalleryDetailClientProps) {
 
             {/* Counter */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-2 text-sm font-bold rounded-full">
-              {lightboxIdx + 1} / {album.images.length}
+              {t('lightbox.imageCounter', { current: lightboxIdx + 1, total: album.images.length })}
             </div>
           </div>
         </div>

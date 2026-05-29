@@ -71,6 +71,16 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ✅ Test suite: Vitest (18 unit tests passing — api-errors, event/common validations) + Playwright (5 E2E smoke tests); CI runs unit tests on every push
 - ⏸ Cutover: blocked on DB clone, OAuth credentials, LXC + Caddy + Cloudflare setup
 
+**Internationalization (i18n) — 🔶 in progress** — see §6.13 for full architecture
+- Decision: multi-language by design; ships Polish-only, machinery in place. Library: `next-intl`. Locale-prefixed URLs (`/pl/…`).
+- UI/static copy → message catalogs (`messages/pl.json`); user supplies translations per locale.
+- DB content → optional `translations Json?` per record + deferred AI-assisted ("Auto") admin workflow via Anthropic SDK.
+- ❌ Install `next-intl` + `i18n/routing.ts` + `i18n/request.ts` + `messages/pl.json`
+- ❌ Move app tree under `app/[locale]/`; split root vs locale layout (dynamic `<html lang>`)
+- ❌ Compose `next-intl` middleware with existing NextAuth + CSP-nonce middleware
+- ❌ Extract hard-coded Polish strings from components/pages into `messages/pl.json`
+- ❌ DB content `translations` column + AI-translate admin action (deferred to 2nd-language work)
+
 **Cross-cutting deferred (blocks Phase 0/1 completion — see §10.1):**
 - DB clone access · Google OAuth dev credentials · LXC + Caddy + systemd + Cloudflare origin firewall
 
@@ -499,9 +509,39 @@ This removes ad-hoc per-page handling and guarantees consistent UX.
 
 - The site is a single dark theme driven entirely by CSS variables — light mode is therefore *possible* later but **out of scope** for the parity rewrite. Keeping tokens centralized (§6.1) leaves the door open.
 
-### 6.13 Content & copy
+### 6.13 Content, copy & internationalization (i18n)
 
-- UI copy is Polish. Keep it consistent; collect shared/reused labels (nav, buttons, toasts) in a small `lib/strings.ts` so wording is centralized. **Full i18n / multi-language is out of scope** unless explicitly requested.
+**Decision (2026-05-29): the site is multi-language by design.** Ships Polish-only, but the full i18n machinery is in place from the start so adding a language is a drop-in, not a refactor. This supersedes the earlier "i18n out of scope" note.
+
+**Library: `next-intl`.** The de-facto standard for Next.js 15 App Router i18n — Server-Component-native, message catalogs as JSON, locale-prefixed routing, interpolation/pluralization/date-number formatting.
+
+**Two distinct text layers, handled differently:**
+
+**(a) UI chrome + static copy** — nav, buttons, form labels, toasts, `/o-nas`, empty/error states, etc.
+- Stored in **message catalogs**: one file per locale at `messages/<locale>.json` (e.g. `messages/pl.json`). This is the "separate file of text snippets referenced by key" model.
+- Referenced in code via `useTranslations()` (client) / `getTranslations()` (server): `t('nav.events')`, `t('home.hero.title')`.
+- Keys are namespaced by area (`nav.*`, `home.*`, `admin.*`, `forms.*`, `common.*`).
+- **Editing content = editing a JSON file.** No code change, no deploy logic. The user supplies translations per locale.
+- Launch ships only `messages/pl.json`. Adding English = add `messages/en.json` with the same keys + register `'en'` in `i18n/routing.ts`. Nothing else changes.
+
+**(b) User-authored DB content** — events, wiki articles, news (titles, descriptions, bodies).
+- Authored **once, in any language**, by the club via the admin panel — no obligation to write everything twice.
+- **Optional per-record translation**, stored on the model as a `translations Json?` column shaped `{ "<locale>": { "<field>": "<value>", ... } }`. Chosen over a generic translations table because it matches the editing mental model (one record, optional alternate-language fields) and avoids join-heavy queries at TRUP's scale.
+- **AI-assisted workflow** (deferred feature — built when a 2nd language is added, not at launch):
+  1. In the admin editor, each translatable field gets a per-locale tab/field.
+  2. An **"Auto (AI)"** button calls a server action that translates the source field via the Anthropic SDK and **pastes the result into the target-locale field**.
+  3. The admin then **edits the AI draft** before saving — AI fills the blank, human owns the final text.
+- Display logic: when a record is requested in locale X, show `translations[X].field` if present, else fall back to the authored original (never show an empty field).
+- **Schema impact:** adding `translations Json?` to `Event`, `WikiArticle`, `NewsItem` is a Prisma migration — sequence it with the §8 baseline; until the 2nd language lands it stays unused/null (zero runtime cost).
+- **New dependency when built:** `@anthropic-ai/sdk` + an `ANTHROPIC_API_KEY` env var (add to `lib/env.ts` as optional; AI-translate button hidden if unset).
+
+**Routing: locale-prefixed URLs (`/pl/…`, `/en/…`).** Best for SEO (each language separately indexable) and shareable language-specific links. `next-intl` middleware handles locale detection/redirect. The app tree moves under `app/[locale]/` (API routes stay at `app/api/`, un-prefixed — APIs aren't localized).
+
+**Middleware composition (the one real integration risk):** `middleware.ts` already chains NextAuth (`auth.config.ts`) route protection + per-request CSP nonce. `next-intl`'s middleware must compose with both. Pattern: run the `next-intl` middleware to produce the base response, then layer the CSP nonce header + auth checks onto it within the existing `auth(...)` wrapper. Must be verified against `next build` before relying on it.
+
+**`<html lang>` becomes dynamic** — driven by the active locale from the `[locale]` segment, set in `app/[locale]/layout.tsx`. The root `app/layout.tsx` keeps only `<html>`/`<body>` shell + providers; locale layout owns `NextIntlClientProvider` and `lang`.
+
+**Out of scope unless asked:** automatic machine translation of UI strings (the club supplies those), RTL languages, per-user language preference persistence beyond the locale cookie.
 
 ### 6.14 Living catalog (`/styleguide`)
 

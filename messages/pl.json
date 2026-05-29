@@ -453,6 +453,8 @@
       "cancelEditButton": "Anuluj edycję",
       "editButton": "Edytuj",
       "deleteButton": "Usuń",
+      "featuredToggleTitle": "Przełącz polecane (featured)",
+      "highlightedToggleTitle": "Przełącz wyróżnione (highlighted)",
       "deleteDraftBadge": "Szkic",
       "deletePublicBadge": "Publiczne",
       "deleteConfirmTitle": "Usuń Wydarzenie",

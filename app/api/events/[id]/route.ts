@@ -128,6 +128,8 @@ export async function PUT(
         ...(validated.imageFocalY !== undefined && { imageFocalY: validated.imageFocalY }),
         ...(validated.gearRequired !== undefined && { gearRequired: validated.gearRequired }),
         ...(validated.gearCritical !== undefined && { gearCritical: validated.gearCritical }),
+        ...(validated.featured !== undefined && { featured: validated.featured }),
+        ...(validated.highlighted !== undefined && { highlighted: validated.highlighted }),
       },
     });
     return NextResponse.json({ success: true });

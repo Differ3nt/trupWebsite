@@ -28,6 +28,8 @@ const baseEventSchema = z.object({
   imageFocalY: z.number().min(0).max(100).default(50),
   gearRequired: z.array(z.string()).default([]),
   gearCritical: z.array(z.string()).default([]),
+  featured: z.boolean().optional(),
+  highlighted: z.boolean().optional(),
 });
 
 export const createEventSchema = baseEventSchema;

@@ -13,6 +13,7 @@ import {
   User,
   Bell,
   Star,
+  Trophy,
   Trash2,
   Edit2,
 } from '@/components/icons';
@@ -651,6 +652,28 @@ export function AdminClient() {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
+                    <button
+                      title={tEvents('featuredToggleTitle')}
+                      onClick={async () => {
+                        const updated = { featured: !event.featured };
+                        setEvents(prev => prev.map(e => e.id === event.id ? { ...e, ...updated } : e));
+                        await fetch(`/api/events/${event.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+                      }}
+                      className={`p-1.5 border transition-colors ${event.featured ? 'border-primary text-primary' : 'border-outline-variant/30 text-on-surface-variant/40 hover:border-primary/50 hover:text-primary/60'}`}
+                    >
+                      <Star size={14} fill={event.featured ? 'currentColor' : 'none'} />
+                    </button>
+                    <button
+                      title={tEvents('highlightedToggleTitle')}
+                      onClick={async () => {
+                        const updated = { highlighted: !event.highlighted };
+                        setEvents(prev => prev.map(e => e.id === event.id ? { ...e, ...updated } : e));
+                        await fetch(`/api/events/${event.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+                      }}
+                      className={`p-1.5 border transition-colors ${event.highlighted ? 'border-yellow-500 text-yellow-500' : 'border-outline-variant/30 text-on-surface-variant/40 hover:border-yellow-500/50 hover:text-yellow-500/60'}`}
+                    >
+                      <Trophy size={14} fill={event.highlighted ? 'currentColor' : 'none'} />
+                    </button>
                     <Button
                       size="sm"
                       variant="outline"

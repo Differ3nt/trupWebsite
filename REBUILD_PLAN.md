@@ -6,6 +6,96 @@ A holistic, production-grade rewrite of the TRUP club website. This document is 
 
 ---
 
+## 0. Progress Tracker
+
+Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked on infrastructure, ❌ not started.
+
+**Phase 0 — Foundation & De-risking** — 🔶 partial
+- ✅ Next.js 15 + TS strict + Tailwind v4 + App Router scaffolded on `rewrite/nextjs`
+- ✅ NextAuth v5 edge-split: `lib/auth.config.ts` (no adapter) + `lib/auth.ts` (Prisma adapter); `middleware.ts` imports only the config
+- ✅ Prisma singleton at `lib/prisma.ts`
+- ✅ CSP nonce scaffold in `middleware.ts` + propagated to `app/layout.tsx`
+- ✅ Prisma `connection_limit` documented in `.env.example` (with note about LXC persistent process)
+- ⏸ Baseline Prisma migration — blocked on DB access (Neon clone or Cloudflare Tunnel)
+- ⏸ Real Google login → session → logout cycle — blocked on `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`
+- ⏸ LXC + Caddy + systemd + Cloudflare origin firewall — deferred (deployment infra)
+- ❌ Schema reconciliation (§8) executed against real DB
+
+**Phase 1 — API Layer** — 🔶 partial (real impl done; DB-blocked items remain)
+- ✅ 38 Route Handler files at `app/api/**/route.ts` — real Prisma implementations (not stubs)
+- ✅ Zod schemas in `lib/validations/` wired into every handler
+- ✅ Shared session helpers in `lib/session.ts`: `getSession`, `requireUser`, `requireAdmin`, `requireOwnerSafe` — no local auth copies
+- ✅ Centralized error handler `lib/api-errors.ts`: ZodError → 400 with issues, else → 500 (applied to all 38 route files, 47 catch blocks); Sentry.captureException on non-Zod errors
+- ✅ `lib/storage.ts` — real fs-based saveFile/readFile/deleteFile/resolvePath using env.UPLOADS_DIR
+- ✅ `lib/watermark.ts` — real sharp watermark pipeline; pure Buffer→Buffer function
+- ✅ `lib/gpx.ts` — real gpxparser implementation ported from legacy gpxUtils
+- ✅ All image upload routes: album upload (1920px JPEG + 400px WebP thumb), asset upload, avatar upload, PUT/DELETE
+- ⏸ Cloudflare WAF rate-limit rules — blocked on deployment infra
+- ⏸ Runtime DB testing — blocked on DB clone access
+
+**Phase 2 — Frontend Migration** — 🔶 mostly done
+- ✅ Design tokens consolidated in `app/globals.css`
+- ✅ `Button` unified on CVA at `components/ui/Button.tsx`; legacy `.btn-*` CSS deleted
+- ✅ `components/icons.ts` registry (verify all imports route through it — see audit below)
+- ✅ `Navbar` + `MobileDrawer` + `Footer` + `Breadcrumbs` + `NavItem` (a11y states)
+- ✅ Form primitives: `Input`, `Textarea`, `Select`, `Checkbox`, `FormField` (forwardRef + error states)
+- ✅ State components: `EmptyState`, `ErrorState`, `Skeleton`
+- ✅ All 13 pages ported (Home, Events + Detail, Calendar, Profile, Admin, AdminGallery, Gallery + Detail, Wiki + Article, News, About). Pages call API stubs; gracefully handle empty/null DB
+- ✅ Events page: panel ↔ calendar view toggle with shared filters
+- ✅ `/styleguide` route exists
+- ✅ Icon import audit — 20 files redirected to `@/components/icons`; 6 missing icons added to registry; all lucide-react direct imports eliminated
+- ✅ Hex-color audit (§6.15) — Footer, Home page, EventDetailClient: all hard-coded hex replaced with tokens; two new tokens added (--color-ink, --color-frame)
+- ✅ Accessibility checklist (§6.11) — focus-visible rings, prefers-reduced-motion, aria-current, aria-labels on icon buttons, MobileDrawer ESC+focus, Modal focus trap, gallery alt text + lightbox aria-modal
+- ✅ Toast (Sonner) + `confirmAction` modal: Zustand store at `lib/store/ui.ts`; `ConfirmationModal` component; `window.confirm` replaced in AdminClient + AdminGalleryClient; `<ConfirmationModal>` in root layout
+- ✅ locale-aware Link: all 18 page/component files use `Link` from `@/i18n/navigation`; global `app/not-found.tsx` kept on `next/link`
+- ✅ Notification dropdown: SWR 60s polling, unread badge, mark-read on click, dismiss; replaces Bell stub in Navbar
+- ✅ iOS PWA banner: `PwaBanner.tsx`, detects iOS Safari + not-installed, dismissible with localStorage persistence
+- ✅ Dirty-form guards: `beforeunload` on Profile settings tab (isDirty computed from name/nickname/phone/hardware) and Admin event creator (form title non-empty)
+- ✅ Profile enhancements: avatar hover-to-upload (`/api/images/upload-simple`), "Do Rozliczenia" section (past unfinalized GÓRY events with "Wgraj GPX" button), expanded participation data (isFinalized, isDraft, image, focalX/Y)
+- ✅ Admin gallery: 8-col grid, grayscale hover, resolution badge, name+≤2 tags, multi-file upload (parallel, shared counter), adaptive KB/MB size, "Pełny rozmiar" link, 6s delete UNDO
+- ✅ Admin event creator: 3-state gear toggle (none → Warto mieć → Trzeba mieć), featured/highlighted toggles in event list (Star/Trophy icon-buttons with optimistic update), Rozliczenia tab (completion queue with attendance checkboxes, actual stats, finalize button)
+- ✅ `EventCountdown` component: "Za X dni / Za Xh Ymin / Dziś!" on event cards and detail sidebar; updates every 60s
+- ❌ Visual parity sweep vs. live site on mobile
+
+**Phase 3 — Security Hardening** — 🔶 partial
+- ✅ Env validation: `lib/env.ts` validates all required vars at startup with Zod; clear error message lists every problem; VAPID partial-set detected; `lib/storage.ts` + `lib/session.ts` now read from `env` object; `app/layout.tsx` imports it so the check fires on cold start; empty-string Sentry DSNs treated as absent (not invalid URL)
+- ✅ CSP audit — zero Script tags found; nonce infrastructure ready; img-src/connect-src/font-src confirmed correct; frame-src tightened to include `https://www.google.com` for Google Maps embeds
+- ✅ HSTS + security headers via `next.config.ts` headers(): HSTS (2yr, includeSubDomains, preload), X-Frame-Options SAMEORIGIN, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (camera/mic/geolocation/payment/usb/bluetooth disabled), X-XSS-Protection 0
+- ✅ `$queryRawUnsafe` audit: zero uses found in new API routes (all queries use typed Prisma client)
+- ❌ NextAuth state/PKCE verification (likely auto-handled by NextAuth v5; needs a real login cycle to confirm)
+
+**Phase 4 — Feature Completion** — 🔶 partial
+- ✅ `app/error.tsx` — error boundary; Polish copy; reset + home actions
+- ✅ `app/not-found.tsx` — 404 page; Polish copy; Alpine Brutalism styled
+- ✅ `generateMetadata` / Open Graph tags on event, gallery, wiki detail pages
+- ✅ All four previously-ComingSoon pages (galeria, wiki, aktualności, o-nas) are fully routed — no ComingSoon wrapper
+- ❌ Real `/o-nas` content (needs user input on club description/team)
+
+**Phase 5 — Production Readiness & Cutover** — 🔶 partial
+- ✅ Deploy artifacts: `deploy/Caddyfile`, `deploy/trupWebsite.service` (systemd hardening), `deploy/logrotate.conf`
+- ✅ CI/CD: `.github/workflows/ci.yml` (typecheck + build + unit tests), `.github/workflows/deploy.yml` (SSH deploy on merge to main)
+- ✅ Structured logging: `lib/logger.ts` (pino; pino-pretty in dev, JSON stdout in prod); systemd service captures to /var/log/trupWebsite/app.log
+- ✅ Sentry error monitoring: `sentry.{client,server,edge}.config.ts`; `next.config.ts` wrapped with `withSentryConfig`; `captureException` in api-errors; optional env vars in env.ts
+- ✅ Test suite: Vitest (18 unit tests passing — api-errors, event/common validations) + Playwright (5 E2E smoke tests); CI runs unit tests on every push
+- ⏸ Cutover: blocked on DB clone, OAuth credentials, LXC + Caddy + Cloudflare setup
+
+**Internationalization (i18n) — ✅ foundation + extraction complete (Polish-only ship)** — see §6.13 for full architecture
+- Decision: multi-language by design; ships Polish-only, machinery in place. Library: `next-intl`. Locale-prefixed URLs (`/pl/…`).
+- UI/static copy → message catalogs (`messages/pl.json`); user supplies translations per locale.
+- DB content → optional `translations Json?` per record + deferred AI-assisted ("Auto") admin workflow via Anthropic SDK.
+- ✅ Install `next-intl` + `i18n/routing.ts` + `i18n/navigation.ts` + `i18n/request.ts` + `messages/pl.json` (starter); `next.config.ts` plugin composed inside Sentry
+- ✅ Move app tree under `app/[locale]/` (32 pages + 23 client components); root layout passthrough, locale layout owns `<html lang>` + `NextIntlClientProvider`; global `app/not-found.tsx` for non-locale paths. Build green (37/37 static), routes at `/pl/*`
+- ✅ Compose `next-intl` middleware with NextAuth + CSP-nonce (`auth()` → `handleI18nRouting` → CSP). ⚠ runtime CSP-nonce-through-rewrite needs Phase 0 browser verification (documented in middleware.ts)
+- ✅ Extract hard-coded Polish strings into `messages/pl.json` — DONE in 7 verified batches (Home/News, Events, Calendar/Gallery, Wiki/About/error, Profile, Admin, shared components). Every page + shared component reads from the catalog. ~14 namespaces (nav, footer, common, home, news, events, calendar, gallery, wiki, about, errors, profile, admin, confirm, auth). App-wide key-existence check passes (modulo same-named `t` in nested scopes, manually verified). Editing UI text = editing `messages/pl.json`.
+- Fixes found during extraction: `not-found.tsx` was reading `params` (which it never receives); `Button asChild`/Radix Slot single-child bug; `/kalendarz` Suspense boundary; 10 admin Wiki-tab keys missing under `admin.wikiAdmin` (admin is dynamic so the build didn't catch them).
+- ❌ DB content `translations` column + AI-translate admin action (deferred to 2nd-language work)
+- ✅ locale-aware Link swap complete: all 18 page/component files. Adding a 2nd language = `messages/en.json` + add `'en'` to `i18n/routing.ts`.
+
+**Cross-cutting deferred (blocks Phase 0/1 completion — see §10.1):**
+- DB clone access · Google OAuth dev credentials · LXC + Caddy + systemd + Cloudflare origin firewall
+
+---
+
 ## 1. Why Rebuild
 
 The current app (React 19 SPA + Express) works, but has structural problems that cannot be fixed with patches:
@@ -429,9 +519,39 @@ This removes ad-hoc per-page handling and guarantees consistent UX.
 
 - The site is a single dark theme driven entirely by CSS variables — light mode is therefore *possible* later but **out of scope** for the parity rewrite. Keeping tokens centralized (§6.1) leaves the door open.
 
-### 6.13 Content & copy
+### 6.13 Content, copy & internationalization (i18n)
 
-- UI copy is Polish. Keep it consistent; collect shared/reused labels (nav, buttons, toasts) in a small `lib/strings.ts` so wording is centralized. **Full i18n / multi-language is out of scope** unless explicitly requested.
+**Decision (2026-05-29): the site is multi-language by design.** Ships Polish-only, but the full i18n machinery is in place from the start so adding a language is a drop-in, not a refactor. This supersedes the earlier "i18n out of scope" note.
+
+**Library: `next-intl`.** The de-facto standard for Next.js 15 App Router i18n — Server-Component-native, message catalogs as JSON, locale-prefixed routing, interpolation/pluralization/date-number formatting.
+
+**Two distinct text layers, handled differently:**
+
+**(a) UI chrome + static copy** — nav, buttons, form labels, toasts, `/o-nas`, empty/error states, etc.
+- Stored in **message catalogs**: one file per locale at `messages/<locale>.json` (e.g. `messages/pl.json`). This is the "separate file of text snippets referenced by key" model.
+- Referenced in code via `useTranslations()` (client) / `getTranslations()` (server): `t('nav.events')`, `t('home.hero.title')`.
+- Keys are namespaced by area (`nav.*`, `home.*`, `admin.*`, `forms.*`, `common.*`).
+- **Editing content = editing a JSON file.** No code change, no deploy logic. The user supplies translations per locale.
+- Launch ships only `messages/pl.json`. Adding English = add `messages/en.json` with the same keys + register `'en'` in `i18n/routing.ts`. Nothing else changes.
+
+**(b) User-authored DB content** — events, wiki articles, news (titles, descriptions, bodies).
+- Authored **once, in any language**, by the club via the admin panel — no obligation to write everything twice.
+- **Optional per-record translation**, stored on the model as a `translations Json?` column shaped `{ "<locale>": { "<field>": "<value>", ... } }`. Chosen over a generic translations table because it matches the editing mental model (one record, optional alternate-language fields) and avoids join-heavy queries at TRUP's scale.
+- **AI-assisted workflow** (deferred feature — built when a 2nd language is added, not at launch):
+  1. In the admin editor, each translatable field gets a per-locale tab/field.
+  2. An **"Auto (AI)"** button calls a server action that translates the source field via the Anthropic SDK and **pastes the result into the target-locale field**.
+  3. The admin then **edits the AI draft** before saving — AI fills the blank, human owns the final text.
+- Display logic: when a record is requested in locale X, show `translations[X].field` if present, else fall back to the authored original (never show an empty field).
+- **Schema impact:** adding `translations Json?` to `Event`, `WikiArticle`, `NewsItem` is a Prisma migration — sequence it with the §8 baseline; until the 2nd language lands it stays unused/null (zero runtime cost).
+- **New dependency when built:** `@anthropic-ai/sdk` + an `ANTHROPIC_API_KEY` env var (add to `lib/env.ts` as optional; AI-translate button hidden if unset).
+
+**Routing: locale-prefixed URLs (`/pl/…`, `/en/…`).** Best for SEO (each language separately indexable) and shareable language-specific links. `next-intl` middleware handles locale detection/redirect. The app tree moves under `app/[locale]/` (API routes stay at `app/api/`, un-prefixed — APIs aren't localized).
+
+**Middleware composition (the one real integration risk):** `middleware.ts` already chains NextAuth (`auth.config.ts`) route protection + per-request CSP nonce. `next-intl`'s middleware must compose with both. Pattern: run the `next-intl` middleware to produce the base response, then layer the CSP nonce header + auth checks onto it within the existing `auth(...)` wrapper. Must be verified against `next build` before relying on it.
+
+**`<html lang>` becomes dynamic** — driven by the active locale from the `[locale]` segment, set in `app/[locale]/layout.tsx`. The root `app/layout.tsx` keeps only `<html>`/`<body>` shell + providers; locale layout owns `NextIntlClientProvider` and `lang`.
+
+**Out of scope unless asked:** automatic machine translation of UI strings (the club supplies those), RTL languages, per-user language preference persistence beyond the locale cookie.
 
 ### 6.14 Living catalog (`/styleguide`)
 
@@ -597,6 +717,18 @@ User has accepted downtime, so we use a clean swap (not blue-green):
 **Rollback:** DNS back to old LXC + restore DB from backup if a migration went wrong. Because we kept the old app, rollback is minutes, not hours.
 
 **Expected on day 1:** Every user will be silently logged out on their first visit. The current app uses `httpOnly` JWT cookies named `token`; NextAuth uses different cookie names entirely. Old cookies are ignored and users are redirected to Google login. This is harmless and expected — not a bug. No action needed.
+
+---
+
+## 10.1 Pending Infrastructure (blocks Phase 0/1 completion)
+
+The Next.js scaffold (Phase 0) and Zod/route-handler skeleton (Phase 1) are in place on branch `rewrite/nextjs` and compile cleanly. The following items remain blocked on infrastructure the user has not yet provisioned and must be resolved before the rewrite can progress past stubs:
+
+- **DB access for the dev session.** Phase 0 §8 baseline migration, Phase 1 route implementations, and any RSC that reads data all need a reachable Postgres. Options discussed: Neon-hosted clone (recommended; safest), Cloudflare Tunnel to the Proxmox Postgres, or direct exposure with `pg_hba.conf` whitelist. Decision deferred. Until this lands, route handlers stay as 501 stubs with Zod validation wired.
+- **Google OAuth test credentials.** NextAuth v5 edge-split is *structurally* validated (the build proves `middleware.ts` bundles using only `auth.config.ts`), but a real login → session → logout cycle cannot be exercised without `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`.
+- **LXC + Caddy + systemd + Cloudflare origin firewall.** Phase 0 deployment steps. Not blocking development; needed for cutover (Phase 5).
+
+These do not block design-system work (Phase 2 §6), which is the next productive direction.
 
 ---
 

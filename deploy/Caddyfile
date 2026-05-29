@@ -1,0 +1,32 @@
+# TRUP Website — Caddy reverse proxy configuration
+# Place at /etc/caddy/Caddyfile on the LXC container.
+#
+# Cloudflare TLS mode must be set to "Full (Strict)" in the Cloudflare dashboard.
+# Caddy auto-provisions a Let's Encrypt cert which satisfies Full (Strict) verification.
+#
+# Inbound 80/443 should be restricted to Cloudflare IP ranges only at the LXC firewall
+# level (see REBUILD_PLAN.md §2.1 for the weekly-cron allowlist refresh procedure).
+
+trup.example.com {
+    # Serve uploaded files directly from disk — never touches Node.js.
+    # Caddy sets appropriate Content-Type headers automatically.
+    handle /uploads/* {
+        root * /opt/trupWebsite
+        file_server
+    }
+
+    # Proxy everything else to the Next.js standalone server.
+    handle {
+        reverse_proxy localhost:3000
+    }
+
+    # Access log — one file per day, retain 14 days.
+    log {
+        output file /var/log/caddy/trupWebsite.log {
+            roll_size 100mb
+            roll_keep 14
+            roll_keep_for 336h
+        }
+        format json
+    }
+}

@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin, requireOwnerSafe } from "@/lib/session";
+import { updateUserRoleSchema } from "@/lib/validations/user";
+import { handleApiError } from "@/lib/api-errors";
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
+  try {
+    const { id: targetId } = await params;
+    const body = await request.json();
+    const validated = updateUserRoleSchema.parse(body);
+
+    if (auth.data.userId === targetId) {
+      return NextResponse.json(
+        { error: "Cannot change own role" },
+        { status: 403 },
+      );
+    }
+
+    const target = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { email: true },
+    });
+
+    if (!target) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const ownerCheck = await requireOwnerSafe(
+      auth.data,
+      targetId,
+      target.email,
+    );
+    if (!ownerCheck.ok) return ownerCheck.response;
+
+    const updated = await prisma.user.update({
+      where: { id: targetId },
+      data: { role: validated.role },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        status: true,
+        role: true,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (err) {
+    return handleApiError(err, "[users [id] role PATCH]");
+  }
+}

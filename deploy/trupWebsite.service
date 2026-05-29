@@ -1,0 +1,45 @@
+# TRUP Website — systemd service unit
+# Install: cp deploy/trupWebsite.service /etc/systemd/system/
+#          systemctl daemon-reload
+#          systemctl enable --now trupWebsite
+#
+# The service runs as the dedicated 'trup' system user (not root).
+# Create with: useradd --system --no-create-home --shell /usr/sbin/nologin trup
+#
+# EnvironmentFile loads secrets from /opt/trupWebsite/.env at startup.
+# The app refuses to start if any required env var is missing (lib/env.ts).
+
+[Unit]
+Description=TRUP Website (Next.js)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=trup
+Group=trup
+WorkingDirectory=/opt/trupWebsite
+ExecStart=node .next/standalone/server.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/trupWebsite/app.log
+StandardError=append:/var/log/trupWebsite/app.log
+SyslogIdentifier=trupWebsite
+
+# Runtime configuration
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+
+# Secrets — keep permissions 600, owned by trup
+EnvironmentFile=/opt/trupWebsite/.env
+
+# Hardening — restrict what the process can do
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/trupWebsite/uploads /var/log/trupWebsite
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

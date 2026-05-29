@@ -14,6 +14,11 @@ These are non-negotiable process rules. Follow them on every task, every session
 4. **Keep it simple.** TRUP is a small club site. Avoid over-engineering: no abstractions for hypothetical future requirements, no premature generalization. Three similar lines is better than a premature abstraction.
 5. **Prefer modularity.** New backend functionality goes in its own route file. New UI functionality goes in its own component. Keep files focused and small.
 6. **No silent scope creep.** If you notice something unrelated that could be improved while doing a task, mention it — don't just fix it.
+7. **Close every task by referencing the plan.** When a task finishes, do these four things in order, every time:
+   1. Open `REBUILD_PLAN.md` and identify which phase/section the work belongs to.
+   2. Update the plan's progress markers (✅ done, ⏸ blocked, ❌ not started) so future sessions can pick up cold.
+   3. Briefly summarize what just changed and what state the rewrite is now in.
+   4. Ask the user what to do next with `AskUserQuestion`, offering 2–4 concrete options pulled from the plan. Never end with an open-ended "what's next?" — propose choices grounded in the plan.
 
 ---
 
@@ -289,6 +294,41 @@ The full, detailed rebuild plan lives in **`REBUILD_PLAN.md`** at the project ro
 - **Hard prerequisite**: reconcile `prisma/schema.prisma` with `runMigrations()` (they have drifted) before any baseline migration — see `REBUILD_PLAN.md` §8.
 - **Guardrails**: production DB is sacred (no data loss), no visual redesign, work in branch `rewrite/nextjs`, merge to main only after user approval, tests are part of "done".
 - **Phase 0 requires explicit user blessing before any code is written.**
+
+---
+
+## Rewrite Architecture (Next.js 15 on `rewrite/nextjs`)
+
+### Frontend Components (Next.js rewrite)
+
+**Layout components:**
+- `NotificationDropdown` — SWR-powered notification bell dropdown; polls `/api/push` every 60s; mark-read + dismiss; wired into Navbar for authenticated users
+- `PwaBanner` — iOS PWA add-to-home-screen banner; localStorage dismiss; shown only on iOS Safari when not already installed
+
+**UI primitives:**
+- `ConfirmationModal` — Global confirm dialog driven by Zustand `useUIStore`
+
+(Other UI components and feature components TBD as rewrite progresses.)
+
+### Backend Libraries (Next.js rewrite)
+
+**`lib/cache.ts`** — In-memory key/TTL cache utility:
+- `cacheGet(key)` — retrieve cached value or `null`
+- `cacheSet(key, value, ttlSeconds)` — store value with TTL
+- `cacheInvalidate(key)` — manually invalidate a cache entry
+- `invalidateStatsCache()` — called after event finalization or GPX approval to refresh stats
+
+**`lib/rate-limit.ts`** — Fixed-window in-memory rate limiter:
+- `enforceRateLimit(req, opts)` — returns `429 NextResponse` if limit exceeded, otherwise `null`
+- Applied to: upload (30/min), upload-asset (30/min), upload-avatar (20/min), gpx-upload (20/min), search (60/min), push-broadcast (5/min), push-subscribe (30/min)
+- Cloudflare WAF remains the primary edge rate limit
+
+### Stats Cache Invalidation (Next.js rewrite)
+
+The rewrite uses `lib/cache.ts` `invalidateStatsCache()` called from:
+- `app/api/events/[id]/finalize/route.ts` (on finalize)
+- `app/api/gpx/[id]/status/route.ts` (on approve/reject)
+- `app/api/users/[id]/status/route.ts` (on ACTIVE user count change)
 
 ---
 

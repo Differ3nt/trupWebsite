@@ -1,7 +1,13 @@
-// Schema reconciliation status (see REBUILD_PLAN.md §8):
+// Schema reconciliation status (see REBUILD_PLAN.md §8 / §9):
 //
 // Reconciled with server/index.ts runMigrations():
-//   - Event.imageFocalX/Y, Event.plannedDistance/Elevation/Duration added (this commit).
+//   - Event.imageFocalX/Y, Event.plannedDistance/Elevation/Duration added.
+//   - onDelete: Cascade added to EventParticipation, GpxSubmission, Notification,
+//     PushSubscription relations (§9) so deleting a user/event is one operation
+//     instead of the manual multi-step cascade in legacy users.ts. NOTE: this
+//     changes FK definitions vs. the existing prod DB — the Phase 0 baseline
+//     migration (run against a prod clone once DB access lands) will emit the
+//     ALTER for these FKs. The schema now expresses the intended final state.
 //
 // Suspect drift, pending `prisma db pull` against a prod clone to confirm:
 //   - Event.actualDuration: in schema, NOT in runMigrations() — likely added via `prisma db push`.
@@ -89,8 +95,8 @@ model EventParticipation {
   createdAt        DateTime @default(now())
   notifyDaysBefore Int?
   attended         Boolean  @default(false)
-  event            Event    @relation(fields: [eventId], references: [id])
-  user             User     @relation(fields: [userId], references: [id])
+  event            Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
 }
@@ -145,8 +151,8 @@ model GpxSubmission {
   status         GpxStatus @default(PENDING)
   order          Int       @default(0)
   createdAt      DateTime  @default(now())
-  event          Event     @relation(fields: [eventId], references: [id])
-  user           User      @relation(fields: [userId], references: [id])
+  event          Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
@@ -158,7 +164,7 @@ model Notification {
   url       String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PushSubscription {
@@ -168,7 +174,7 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model WikiArticle {

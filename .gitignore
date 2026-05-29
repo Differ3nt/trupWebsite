@@ -14,3 +14,13 @@ coverage/
 .cache/
 Library/
 uploads/
+
+# Next.js
+.next/
+next-env.d.ts
+out/
+tsconfig.tsbuildinfo
+
+# Env files
+.env
+.env*.local

@@ -1,0 +1,144 @@
+import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/session';
+import { Link } from '@/i18n/navigation';
+import { ArrowLeft, Calendar, User, Tag as TagIcon, Lock } from '@/components/icons';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }): Promise<Metadata> {
+  const { id, locale } = await params;
+  setRequestLocale(locale);
+  try {
+    const article = await prisma.wikiArticle.findUnique({
+      where: { id },
+      select: { title: true, content: true, category: true, authorName: true },
+    });
+    if (!article) return { title: 'Wiki | TRUP' };
+    return {
+      title: `${article.title} | Wiki TRUP`,
+      description: article.content.slice(0, 160),
+      openGraph: {
+        title: article.title,
+        description: article.content.slice(0, 160),
+        type: 'article',
+      },
+    };
+  } catch {
+    return { title: 'Wiki | TRUP' };
+  }
+}
+
+export default async function WikiArticlePage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+  const { id, locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations('wiki');
+
+  const [session, article] = await Promise.all([
+    getSession().catch(() => null),
+    prisma.wikiArticle.findUnique({ where: { id } }).catch(() => null),
+  ]);
+
+  if (!article) {
+    notFound();
+  }
+
+  const isGuest = !session;
+  const displayContent = isGuest
+    ? article.content.slice(0, 100) + (article.content.length > 100 ? '…' : '')
+    : article.content;
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 md:px-12 py-12">
+      <Link
+        href="/wiki"
+        className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors mb-12"
+      >
+        <ArrowLeft size={14} /> {t('backToWiki')}
+      </Link>
+
+      <header className="mb-12 border-b border-outline-variant/30 pb-12">
+        <span className="inline-block bg-primary/10 text-primary px-3 py-1 text-[10px] font-bold uppercase tracking-widest border border-primary/20 mb-6">
+          {article.category || t('articleDefault')}
+        </span>
+
+        <h1 className="font-display font-black text-4xl md:text-6xl uppercase tracking-tighter text-on-surface leading-[0.9] mb-8">
+          {article.title}
+        </h1>
+
+        <div className="flex flex-wrap items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          <div className="flex items-center gap-2">
+            <Calendar size={14} className="text-primary" />
+            {new Date(article.createdAt).toLocaleDateString('pl-PL')}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <User size={14} className="text-primary" />
+            {article.authorName || t('editorDefault')}
+          </div>
+
+          {Array.isArray(article.tags) && article.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 border-l border-outline-variant/30 pl-6">
+              {(article.tags as string[]).map((tag, i) => (
+                <span
+                  key={i}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-surface-container-highest text-on-surface-variant/80 border border-outline-variant/10 text-[9px] font-black uppercase tracking-widest"
+                >
+                  <TagIcon size={10} /> {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
+
+      <article className="prose prose-invert max-w-none space-y-6">
+        <div className="prose-headings:font-display prose-headings:uppercase prose-headings:tracking-tighter prose-a:text-primary prose-code:text-primary prose-code:bg-surface-container-low prose-code:px-1">
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+            {displayContent}
+          </ReactMarkdown>
+        </div>
+      </article>
+
+      {isGuest && (
+        <div className="mt-8 p-8 border border-outline-variant/30 bg-surface-container-low flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <Lock size={20} className="text-primary flex-shrink-0" />
+            <div>
+              <h4 className="font-display font-black text-xl uppercase tracking-tight text-on-surface mb-1">
+                {t('guestTruncationTitle')}
+              </h4>
+              <p className="text-sm text-on-surface-variant">{t('guestTruncationMessage')}</p>
+            </div>
+          </div>
+          <Link
+            href="/"
+            className="flex-shrink-0 inline-flex items-center justify-center px-8 py-4 text-xs font-bold uppercase tracking-widest bg-primary text-surface hover:bg-primary/90 transition-colors"
+          >
+            {t('guestLoginButton')}
+          </Link>
+        </div>
+      )}
+
+      <div className="mt-24 p-8 border border-outline-variant/30 bg-surface-container-low flex flex-col md:flex-row items-center justify-between gap-6">
+        <div>
+          <h4 className="font-display font-black text-xl uppercase tracking-tight text-on-surface mb-2">
+            {t('feedbackHeading')}
+          </h4>
+          <p className="text-sm text-on-surface-variant">
+            {t('feedbackDescription')}
+          </p>
+        </div>
+        <a
+          href="mailto:kontakt@trup.pl"
+          className="inline-flex items-center justify-center px-8 py-4 text-xs font-bold uppercase tracking-widest bg-black/60 text-on-surface ring-2 ring-inset ring-white/10 hover:bg-white hover:text-surface transition-all"
+        >
+          {t('feedbackButton')}
+        </a>
+      </div>
+    </div>
+  );
+}

@@ -2,6 +2,7 @@
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { X } from '@/components/icons';
 import { NavItem } from './NavItem';
 
@@ -13,6 +14,7 @@ interface MobileDrawerProps {
 
 export function MobileDrawer({ isOpen, onClose, navLinks }: MobileDrawerProps) {
   const { data: session } = useSession();
+  const t = useTranslations('nav');
   const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,9 +74,9 @@ export function MobileDrawer({ isOpen, onClose, navLinks }: MobileDrawerProps) {
         {session?.user ? (
           <>
             {session.user.role === 'ADMIN' && (
-              <NavItem href="/admin" label="Panel" />
+              <NavItem href="/admin" label={t('panel')} />
             )}
-            <NavItem href="/profil" label="Profil" />
+            <NavItem href="/profil" label={t('profile')} />
             <button
               onClick={() => {
                 signOut();
@@ -82,7 +84,7 @@ export function MobileDrawer({ isOpen, onClose, navLinks }: MobileDrawerProps) {
               }}
               className="text-[10px] font-bold tracking-widest uppercase text-on-surface-variant hover:text-primary transition-colors"
             >
-              Wyloguj się
+              {t('logout')}
             </button>
           </>
         ) : (
@@ -93,7 +95,7 @@ export function MobileDrawer({ isOpen, onClose, navLinks }: MobileDrawerProps) {
             }}
             className="text-[10px] font-bold tracking-widest uppercase text-on-surface-variant hover:text-primary transition-colors"
           >
-            Zaloguj się
+            {t('login')}
           </button>
         )}
       </div>

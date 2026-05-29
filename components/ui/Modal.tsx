@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { X } from '@/components/icons';
 
 interface ModalProps {
@@ -11,6 +12,7 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
+  const t = useTranslations('common');
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
             <h2 id="modal-title" className="font-display font-black text-xl uppercase tracking-widest text-on-surface">{title}</h2>
-            <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface transition-colors p-1" aria-label="Zamknij"><X size={20} /></button>
+            <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface transition-colors p-1" aria-label={t('close')}><X size={20} /></button>
           </div>
         )}
         <div className="p-6">{children}</div>

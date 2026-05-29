@@ -1,10 +1,12 @@
 {
   "nav": {
     "about": "O nas",
-    "events": "Wydarzenia",
+    "events": "wydarzenia",
     "gallery": "Galeria",
     "home": "Strona główna",
     "login": "Zaloguj się",
+    "logout": "Wyloguj się",
+    "loginViaGoogle": "Zaloguj się przez Google",
     "news": "Aktualności",
     "notifications": "Powiadomienia",
     "panel": "Panel",
@@ -25,7 +27,8 @@
     "delete": "Usuń",
     "edit": "Edytuj",
     "confirm": "Potwierdź",
-    "back": "Wstecz"
+    "back": "Wstecz",
+    "close": "Zamknij"
   },
   "home": {
     "heroAltText": "Tatry",
@@ -620,5 +623,17 @@
       "deleteSuccess": "Usunięto!",
       "deleteError": "Błąd usuwania."
     }
+  },
+  "confirm": {
+    "defaultTitle": "Potwierdzenie",
+    "defaultConfirm": "POTWIERDŹ",
+    "defaultCancel": "ANULUJ",
+    "dangerNote": "Ta akcja jest nieodwracalna.",
+    "primaryNote": "Prosimy o potwierdzenie tej operacji."
+  },
+  "auth": {
+    "defaultMessage": "Zaloguj się, aby zobaczyć pełne informacje",
+    "restrictedAccess": "Dostęp Ograniczony",
+    "membersOnly": "Tylko dla członków"
   }
 }

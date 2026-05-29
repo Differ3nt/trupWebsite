@@ -1,4 +1,5 @@
 'use client';
+import { useTranslations } from 'next-intl';
 import { useUIStore } from '@/lib/store/ui';
 import { Modal, ModalFooter } from './Modal';
 import { Button } from './Button';
@@ -6,17 +7,18 @@ import { ShieldAlert } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
 export function ConfirmationModal() {
+  const t = useTranslations('confirm');
   const { confirmModal, closeConfirm } = useUIStore();
   if (!confirmModal) return null;
-  const { title, message, variant = 'danger', confirmText = 'POTWIERDŹ', cancelText = 'ANULUJ', onConfirm } = confirmModal;
+  const { title, message, variant = 'danger', confirmText = t('defaultConfirm'), cancelText = t('defaultCancel'), onConfirm } = confirmModal;
 
   return (
-    <Modal isOpen={true} onClose={closeConfirm} title={title ?? 'Potwierdzenie'}>
+    <Modal isOpen={true} onClose={closeConfirm} title={title ?? t('defaultTitle')}>
       <div className="flex flex-col gap-6">
         <div className={cn('flex items-center gap-4 p-4 border', variant === 'danger' ? 'bg-error/10 border-error/20' : 'bg-primary/10 border-primary/20')}>
           <ShieldAlert className={variant === 'danger' ? 'text-error shrink-0' : 'text-primary shrink-0'} size={28} />
           <p className={cn('text-[10px] font-black uppercase tracking-widest leading-relaxed', variant === 'danger' ? 'text-error' : 'text-primary')}>
-            {variant === 'danger' ? 'Ta akcja jest nieodwracalna.' : 'Prosimy o potwierdzenie tej operacji.'}
+            {variant === 'danger' ? t('dangerNote') : t('primaryNote')}
           </p>
         </div>
         <p className="text-on-surface-variant text-xs leading-relaxed uppercase tracking-widest font-bold">{message}</p>

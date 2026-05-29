@@ -408,7 +408,8 @@
       "noUsers": "Brak użytkowników.",
       "noImages": "Brak obrazów.",
       "emptyQueue": "Kolejka pusta.",
-      "selectImage": "Wybierz obraz, aby edytować"
+      "selectImage": "Wybierz obraz, aby edytować",
+      "undoButton": "Cofnij"
     },
     "events": {
       "sectionTitle": "Nowe Wydarzenie",
@@ -641,7 +642,9 @@
       "saveSuccess": "Zapisano!",
       "saveError": "Błąd zapisu.",
       "deleteSuccess": "Usunięto!",
-      "deleteError": "Błąd usuwania."
+      "deleteError": "Błąd usuwania.",
+      "fullSizeLink": "Pełny rozmiar",
+      "undoButton": "Cofnij"
     },
     "bootstrap": {
       "title": "Zostań Administratorem",

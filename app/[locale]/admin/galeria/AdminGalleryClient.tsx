@@ -126,20 +126,40 @@ export function AdminGalleryClient() {
       title: t('deleteConfirmTitle'),
       message: t('deleteConfirmMessage'),
       variant: 'danger',
-      onConfirm: async () => {
-        try {
-          const r = await fetch(`/api/images/${id}`, { method: 'DELETE' });
-          if (r.ok) {
-            setSelectedImage(null);
-            fetchImages();
-            toast.success(t('deleteSuccess'));
-          } else {
+      onConfirm: () => {
+        // Optimistically remove
+        const deletedImage = images.find(img => img.id === id);
+        setImages(prev => prev.filter(img => img.id !== id));
+        if (selectedImage?.id === id) setSelectedImage(null);
+
+        let cancelled = false;
+        const undoTimeout = setTimeout(async () => {
+          if (cancelled) return;
+          try {
+            await fetch(`/api/images/${id}`, { method: 'DELETE' });
+          } catch (e) {
+            console.error(e);
+            // restore on failure
+            if (deletedImage) setImages(prev => [...prev, deletedImage].sort((a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            ));
             toast.error(t('deleteError'));
           }
-        } catch (e) {
-          console.error(e);
-          toast.error(t('deleteError'));
-        }
+        }, 6000);
+
+        toast.success(t('deleteSuccess'), {
+          duration: 6000,
+          action: {
+            label: t('undoButton'),
+            onClick: () => {
+              cancelled = true;
+              clearTimeout(undoTimeout);
+              if (deletedImage) setImages(prev => [...prev, deletedImage].sort((a, b) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              ));
+            }
+          }
+        });
       }
     });
   }
@@ -186,28 +206,40 @@ export function AdminGalleryClient() {
           </FormField>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
           {filteredImages.map((img) => (
-            <button
-              key={img.id}
-              onClick={() => {
-                setSelectedImage(img);
-                setEditName(img.name);
-                setEditTags(img.tags.map((t) => t.name).join(', '));
-              }}
-              className={`relative group aspect-square overflow-hidden rounded-md border-2 transition-all ${
-                selectedImage?.id === img.id
-                  ? 'border-primary'
-                  : 'border-outline-variant/20 hover:border-primary'
-              }`}
-            >
-              <img
-                src={img.thumbnailUrl}
-                alt={img.name}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-            </button>
+            <div key={img.id}>
+              <button
+                onClick={() => {
+                  setSelectedImage(img);
+                  setEditName(img.name);
+                  setEditTags(img.tags.map((t) => t.name).join(', '));
+                }}
+                className={`relative group aspect-square overflow-hidden rounded-md border-2 transition-all w-full ${
+                  selectedImage?.id === img.id
+                    ? 'border-primary'
+                    : 'border-outline-variant/20 hover:border-primary'
+                }`}
+              >
+                <img
+                  src={img.thumbnailUrl}
+                  alt={img.name}
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/60 text-[8px] text-white/80 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+                  {img.width}×{img.height}
+                </div>
+              </button>
+              <div className="mt-1 px-0.5">
+                <p className="text-[9px] text-on-surface-variant truncate">{img.name}</p>
+                <div className="flex gap-1 mt-0.5 flex-wrap">
+                  {img.tags.slice(0, 2).map(tag => (
+                    <span key={tag.id} className="text-[8px] bg-primary/10 text-primary px-1">{tag.name}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
 
@@ -229,13 +261,23 @@ export function AdminGalleryClient() {
                 alt={selectedImage.name}
                 className="w-full rounded-md border border-outline-variant/20"
               />
+              <a
+                href={selectedImage.originalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-primary hover:underline font-bold uppercase tracking-widest mt-2 block"
+              >
+                {t('fullSizeLink')}
+              </a>
             </div>
 
             <div className="text-[10px] space-y-1">
               <p className="font-bold uppercase tracking-widest text-on-surface-variant">{t('infoLabel')}</p>
               <p>{t('urlLabel')} <code className="text-[8px] break-all text-on-surface-variant/70">{selectedImage.originalUrl}</code></p>
               <p>{t('dimensionsLabel')} {selectedImage.width} x {selectedImage.height}px</p>
-              <p>{t('sizeLabel')} {(selectedImage.size / 1024).toFixed(2)}KB</p>
+              <p>{t('sizeLabel')} {selectedImage.size < 1024 * 1024
+                ? `${(selectedImage.size / 1024).toFixed(1)}KB`
+                : `${(selectedImage.size / (1024 * 1024)).toFixed(2)}MB`}</p>
               <p>{t('dateLabel')} {new Date(selectedImage.createdAt).toLocaleDateString('pl-PL')}</p>
             </div>
 

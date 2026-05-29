@@ -674,9 +674,39 @@ export function AdminClient() {
                           title: tEvents('deleteConfirmTitle'),
                           message: tEvents('deleteConfirmMessage'),
                           variant: 'danger',
-                          onConfirm: async () => {
-                            await fetch(`/api/events/${event.id}`, { method: 'DELETE' });
-                            fetchEvents();
+                          onConfirm: () => {
+                            // Optimistically remove
+                            const deletedEvent = event;
+                            setEvents(prev => prev.filter(e => e.id !== event.id));
+
+                            let cancelled = false;
+                            const undoTimeout = setTimeout(async () => {
+                              if (cancelled) return;
+                              try {
+                                await fetch(`/api/events/${event.id}`, { method: 'DELETE' });
+                              } catch (e) {
+                                console.error(e);
+                                // restore on failure
+                                setEvents(prev => [...prev, deletedEvent].sort((a, b) =>
+                                  new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime()
+                                ));
+                                toast.error(tCommon('deleteError'));
+                              }
+                            }, 6000);
+
+                            toast.success(tCommon('deleteSuccess'), {
+                              duration: 6000,
+                              action: {
+                                label: tCommon('undoButton'),
+                                onClick: () => {
+                                  cancelled = true;
+                                  clearTimeout(undoTimeout);
+                                  setEvents(prev => [...prev, deletedEvent].sort((a, b) =>
+                                    new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime()
+                                  ));
+                                }
+                              }
+                            });
                           }
                         });
                       }}
@@ -855,9 +885,35 @@ export function AdminClient() {
                           title: tWiki('deleteConfirmTitle'),
                           message: tWiki('deleteConfirmMessage'),
                           variant: 'danger',
-                          onConfirm: async () => {
-                            await fetch(`/api/wiki/${article.id}`, { method: 'DELETE' });
-                            fetchWikiArticles();
+                          onConfirm: () => {
+                            // Optimistically remove
+                            const deletedArticle = article;
+                            setWikiArticles(prev => prev.filter(a => a.id !== article.id));
+
+                            let cancelled = false;
+                            const undoTimeout = setTimeout(async () => {
+                              if (cancelled) return;
+                              try {
+                                await fetch(`/api/wiki/${article.id}`, { method: 'DELETE' });
+                              } catch (e) {
+                                console.error(e);
+                                // restore on failure
+                                setWikiArticles(prev => [...prev, deletedArticle]);
+                                toast.error(tCommon('deleteError'));
+                              }
+                            }, 6000);
+
+                            toast.success(tCommon('deleteSuccess'), {
+                              duration: 6000,
+                              action: {
+                                label: tCommon('undoButton'),
+                                onClick: () => {
+                                  cancelled = true;
+                                  clearTimeout(undoTimeout);
+                                  setWikiArticles(prev => [...prev, deletedArticle]);
+                                }
+                              }
+                            });
                           }
                         });
                       }}
@@ -967,9 +1023,39 @@ export function AdminClient() {
                           title: tNews('deleteConfirmTitle'),
                           message: tNews('deleteConfirmMessage'),
                           variant: 'danger',
-                          onConfirm: async () => {
-                            await fetch(`/api/news/${item.id}`, { method: 'DELETE' });
-                            fetchNews();
+                          onConfirm: () => {
+                            // Optimistically remove
+                            const deletedNews = item;
+                            setNews(prev => prev.filter(n => n.id !== item.id));
+
+                            let cancelled = false;
+                            const undoTimeout = setTimeout(async () => {
+                              if (cancelled) return;
+                              try {
+                                await fetch(`/api/news/${item.id}`, { method: 'DELETE' });
+                              } catch (e) {
+                                console.error(e);
+                                // restore on failure
+                                setNews(prev => [...prev, deletedNews].sort((a, b) =>
+                                  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                                ));
+                                toast.error(tCommon('deleteError'));
+                              }
+                            }, 6000);
+
+                            toast.success(tCommon('deleteSuccess'), {
+                              duration: 6000,
+                              action: {
+                                label: tCommon('undoButton'),
+                                onClick: () => {
+                                  cancelled = true;
+                                  clearTimeout(undoTimeout);
+                                  setNews(prev => [...prev, deletedNews].sort((a, b) =>
+                                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                                  ));
+                                }
+                              }
+                            });
                           }
                         });
                       }}
@@ -1028,9 +1114,35 @@ export function AdminClient() {
                         title: tMembers('deleteConfirmTitle'),
                         message: tMembers('deleteConfirmMessage'),
                         variant: 'danger',
-                        onConfirm: async () => {
-                          await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
-                          fetchUsers();
+                        onConfirm: () => {
+                          // Optimistically remove
+                          const deletedUser = user;
+                          setAllUsers(prev => prev.filter(u => u.id !== user.id));
+
+                          let cancelled = false;
+                          const undoTimeout = setTimeout(async () => {
+                            if (cancelled) return;
+                            try {
+                              await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
+                            } catch (e) {
+                              console.error(e);
+                              // restore on failure
+                              setAllUsers(prev => [...prev, deletedUser]);
+                              toast.error(tCommon('deleteError'));
+                            }
+                          }, 6000);
+
+                          toast.success(tCommon('deleteSuccess'), {
+                            duration: 6000,
+                            action: {
+                              label: tCommon('undoButton'),
+                              onClick: () => {
+                                cancelled = true;
+                                clearTimeout(undoTimeout);
+                                setAllUsers(prev => [...prev, deletedUser]);
+                              }
+                            }
+                          });
                         }
                       });
                     }}

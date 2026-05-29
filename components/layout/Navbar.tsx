@@ -2,25 +2,27 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import { Menu, X, Bell, User } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { NavItem } from './NavItem';
 import { MobileDrawer } from './MobileDrawer';
 
-const NAV_LINKS = [
-  { href: '/', label: 'Strona główna' },
-  { href: '/wydarzenia', label: 'Wydarzenia' },
-  { href: '/aktualnosci', label: 'Aktualności', badge: 'soon' },
-  { href: '/wiki', label: 'Wiki', badge: 'soon' },
-  { href: '/galeria', label: 'Galeria', badge: 'soon' },
-  { href: '/o-nas', label: 'O nas', badge: 'soon' },
-];
-
 export function Navbar() {
+  const t = useTranslations('nav');
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const NAV_LINKS = [
+    { href: '/', label: t('home') },
+    { href: '/wydarzenia', label: t('events') },
+    { href: '/aktualnosci', label: t('news'), badge: 'soon' },
+    { href: '/wiki', label: t('wiki') },
+    { href: '/galeria', label: t('gallery'), badge: 'soon' },
+    { href: '/o-nas', label: t('about'), badge: 'soon' },
+  ];
 
   useEffect(() => {
     setIsDrawerOpen(false);
@@ -64,9 +66,9 @@ export function Navbar() {
             {status === 'authenticated' && session?.user ? (
               <>
                 {session.user.role === 'ADMIN' && (
-                  <NavItem href="/admin" label="Panel" />
+                  <NavItem href="/admin" label={t('panel')} />
                 )}
-                <NavItem icon={<Bell size={16} />} aria-label="Powiadomienia" />
+                <NavItem icon={<Bell size={16} />} aria-label={t('notifications')} />
                 <NavItem href="/profil" icon={<User size={16} />} />
               </>
             ) : status === 'authenticated' ? (
@@ -76,7 +78,7 @@ export function Navbar() {
             ) : (
               status === 'unauthenticated' && (
                 <NavItem
-                  label="Zaloguj się"
+                  label={t('login')}
                   onClick={() => signIn('google')}
                 />
               )
@@ -85,7 +87,7 @@ export function Navbar() {
             <button
               onClick={() => setIsDrawerOpen(!isDrawerOpen)}
               className="lg:hidden p-2 text-on-surface hover:text-primary transition-colors"
-              aria-label="Toggle menu"
+              aria-label={t('toggleMenu')}
             >
               {isDrawerOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -93,11 +95,7 @@ export function Navbar() {
         </div>
       </nav>
 
-      <MobileDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        navLinks={NAV_LINKS}
-      />
+      <MobileDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} navLinks={NAV_LINKS} />
     </>
   );
 }

@@ -1,15 +1,16 @@
 {
   "nav": {
-    "home": "Strona główna",
-    "events": "Wydarzenia",
-    "news": "Aktualności",
-    "wiki": "Wiki",
-    "gallery": "Galeria",
     "about": "O nas",
-    "panel": "Panel",
+    "events": "Wydarzenia",
+    "gallery": "Galeria",
+    "home": "Strona główna",
+    "login": "Zaloguj się",
+    "news": "Aktualności",
     "notifications": "Powiadomienia",
+    "panel": "Panel",
     "profile": "Profil",
-    "login": "Zaloguj się"
+    "toggleMenu": "Przełącz menu",
+    "wiki": "Wiki"
   },
   "footer": {
     "copyright": "© 2025 TRUP — GÓRSKA SEKCJA TURYSTYCZNA",

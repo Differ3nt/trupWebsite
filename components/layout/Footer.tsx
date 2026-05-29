@@ -1,6 +1,9 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 export function Footer() {
+  const t = useTranslations('footer');
+
   return (
     <footer className="w-full py-12 px-6 md:px-12 flex flex-col lg:flex-row justify-between items-center gap-8 bg-on-surface text-surface mt-auto">
       <div className="flex flex-col items-center lg:items-start">
@@ -14,7 +17,7 @@ export function Footer() {
             TRUP
           </p>
           <p className="text-[9px] font-bold uppercase tracking-widest text-surface/70">
-            © 2025 TRUP — GÓRSKA SEKCJA TURYSTYCZNA
+            {t('copyright')}
           </p>
         </div>
       </div>
@@ -24,19 +27,19 @@ export function Footer() {
           href="#"
           className="text-surface/70 text-[10px] font-bold uppercase tracking-widest hover:text-surface transition-colors"
         >
-          Instagram
+          {t('instagram')}
         </a>
         <a
           href="#"
           className="text-surface/70 text-[10px] font-bold uppercase tracking-widest hover:text-surface transition-colors"
         >
-          Facebook
+          {t('facebook')}
         </a>
         <a
           href="#"
           className="text-surface/70 text-[10px] font-bold uppercase tracking-widest hover:text-surface transition-colors"
         >
-          Kontakt
+          {t('contact')}
         </a>
       </div>
     </footer>

@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ProfileClient } from './ProfileClient';
 
 async function fetchUserData(userId: string) {
@@ -69,7 +70,10 @@ async function fetchUserData(userId: string) {
   }
 }
 
-export default async function ProfilPage() {
+export default async function ProfilPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
+  setRequestLocale(params.locale);
+
   const session = await getSession();
   if (!session) redirect('/');
 

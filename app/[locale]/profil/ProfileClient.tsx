@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { signOut } from 'next-auth/react';
+import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -15,20 +16,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Calendar, MapPin, Zap, Mountain, LogOut } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
-const HARDWARE_OPTIONS = [
-  'Plecak wspinaczkowy',
-  'Uprząż',
-  'Buty podejściowe',
-  'Buty wspinaczkowe',
-  'Kask',
-  'Raki',
-  'Czekan',
-  'Liny',
-  'Karabinki',
-  'Namiot',
-  'Kuchenka turystyczna',
-  'GPS',
-];
+// Hardware options are now loaded from translations
 
 interface User {
   id: string;
@@ -67,7 +55,23 @@ interface ProfileClientProps {
 
 export function ProfileClient({ user, personalStats, participations }: ProfileClientProps) {
   const session = useSession();
+  const t = useTranslations('profile');
   const [tab, setTab] = useState<'overview' | 'settings'>('overview');
+
+  const HARDWARE_OPTIONS = [
+    t('hardware.backpack'),
+    t('hardware.harness'),
+    t('hardware.hikingBoots'),
+    t('hardware.climbingBoots'),
+    t('hardware.helmet'),
+    t('hardware.crampons'),
+    t('hardware.icePick'),
+    t('hardware.rope'),
+    t('hardware.carabiners'),
+    t('hardware.tent'),
+    t('hardware.stove'),
+    t('hardware.gps'),
+  ];
 
   // Settings form state
   const [name, setName] = useState(user.name || '');
@@ -103,9 +107,9 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
         throw new Error('Failed to save profile');
       }
 
-      setSaveMessage({ type: 'success', text: 'Profil zaktualizowany pomyślnie!' });
+      setSaveMessage({ type: 'success', text: t('settings.saveSuccess') });
     } catch (error) {
-      setSaveMessage({ type: 'error', text: 'Błąd podczas zapisywania. Spróbuj ponownie.' });
+      setSaveMessage({ type: 'error', text: t('settings.saveError') });
       console.error('Save error:', error);
     } finally {
       setIsSaving(false);
@@ -142,7 +146,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
 
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
-      <PageHeader title="Profil" category="Twoje konto" />
+      <PageHeader title={t('pageTitle')} category={t('pageCategory')} />
 
       {/* Tab Navigation */}
       <div className="flex gap-8 mb-12 border-b border-outline-variant/30">
@@ -155,7 +159,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
               : 'text-on-surface-variant border-b-2 border-transparent hover:text-on-surface'
           )}
         >
-          Przegląd
+          {t('tabOverview')}
         </button>
         <button
           onClick={() => setTab('settings')}
@@ -166,7 +170,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
               : 'text-on-surface-variant border-b-2 border-transparent hover:text-on-surface'
           )}
         >
-          Ustawienia
+          {t('tabSettings')}
         </button>
       </div>
 
@@ -198,7 +202,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
                 <div className="flex-1 space-y-4">
                   <div>
                     <h2 className="font-display font-black text-3xl text-on-surface mb-1">
-                      {user.name || 'Użytkownik'}
+                      {user.name || t('defaultUserLabel')}
                     </h2>
                     {user.nickname && (
                       <p className="text-sm text-on-surface-variant">"{user.nickname}"</p>
@@ -207,28 +211,28 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
 
                   <div className="flex flex-wrap gap-2">
                     <Badge variant={user.role === 'ADMIN' ? 'primary' : 'secondary'}>
-                      {user.role === 'ADMIN' ? 'Administrator' : 'Użytkownik'}
+                      {user.role === 'ADMIN' ? t('roleAdmin') : t('roleUser')}
                     </Badge>
                     <Badge variant={user.status === 'ACTIVE' ? 'success' : 'warning'}>
                       {user.status === 'ACTIVE'
-                        ? 'Aktywny'
+                        ? t('statusActive')
                         : user.status === 'INACTIVE'
-                          ? 'Nieaktywny'
-                          : 'Oflagowany'}
+                          ? t('statusInactive')
+                          : t('statusFlagged')}
                     </Badge>
                   </div>
 
                   <div className="text-sm text-on-surface-variant space-y-1">
                     <p>
-                      <strong>Email:</strong> {user.email}
+                      <strong>{t('emailLabel')}:</strong> {user.email}
                     </p>
                     {user.phoneNumber && (
                       <p>
-                        <strong>Telefon:</strong> {user.phoneNumber}
+                        <strong>{t('phoneLabel')}:</strong> {user.phoneNumber}
                       </p>
                     )}
                     <p>
-                      <strong>Dołączył:</strong>{' '}
+                      <strong>{t('joinedLabel')}:</strong>{' '}
                       {new Date(user.createdAt).toLocaleDateString('pl-PL', {
                         year: 'numeric',
                         month: 'long',
@@ -244,7 +248,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
           {/* Personal Stats */}
           <div>
             <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-on-surface mb-6">
-              Twoje Statystyki
+              {t('stats.heading')}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="overflow-hidden">
@@ -253,10 +257,10 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
                     <Mountain className="w-6 h-6 text-primary" />
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
-                    Dystans
+                    {t('stats.distance')}
                   </p>
                   <p className="font-display font-black text-2xl text-on-surface">
-                    {personalStats.distance.toFixed(1)} <span className="text-sm">km</span>
+                    {personalStats.distance.toFixed(1)} <span className="text-sm">{t('stats.kmUnit')}</span>
                   </p>
                 </CardContent>
               </Card>
@@ -267,10 +271,10 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
                     <Zap className="w-6 h-6 text-primary" />
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
-                    Przewyższenie
+                    {t('stats.elevation')}
                   </p>
                   <p className="font-display font-black text-2xl text-on-surface">
-                    {Math.round(personalStats.elevation)} <span className="text-sm">m</span>
+                    {Math.round(personalStats.elevation)} <span className="text-sm">{t('stats.mUnit')}</span>
                   </p>
                 </CardContent>
               </Card>
@@ -281,10 +285,10 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
                     <Calendar className="w-6 h-6 text-primary" />
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
-                    Czas
+                    {t('stats.time')}
                   </p>
                   <p className="font-display font-black text-2xl text-on-surface">
-                    {formatDuration(personalStats.duration)} <span className="text-sm">h</span>
+                    {formatDuration(personalStats.duration)} <span className="text-sm">{t('stats.hUnit')}</span>
                   </p>
                 </CardContent>
               </Card>
@@ -295,7 +299,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
                     <MapPin className="w-6 h-6 text-primary" />
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
-                    Wyprawy
+                    {t('stats.expeditions')}
                   </p>
                   <p className="font-display font-black text-2xl text-on-surface">
                     {attendedCount}
@@ -308,14 +312,14 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
           {/* Events Attended */}
           <div>
             <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-on-surface mb-6">
-              Uczestnictwo w wyprawach
+              {t('events.heading')}
             </h3>
 
             {participations.length === 0 ? (
               <Card className="overflow-hidden">
                 <CardContent className="p-8 text-center">
                   <Calendar className="w-12 h-12 text-on-surface-variant/30 mx-auto mb-4" />
-                  <p className="text-on-surface-variant">Nie uczestniczyłeś w żadnych wyprawach</p>
+                  <p className="text-on-surface-variant">{t('events.emptyState')}</p>
                 </CardContent>
               </Card>
             ) : (
@@ -363,35 +367,35 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
             <div className="space-y-6">
               <div>
                 <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-on-surface mb-6">
-                  Dane Osobowe
+                  {t('settings.personalInfo')}
                 </h3>
 
-                <FormField label="Imię i nazwisko" required>
+                <FormField label={t('settings.nameLabel')} required>
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Wpisz imię i nazwisko"
+                    placeholder={t('settings.namePlaceholder')}
                   />
                 </FormField>
 
-                <FormField label="Pseudonim" className="mt-4">
+                <FormField label={t('settings.nicknameLabel')} className="mt-4">
                   <Input
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    placeholder="Opcjonalnie"
+                    placeholder={t('settings.nicknamePlaceholder')}
                   />
                 </FormField>
 
-                <FormField label="Numer telefonu" className="mt-4">
+                <FormField label={t('settings.phoneLabel')} className="mt-4">
                   <Input
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="Opcjonalnie"
+                    placeholder={t('settings.phonePlaceholder')}
                     type="tel"
                   />
                 </FormField>
 
-                <FormField label="Email" className="mt-4">
+                <FormField label={t('settings.emailLabel')} className="mt-4">
                   <Input value={user.email} disabled />
                 </FormField>
               </div>
@@ -401,7 +405,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
             <div className="space-y-6">
               <div>
                 <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-on-surface mb-6">
-                  Mój Sprzęt
+                  {t('settings.hardware')}
                 </h3>
 
                 <div className="space-y-3">
@@ -445,7 +449,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
               size="lg"
               className="flex-1 sm:flex-initial"
             >
-              Zapisz zmiany
+              {t('settings.saveButton')}
             </Button>
             <Button
               onClick={handleSignOut}
@@ -453,7 +457,7 @@ export function ProfileClient({ user, personalStats, participations }: ProfileCl
               size="lg"
               leftIcon={<LogOut className="w-4 h-4" />}
             >
-              Wyloguj się
+              {t('settings.signOutButton')}
             </Button>
           </div>
         </div>

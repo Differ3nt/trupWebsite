@@ -297,5 +297,63 @@
     "notFoundTitle": "404",
     "notFoundHeading": "Strona nie istnieje",
     "notFoundDescription": "Szukana strona nie istnieje lub została przeniesiona. Sprawdź, czy adres URL jest poprawny, lub wróć do strony głównej."
+  },
+  "profile": {
+    "pageTitle": "Profil",
+    "pageCategory": "Twoje konto",
+    "tabOverview": "Przegląd",
+    "tabSettings": "Ustawienia",
+    "roleAdmin": "Administrator",
+    "roleUser": "Użytkownik",
+    "statusActive": "Aktywny",
+    "statusInactive": "Nieaktywny",
+    "statusFlagged": "Oflagowany",
+    "emailLabel": "Email",
+    "phoneLabel": "Telefon",
+    "joinedLabel": "Dołączył",
+    "defaultUserLabel": "Użytkownik",
+    "stats": {
+      "heading": "Twoje Statystyki",
+      "distance": "Dystans",
+      "elevation": "Przewyższenie",
+      "time": "Czas",
+      "expeditions": "Wyprawy",
+      "kmUnit": "km",
+      "mUnit": "m",
+      "hUnit": "h"
+    },
+    "events": {
+      "heading": "Uczestnictwo w wyprawach",
+      "emptyState": "Nie uczestniczyłeś w żadnych wyprawach"
+    },
+    "settings": {
+      "personalInfo": "Dane Osobowe",
+      "nameLabel": "Imię i nazwisko",
+      "namePlaceholder": "Wpisz imię i nazwisko",
+      "nicknameLabel": "Pseudonim",
+      "nicknamePlaceholder": "Opcjonalnie",
+      "phoneLabel": "Numer telefonu",
+      "phonePlaceholder": "Opcjonalnie",
+      "emailLabel": "Email",
+      "hardware": "Mój Sprzęt",
+      "saveButton": "Zapisz zmiany",
+      "signOutButton": "Wyloguj się",
+      "saveSuccess": "Profil zaktualizowany pomyślnie!",
+      "saveError": "Błąd podczas zapisywania. Spróbuj ponownie."
+    },
+    "hardware": {
+      "backpack": "Plecak wspinaczkowy",
+      "harness": "Uprząż",
+      "hikingBoots": "Buty podejściowe",
+      "climbingBoots": "Buty wspinaczkowe",
+      "helmet": "Kask",
+      "crampons": "Raki",
+      "icePick": "Czekan",
+      "rope": "Liny",
+      "carabiners": "Karabinki",
+      "tent": "Namiot",
+      "stove": "Kuchenka turystyczna",
+      "gps": "GPS"
+    }
   }
 }

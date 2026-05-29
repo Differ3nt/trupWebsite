@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireOwnerSafe } from "@/lib/session";
 import { updateUserStatusSchema } from "@/lib/validations/user";
 import { handleApiError } from "@/lib/api-errors";
+import { invalidateStatsCache } from "@/lib/cache";
 
 export async function PATCH(
   request: NextRequest,
@@ -51,6 +52,7 @@ export async function PATCH(
       },
     });
 
+    invalidateStatsCache();
     return NextResponse.json(updated);
   } catch (err) {
     return handleApiError(err, "[users [id] status PATCH]");

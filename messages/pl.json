@@ -275,7 +275,10 @@
     "feedbackHeading": "Masz uwagi do artykułu?",
     "feedbackDescription": "Napisz do nas, jeśli uważasz, że dane wymagają aktualizacji.",
     "feedbackButton": "Zgłoś poprawkę",
-    "editorDefault": "Redakcja TRUP"
+    "editorDefault": "Redakcja TRUP",
+    "guestTruncationTitle": "Zaloguj się, aby przeczytać więcej",
+    "guestTruncationMessage": "Pełna treść artykułów jest dostępna tylko dla zalogowanych członków TRUP.",
+    "guestLoginButton": "Zaloguj się"
   },
   "about": {
     "pageTitle": "O nas",

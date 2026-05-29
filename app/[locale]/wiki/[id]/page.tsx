@@ -2,8 +2,9 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/session';
 import { Link } from '@/i18n/navigation';
-import { ArrowLeft, Calendar, User, Tag as TagIcon } from '@/components/icons';
+import { ArrowLeft, Calendar, User, Tag as TagIcon, Lock } from '@/components/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -36,18 +37,19 @@ export default async function WikiArticlePage({ params }: { params: Promise<{ lo
   setRequestLocale(locale);
   const t = await getTranslations('wiki');
 
-  let article;
-  try {
-    article = await prisma.wikiArticle.findUnique({
-      where: { id },
-    });
-  } catch {
-    article = null;
-  }
+  const [session, article] = await Promise.all([
+    getSession().catch(() => null),
+    prisma.wikiArticle.findUnique({ where: { id } }).catch(() => null),
+  ]);
 
   if (!article) {
     notFound();
   }
+
+  const isGuest = !session;
+  const displayContent = isGuest
+    ? article.content.slice(0, 100) + (article.content.length > 100 ? '…' : '')
+    : article.content;
 
   return (
     <div className="max-w-4xl mx-auto px-6 md:px-12 py-12">
@@ -96,10 +98,30 @@ export default async function WikiArticlePage({ params }: { params: Promise<{ lo
       <article className="prose prose-invert max-w-none space-y-6">
         <div className="prose-headings:font-display prose-headings:uppercase prose-headings:tracking-tighter prose-a:text-primary prose-code:text-primary prose-code:bg-surface-container-low prose-code:px-1">
           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-            {article.content}
+            {displayContent}
           </ReactMarkdown>
         </div>
       </article>
+
+      {isGuest && (
+        <div className="mt-8 p-8 border border-outline-variant/30 bg-surface-container-low flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <Lock size={20} className="text-primary flex-shrink-0" />
+            <div>
+              <h4 className="font-display font-black text-xl uppercase tracking-tight text-on-surface mb-1">
+                {t('guestTruncationTitle')}
+              </h4>
+              <p className="text-sm text-on-surface-variant">{t('guestTruncationMessage')}</p>
+            </div>
+          </div>
+          <Link
+            href="/"
+            className="flex-shrink-0 inline-flex items-center justify-center px-8 py-4 text-xs font-bold uppercase tracking-widest bg-primary text-surface hover:bg-primary/90 transition-colors"
+          >
+            {t('guestLoginButton')}
+          </Link>
+        </div>
+      )}
 
       <div className="mt-24 p-8 border border-outline-variant/30 bg-surface-container-low flex flex-col md:flex-row items-center justify-between gap-6">
         <div>

@@ -15,10 +15,10 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ✅ NextAuth v5 edge-split: `lib/auth.config.ts` (no adapter) + `lib/auth.ts` (Prisma adapter); `middleware.ts` imports only the config
 - ✅ Prisma singleton at `lib/prisma.ts`
 - ✅ CSP nonce scaffold in `middleware.ts` + propagated to `app/layout.tsx`
+- ✅ Prisma `connection_limit` documented in `.env.example` (with note about LXC persistent process)
 - ⏸ Baseline Prisma migration — blocked on DB access (Neon clone or Cloudflare Tunnel)
 - ⏸ Real Google login → session → logout cycle — blocked on `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`
 - ⏸ LXC + Caddy + systemd + Cloudflare origin firewall — deferred (deployment infra)
-- ❌ Prisma `connection_limit` documented in `.env.example`
 - ❌ Schema reconciliation (§8) executed against real DB
 
 **Phase 1 — API Layer** — 🔶 partial (real impl done; DB-blocked items remain)
@@ -47,14 +47,19 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ✅ Hex-color audit (§6.15) — Footer, Home page, EventDetailClient: all hard-coded hex replaced with tokens; two new tokens added (--color-ink, --color-frame)
 - ✅ Accessibility checklist (§6.11) — focus-visible rings, prefers-reduced-motion, aria-current, aria-labels on icon buttons, MobileDrawer ESC+focus, Modal focus trap, gallery alt text + lightbox aria-modal
 - ✅ Toast (Sonner) + `confirmAction` modal: Zustand store at `lib/store/ui.ts`; `ConfirmationModal` component; `window.confirm` replaced in AdminClient + AdminGalleryClient; `<ConfirmationModal>` in root layout
+- ✅ locale-aware Link: all 18 page/component files use `Link` from `@/i18n/navigation`; global `app/not-found.tsx` kept on `next/link`
+- ✅ Notification dropdown: SWR 60s polling, unread badge, mark-read on click, dismiss; replaces Bell stub in Navbar
+- ✅ iOS PWA banner: `PwaBanner.tsx`, detects iOS Safari + not-installed, dismissible with localStorage persistence
+- ✅ Dirty-form guards: `beforeunload` on Profile settings tab (isDirty computed from name/nickname/phone/hardware) and Admin event creator (form title non-empty)
+- ✅ Profile enhancements: avatar hover-to-upload (`/api/images/upload-simple`), "Do Rozliczenia" section (past unfinalized GÓRY events with "Wgraj GPX" button), expanded participation data (isFinalized, isDraft, image, focalX/Y)
 - ❌ Visual parity sweep vs. live site on mobile
 
 **Phase 3 — Security Hardening** — 🔶 partial
-- ✅ Env validation: `lib/env.ts` validates all required vars at startup with Zod; clear error message lists every problem; VAPID partial-set detected; `lib/storage.ts` + `lib/session.ts` now read from `env` object; `app/layout.tsx` imports it so the check fires on cold start
+- ✅ Env validation: `lib/env.ts` validates all required vars at startup with Zod; clear error message lists every problem; VAPID partial-set detected; `lib/storage.ts` + `lib/session.ts` now read from `env` object; `app/layout.tsx` imports it so the check fires on cold start; empty-string Sentry DSNs treated as absent (not invalid URL)
 - ✅ CSP audit — zero Script tags found; nonce infrastructure ready; img-src/connect-src/font-src confirmed correct; frame-src tightened to include `https://www.google.com` for Google Maps embeds
 - ✅ HSTS + security headers via `next.config.ts` headers(): HSTS (2yr, includeSubDomains, preload), X-Frame-Options SAMEORIGIN, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (camera/mic/geolocation/payment/usb/bluetooth disabled), X-XSS-Protection 0
+- ✅ `$queryRawUnsafe` audit: zero uses found in new API routes (all queries use typed Prisma client)
 - ❌ NextAuth state/PKCE verification (likely auto-handled by NextAuth v5; needs a real login cycle to confirm)
-- ❌ Replace any `$queryRawUnsafe` ports (relevant when Phase 1 real implementations land)
 
 **Phase 4 — Feature Completion** — 🔶 partial
 - ✅ `app/error.tsx` — error boundary; Polish copy; reset + home actions
@@ -81,7 +86,7 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ✅ Extract hard-coded Polish strings into `messages/pl.json` — DONE in 7 verified batches (Home/News, Events, Calendar/Gallery, Wiki/About/error, Profile, Admin, shared components). Every page + shared component reads from the catalog. ~14 namespaces (nav, footer, common, home, news, events, calendar, gallery, wiki, about, errors, profile, admin, confirm, auth). App-wide key-existence check passes (modulo same-named `t` in nested scopes, manually verified). Editing UI text = editing `messages/pl.json`.
 - Fixes found during extraction: `not-found.tsx` was reading `params` (which it never receives); `Button asChild`/Radix Slot single-child bug; `/kalendarz` Suspense boundary; 10 admin Wiki-tab keys missing under `admin.wikiAdmin` (admin is dynamic so the build didn't catch them).
 - ❌ DB content `translations` column + AI-translate admin action (deferred to 2nd-language work)
-- ⏳ Polish remaining: components still use plain `next/link` (works today via middleware redirect to `/pl/…`); switch to locale-aware `Link` from `i18n/navigation` when convenient. Adding a 2nd language = `messages/en.json` + add `'en'` to `i18n/routing.ts`.
+- ✅ locale-aware Link swap complete: all 18 page/component files. Adding a 2nd language = `messages/en.json` + add `'en'` to `i18n/routing.ts`.
 
 **Cross-cutting deferred (blocks Phase 0/1 completion — see §10.1):**
 - DB clone access · Google OAuth dev credentials · LXC + Caddy + systemd + Cloudflare origin firewall

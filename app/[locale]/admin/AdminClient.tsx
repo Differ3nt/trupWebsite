@@ -554,48 +554,50 @@ export function AdminClient() {
                 />
               </div>
 
-              {/* Gear */}
+              {/* Gear — 3-state toggle: none → Warto mieć → Trzeba mieć → none */}
               <div className="pt-4">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">
-                  {tEvents('criticalGearLabel')}
+                  {tEvents('gearLabel')}
                 </p>
-                <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
-                  {ALL_HARDWARE.map((item) => (
-                    <Checkbox
-                      key={`crit-${item}`}
-                      label={item}
-                      checked={newEvent.gearCritical.includes(item)}
-                      onChange={(e) =>
-                        setNewEvent((p) => ({
-                          ...p,
-                          gearCritical: e.target.checked
-                            ? [...p.gearCritical, item]
-                            : p.gearCritical.filter((g) => g !== item),
-                        }))
-                      }
-                    />
-                  ))}
-                </div>
-
-                <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3 mt-4">
-                  {tEvents('suggestedGearLabel')}
-                </p>
-                <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
-                  {ALL_HARDWARE.map((item) => (
-                    <Checkbox
-                      key={`sugg-${item}`}
-                      label={item}
-                      checked={newEvent.gearRequired.includes(item)}
-                      onChange={(e) =>
-                        setNewEvent((p) => ({
-                          ...p,
-                          gearRequired: e.target.checked
-                            ? [...p.gearRequired, item]
-                            : p.gearRequired.filter((g) => g !== item),
-                        }))
-                      }
-                    />
-                  ))}
+                <div className="grid grid-cols-2 gap-1 max-h-52 overflow-y-auto">
+                  {ALL_HARDWARE.map((item) => {
+                    const isCritical = newEvent.gearCritical.includes(item);
+                    const isRequired = newEvent.gearRequired.includes(item);
+                    const state: 'critical' | 'required' | 'none' = isCritical ? 'critical' : isRequired ? 'required' : 'none';
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => {
+                          if (state === 'none') {
+                            setNewEvent((p) => ({ ...p, gearRequired: [...p.gearRequired, item] }));
+                          } else if (state === 'required') {
+                            setNewEvent((p) => ({
+                              ...p,
+                              gearRequired: p.gearRequired.filter((g) => g !== item),
+                              gearCritical: [...p.gearCritical, item],
+                            }));
+                          } else {
+                            setNewEvent((p) => ({ ...p, gearCritical: p.gearCritical.filter((g) => g !== item) }));
+                          }
+                        }}
+                        className={`text-left px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-between gap-1 ${
+                          state === 'critical'
+                            ? 'border-error/60 bg-error/10 text-error'
+                            : state === 'required'
+                              ? 'border-primary/60 bg-primary/10 text-primary'
+                              : 'border-outline-variant/20 text-on-surface-variant/60 hover:border-outline-variant/50 hover:text-on-surface-variant'
+                        }`}
+                      >
+                        <span className="truncate">{item}</span>
+                        {state !== 'none' && (
+                          <span className="text-[8px] flex-shrink-0 font-black">
+                            {state === 'critical' ? tEvents('gearCriticalBadge') : tEvents('gearRequiredBadge')}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

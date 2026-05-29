@@ -35,7 +35,7 @@ export function AdminGalleryClient() {
   const [filteredImages, setFilteredImages] = useState<Image[]>([]);
   const [selectedImage, setSelectedImage] = useState<Image | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [editName, setEditName] = useState('');
   const [editTags, setEditTags] = useState('');
@@ -74,15 +74,13 @@ export function AdminGalleryClient() {
   }
 
   async function handleUpload(file: File) {
-    setUploading(true);
+    setUploadingCount((c) => c + 1);
     try {
       const fd = new FormData();
       fd.append('image', file);
       const r = await fetch('/api/images', { method: 'POST', body: fd });
       if (r.ok) {
-        fetchImages();
         toast.success(t('uploadSuccess'));
-        if (fileInputRef.current) fileInputRef.current.value = '';
       } else {
         toast.error(t('uploadError'));
       }
@@ -90,8 +88,14 @@ export function AdminGalleryClient() {
       console.error(e);
       toast.error(t('uploadError'));
     } finally {
-      setUploading(false);
+      setUploadingCount((c) => c - 1);
     }
+  }
+
+  async function handleUploadFiles(files: FileList) {
+    await Promise.all(Array.from(files).map(handleUpload));
+    fetchImages();
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   async function handleSave() {
@@ -176,16 +180,17 @@ export function AdminGalleryClient() {
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={(e) => {
-                if (e.target.files?.[0]) {
-                  handleUpload(e.target.files[0]);
+                if (e.target.files?.length) {
+                  handleUploadFiles(e.target.files);
                 }
               }}
               className="hidden"
               id="imageUpload"
             />
             <label htmlFor="imageUpload" className="cursor-pointer block">
-              <Button variant="primary" isLoading={uploading} asChild>
+              <Button variant="primary" isLoading={uploadingCount > 0} asChild>
                 <span>{t('selectImageButton')}</span>
               </Button>
             </label>

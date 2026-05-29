@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/Button';
 import { AlertTriangle } from '@/components/icons';
 
@@ -11,6 +12,8 @@ interface ErrorPageProps {
 }
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
+  const t = useTranslations('errors');
+
   useEffect(() => {
     console.error('Application error:', error);
   }, [error]);
@@ -27,12 +30,12 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
         {/* Label */}
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-4">Błąd aplikacji</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-4">{t('errorLabel')}</p>
           <h1 className="font-display font-black text-5xl md:text-6xl uppercase tracking-tighter text-on-surface mb-4">
-            Coś poszło nie tak
+            {t('errorTitle')}
           </h1>
           <p className="text-lg text-on-surface-variant leading-relaxed font-medium">
-            Napotkaliśmy nieoczekiwany problem. Spróbuj ponownie lub wróć do strony głównej.
+            {t('errorDescription')}
           </p>
         </div>
 
@@ -40,17 +43,17 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         {process.env.NODE_ENV === 'development' && error.message && (
           <div className="bg-surface-container-highest border border-outline-variant/30 p-6 text-left">
             <p className="text-xs font-mono text-on-surface-variant break-words">{error.message}</p>
-            {error.digest && <p className="text-xs font-mono text-on-surface-variant/60 mt-2">Digest: {error.digest}</p>}
+            {error.digest && <p className="text-xs font-mono text-on-surface-variant/60 mt-2">{t('digestLabel')} {error.digest}</p>}
           </div>
         )}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button onClick={reset} variant="primary" size="lg">
-            Spróbuj ponownie
+            {t('retryButton')}
           </Button>
           <Button asChild variant="secondary" size="lg">
-            <Link href="/">Wróć do strony głównej</Link>
+            <Link href="/">{t('backHomeButton')}</Link>
           </Button>
         </div>
       </div>

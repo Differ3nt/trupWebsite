@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Search, BookOpen, Star, FileText } from '@/components/icons';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -21,14 +22,15 @@ interface WikiClientProps {
   articles: WikiArticleData[];
 }
 
-const categoryMetadata: Record<string, { icon: React.ReactNode; label: string }> = {
-  PORADNIK: { icon: <BookOpen size={24} />, label: 'Poradniki' },
-  WYPOSAŻENIE: { icon: <Star size={24} />, label: 'Wyposażenie' },
-  TECHNIKA: { icon: <FileText size={24} />, label: 'Technika' },
-};
-
 export function WikiClient({ articles }: WikiClientProps) {
+  const t = useTranslations('wiki');
   const [search, setSearch] = useState('');
+
+  const categoryMetadata: Record<string, { icon: React.ReactNode; label: string }> = {
+    PORADNIK: { icon: <BookOpen size={24} />, label: t('categoryPoradniki') },
+    WYPOSAŻENIE: { icon: <Star size={24} />, label: t('categoryWyposazenie') },
+    TECHNIKA: { icon: <FileText size={24} />, label: t('categoryTechnika') },
+  };
 
   // Get unique categories from articles
   const categories = Array.from(
@@ -67,7 +69,7 @@ export function WikiClient({ articles }: WikiClientProps) {
         <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-on-surface-variant" size={20} />
         <Input
           type="text"
-          placeholder="Szukaj poradników, sprzętu, techniki..."
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full bg-surface-container-highest border-2 border-outline-variant/30 px-6 py-4 pl-14 text-sm focus:outline-none focus:border-primary transition-colors"
@@ -95,7 +97,7 @@ export function WikiClient({ articles }: WikiClientProps) {
                 {meta.label}
               </h3>
               <p className="text-xs text-on-surface-variant">
-                {count} {count === 1 ? 'artykuł' : 'artykułów'}
+                {count} {count === 1 ? t('articleSingular') : t('articlePlural')}
               </p>
             </div>
           );
@@ -106,11 +108,11 @@ export function WikiClient({ articles }: WikiClientProps) {
       {filteredArticles.length === 0 ? (
         <EmptyState
           icon={<BookOpen size={48} />}
-          title="Brak artykułów"
+          title={t('emptyTitle')}
           description={
             search
-              ? 'Nie znaleziono artykułów pasujących do Twojego wyszukiwania.'
-              : 'Nie ma jeszcze żadnych artykułów w bazie wiedzy.'
+              ? t('emptySearchDesc')
+              : t('emptyDesc')
           }
         />
       ) : (
@@ -144,7 +146,7 @@ export function WikiClient({ articles }: WikiClientProps) {
                     ))}
                     {article.tags.length > 3 && (
                       <span className="text-[9px] text-on-surface-variant/60">
-                        +{article.tags.length - 3} więcej
+                        {t('tagMore', { count: article.tags.length - 3 })}
                       </span>
                     )}
                   </div>
@@ -157,7 +159,7 @@ export function WikiClient({ articles }: WikiClientProps) {
 
                 {article.authorName && (
                   <p className="text-[9px] text-on-surface-variant/60 mt-3 uppercase tracking-widest">
-                    Autor: {article.authorName}
+                    {t('authorLabel')} {article.authorName}
                   </p>
                 )}
               </div>

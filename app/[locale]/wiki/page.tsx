@@ -1,3 +1,4 @@
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { WikiClient } from './WikiClient';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -12,15 +13,19 @@ async function getArticles() {
   }
 }
 
-export default async function WikiPage() {
+export default async function WikiPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations('wiki');
+
   const articles = await getArticles();
 
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
       <PageHeader
-        title="Baza Wiedzy"
-        subtitle="ZBIÓR DOŚWIADCZEŃ, PORADNIKÓW I DOKUMENTACJI TECHNICZNEJ GRUPY TRUP."
-        category="Wiedza i sprzęt"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
+        category={t('pageCategory')}
       />
       <WikiClient articles={articles} />
     </div>

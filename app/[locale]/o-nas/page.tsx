@@ -1,37 +1,42 @@
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Mountain } from '@/components/icons';
 
-const values = [
-  'SUROWOŚĆ I AUTENTYCZNOŚĆ',
-  'WSPÓŁPRACA PONAD RYWALIZACJĘ',
-  'SZACUNEK DO NATURY',
-  'CIĄGŁY ROZWÓJ',
-];
+export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations('about');
 
-export default function AboutPage() {
+  const values = [
+    t('value1'),
+    t('value2'),
+    t('value3'),
+    t('value4'),
+  ];
+
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
       <PageHeader
-        title="O nas"
-        subtitle="TRUP TO NIE TYLKO GRUPA GÓRSKA. TO IDEA, KTÓRA ZRODZIŁA SIĘ Z POTRZEBY PRZEKRACZANIA WŁASNYCH GRANIC."
-        category="Nasza historia"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
+        category={t('pageCategory')}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16">
         {/* Left Column: Text and Values */}
         <div className="space-y-6">
           <p className="text-on-surface-variant leading-relaxed font-medium">
-            TRUP to nie tylko grupa górska. To idea, która zrodziła się z potrzeby przekraczania własnych granic i budowania autentycznych relacji w świecie, który coraz bardziej staje się wirtualny.
+            {t('introText1')}
           </p>
 
           <p className="text-on-surface-variant leading-relaxed font-medium">
-            Naszą misją jest łączenie ludzi o podobnych wartościach – tych, którzy cenią surowe piękno natury, wysiłek fizyczny i wieczorne rozmowy przy planszówkach w schronisku.
+            {t('introText2')}
           </p>
 
           {/* Values Section */}
           <div className="border-l-4 border-primary pl-6 mt-8">
             <h3 className="font-display font-black text-xl uppercase tracking-tight text-on-surface mb-4">
-              Nasze wartości
+              {t('valuesHeading')}
             </h3>
             <ul className="space-y-3">
               {values.map((value) => (

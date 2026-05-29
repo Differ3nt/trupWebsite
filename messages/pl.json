@@ -251,5 +251,51 @@
       "gpxPreview": "Podgląd Trasy GPX",
       "mapRoutePlaceholder": "Mapa trasy"
     }
+  },
+  "wiki": {
+    "pageTitle": "Baza Wiedzy",
+    "pageSubtitle": "ZBIÓR DOŚWIADCZEŃ, PORADNIKÓW I DOKUMENTACJI TECHNICZNEJ GRUPY TRUP.",
+    "pageCategory": "Wiedza i sprzęt",
+    "searchPlaceholder": "Szukaj poradników, sprzętu, techniki...",
+    "categoryPoradniki": "Poradniki",
+    "categoryWyposazenie": "Wyposażenie",
+    "categoryTechnika": "Technika",
+    "articleSingular": "artykuł",
+    "articlePlural": "artykułów",
+    "emptyTitle": "Brak artykułów",
+    "emptyDesc": "Nie ma jeszcze żadnych artykułów w bazie wiedzy.",
+    "emptySearchDesc": "Nie znaleziono artykułów pasujących do Twojego wyszukiwania.",
+    "tagMore": "+{count} więcej",
+    "authorLabel": "Autor:",
+    "backToWiki": "Powrót do Wiki",
+    "articleDefault": "Artykuł",
+    "feedbackHeading": "Masz uwagi do artykułu?",
+    "feedbackDescription": "Napisz do nas, jeśli uważasz, że dane wymagają aktualizacji.",
+    "feedbackButton": "Zgłoś poprawkę",
+    "editorDefault": "Redakcja TRUP"
+  },
+  "about": {
+    "pageTitle": "O nas",
+    "pageSubtitle": "TRUP TO NIE TYLKO GRUPA GÓRSKA. TO IDEA, KTÓRA ZRODZIŁA SIĘ Z POTRZEBY PRZEKRACZANIA WŁASNYCH GRANIC.",
+    "pageCategory": "Nasza historia",
+    "introText1": "TRUP to nie tylko grupa górska. To idea, która zrodziła się z potrzeby przekraczania własnych granic i budowania autentycznych relacji w świecie, który coraz bardziej staje się wirtualny.",
+    "introText2": "Naszą misją jest łączenie ludzi o podobnych wartościach – tych, którzy cenią surowe piękno natury, wysiłek fizyczny i wieczorne rozmowy przy planszówkach w schronisku.",
+    "valuesHeading": "Nasze wartości",
+    "value1": "SUROWOŚĆ I AUTENTYCZNOŚĆ",
+    "value2": "WSPÓŁPRACA PONAD RYWALIZACJĘ",
+    "value3": "SZACUNEK DO NATURY",
+    "value4": "CIĄGŁY ROZWÓJ"
+  },
+  "errors": {
+    "errorLabel": "Błąd aplikacji",
+    "errorTitle": "Coś poszło nie tak",
+    "errorDescription": "Napotkaliśmy nieoczekiwany problem. Spróbuj ponownie lub wróć do strony głównej.",
+    "digestLabel": "Digest:",
+    "retryButton": "Spróbuj ponownie",
+    "backHomeButton": "Wróć do strony głównej",
+    "notFoundLabel": "Strona nie znaleziona",
+    "notFoundTitle": "404",
+    "notFoundHeading": "Strona nie istnieje",
+    "notFoundDescription": "Szukana strona nie istnieje lub została przeniesiona. Sprawdź, czy adres URL jest poprawny, lub wróć do strony głównej."
   }
 }

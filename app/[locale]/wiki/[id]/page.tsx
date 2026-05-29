@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, User, Tag as TagIcon } from '@/components/icons';
@@ -7,8 +8,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }): Promise<Metadata> {
+  const { id, locale } = await params;
+  setRequestLocale(locale);
   try {
     const article = await prisma.wikiArticle.findUnique({
       where: { id },
@@ -29,8 +31,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 }
 
-export default async function WikiArticlePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function WikiArticlePage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+  const { id, locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations('wiki');
 
   let article;
   try {
@@ -51,12 +55,12 @@ export default async function WikiArticlePage({ params }: { params: Promise<{ id
         href="/wiki"
         className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors mb-12"
       >
-        <ArrowLeft size={14} /> Powrót do Wiki
+        <ArrowLeft size={14} /> {t('backToWiki')}
       </Link>
 
       <header className="mb-12 border-b border-outline-variant/30 pb-12">
         <span className="inline-block bg-primary/10 text-primary px-3 py-1 text-[10px] font-bold uppercase tracking-widest border border-primary/20 mb-6">
-          {article.category || 'Artykuł'}
+          {article.category || t('articleDefault')}
         </span>
 
         <h1 className="font-display font-black text-4xl md:text-6xl uppercase tracking-tighter text-on-surface leading-[0.9] mb-8">
@@ -71,7 +75,7 @@ export default async function WikiArticlePage({ params }: { params: Promise<{ id
 
           <div className="flex items-center gap-2">
             <User size={14} className="text-primary" />
-            {article.authorName || 'Redakcja TRUP'}
+            {article.authorName || t('editorDefault')}
           </div>
 
           {Array.isArray(article.tags) && article.tags.length > 0 && (
@@ -100,17 +104,17 @@ export default async function WikiArticlePage({ params }: { params: Promise<{ id
       <div className="mt-24 p-8 border border-outline-variant/30 bg-surface-container-low flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <h4 className="font-display font-black text-xl uppercase tracking-tight text-on-surface mb-2">
-            Masz uwagi do artykułu?
+            {t('feedbackHeading')}
           </h4>
           <p className="text-sm text-on-surface-variant">
-            Napisz do nas, jeśli uważasz, że dane wymagają aktualizacji.
+            {t('feedbackDescription')}
           </p>
         </div>
         <a
           href="mailto:kontakt@trup.pl"
           className="inline-flex items-center justify-center px-8 py-4 text-xs font-bold uppercase tracking-widest bg-black/60 text-on-surface ring-2 ring-inset ring-white/10 hover:bg-white hover:text-surface transition-all"
         >
-          Zgłoś poprawkę
+          {t('feedbackButton')}
         </a>
       </div>
     </div>

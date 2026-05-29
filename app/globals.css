@@ -23,6 +23,16 @@
   --color-ink: #0a0a0a;
   --color-frame: #121212;
 
+  /* Semantic state colors. Values match the palette shades already used
+     across the app so the look is unchanged — they just give those states
+     a single named token instead of scattered raw `yellow/blue/green` classes. */
+  --color-warning: #eab308;   /* amber — "interested" / caution / highlighted */
+  --color-success: #22c55e;   /* green — finalized / saved / success */
+  --color-info: #3b82f6;      /* blue  — KULTURA events / informational */
+
+  /* Comma-separated RGB channels for use inside rgba() (shadows, overlays). */
+  --color-primary-rgb: 142, 208, 129;
+
   --radius-sm: 0px;
   --radius-md: 0px;
   --radius-lg: 0px;
@@ -30,6 +40,24 @@
   --radius-2xl: 0px;
   --radius-3xl: 0px;
   --radius-full: 0px;
+
+  /* Motion: shared loading animations (consumed by the loading primitives) */
+  --animate-indeterminate: indeterminate 1.15s ease-in-out infinite;
+  --animate-progress-stripes: progress-stripes 1s linear infinite;
+}
+
+/* Indeterminate sweep for the top route-transition bar and ProgressBar's
+   unknown-duration mode. A single bar slides and scales across the track. */
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%) scaleX(0.35); }
+  50%  { transform: translateX(0%)    scaleX(0.55); }
+  100% { transform: translateX(100%)  scaleX(0.35); }
+}
+
+/* Moving stripes overlay for the determinate ProgressBar fill. */
+@keyframes progress-stripes {
+  from { background-position: 0 0; }
+  to   { background-position: 1rem 0; }
 }
 
 body {

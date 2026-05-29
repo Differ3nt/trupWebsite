@@ -71,16 +71,17 @@ Updated at the end of every task. Markers: ✅ done, 🔶 partial, ⏸ blocked o
 - ✅ Test suite: Vitest (18 unit tests passing — api-errors, event/common validations) + Playwright (5 E2E smoke tests); CI runs unit tests on every push
 - ⏸ Cutover: blocked on DB clone, OAuth credentials, LXC + Caddy + Cloudflare setup
 
-**Internationalization (i18n) — 🔶 in progress** — see §6.13 for full architecture
+**Internationalization (i18n) — ✅ foundation + extraction complete (Polish-only ship)** — see §6.13 for full architecture
 - Decision: multi-language by design; ships Polish-only, machinery in place. Library: `next-intl`. Locale-prefixed URLs (`/pl/…`).
 - UI/static copy → message catalogs (`messages/pl.json`); user supplies translations per locale.
 - DB content → optional `translations Json?` per record + deferred AI-assisted ("Auto") admin workflow via Anthropic SDK.
 - ✅ Install `next-intl` + `i18n/routing.ts` + `i18n/navigation.ts` + `i18n/request.ts` + `messages/pl.json` (starter); `next.config.ts` plugin composed inside Sentry
 - ✅ Move app tree under `app/[locale]/` (32 pages + 23 client components); root layout passthrough, locale layout owns `<html lang>` + `NextIntlClientProvider`; global `app/not-found.tsx` for non-locale paths. Build green (37/37 static), routes at `/pl/*`
 - ✅ Compose `next-intl` middleware with NextAuth + CSP-nonce (`auth()` → `handleI18nRouting` → CSP). ⚠ runtime CSP-nonce-through-rewrite needs Phase 0 browser verification (documented in middleware.ts)
-- 🔶 Extract hard-coded Polish strings into `messages/pl.json` — chrome (nav/footer) wired as the proven pattern; page-by-page extraction is the remaining bulk
+- ✅ Extract hard-coded Polish strings into `messages/pl.json` — DONE in 7 verified batches (Home/News, Events, Calendar/Gallery, Wiki/About/error, Profile, Admin, shared components). Every page + shared component reads from the catalog. ~14 namespaces (nav, footer, common, home, news, events, calendar, gallery, wiki, about, errors, profile, admin, confirm, auth). App-wide key-existence check passes (modulo same-named `t` in nested scopes, manually verified). Editing UI text = editing `messages/pl.json`.
+- Fixes found during extraction: `not-found.tsx` was reading `params` (which it never receives); `Button asChild`/Radix Slot single-child bug; `/kalendarz` Suspense boundary; 10 admin Wiki-tab keys missing under `admin.wikiAdmin` (admin is dynamic so the build didn't catch them).
 - ❌ DB content `translations` column + AI-translate admin action (deferred to 2nd-language work)
-- ⏳ Note: components still use plain `next/link`; switch to locale-aware `Link` from `i18n/navigation` during the extraction pass (plain links work today via middleware redirect)
+- ⏳ Polish remaining: components still use plain `next/link` (works today via middleware redirect to `/pl/…`); switch to locale-aware `Link` from `i18n/navigation` when convenient. Adding a 2nd language = `messages/en.json` + add `'en'` to `i18n/routing.ts`.
 
 **Cross-cutting deferred (blocks Phase 0/1 completion — see §10.1):**
 - DB clone access · Google OAuth dev credentials · LXC + Caddy + systemd + Cloudflare origin firewall

@@ -57,10 +57,18 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size, fullWidth }), className)}
         {...props}
       >
-        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {!isLoading && leftIcon && <span className="mr-2">{leftIcon}</span>}
-        {children}
-        {!isLoading && rightIcon && <span className="ml-2">{rightIcon}</span>}
+        {/* When asChild, Slot requires a single element child — pass the consumer's
+            element straight through and skip the icon/loader wrappers. */}
+        {asChild ? (
+          children
+        ) : (
+          <>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {!isLoading && leftIcon && <span className="mr-2">{leftIcon}</span>}
+            {children}
+            {!isLoading && rightIcon && <span className="ml-2">{rightIcon}</span>}
+          </>
+        )}
       </Comp>
     );
   }

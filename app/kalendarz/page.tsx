@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { CalendarClient } from './CalendarClient';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -31,7 +32,10 @@ export default async function KalendarzPage() {
         subtitle="HARMONOGRAM DZIAŁAŃ GRUPY TRUP W TERENIE."
         category="Plany operacyjne"
       />
-      <CalendarClient events={events} />
+      {/* CalendarClient reads useSearchParams — needs a Suspense boundary to prerender. */}
+      <Suspense>
+        <CalendarClient events={events} />
+      </Suspense>
     </div>
   );
 }

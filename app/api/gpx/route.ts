@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { requireUser } from '@/lib/session';
 import { gpxUploadSchema } from '@/lib/validations/gpx';
 import { handleApiError } from '@/lib/api-errors';
@@ -7,6 +8,9 @@ import { saveFile, resolvePath } from '@/lib/storage';
 import { analyzeGpxFile } from '@/lib/gpx';
 
 export async function POST(request: NextRequest) {
+  const limited = enforceRateLimit(request, { name: 'gpx-upload', limit: 20, windowMs: 60_000 });
+  if (limited) return limited;
+
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 

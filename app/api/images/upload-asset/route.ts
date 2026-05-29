@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { requireAdmin } from '@/lib/session';
 import { handleApiError } from '@/lib/api-errors';
 import { saveFile } from '@/lib/storage';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
+  const limited = enforceRateLimit(request, { name: 'upload-asset', limit: 30, windowMs: 60_000 });
+  if (limited) return limited;
+
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
 

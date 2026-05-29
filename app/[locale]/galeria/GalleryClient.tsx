@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { Lock, MapPin, Calendar } from '@/components/icons';
 import { EmptyState } from '@/components/states/EmptyState';

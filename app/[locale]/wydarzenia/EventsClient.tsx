@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { Calendar, MapPin, Users, Star, LayoutGrid, CalendarDays, ChevronLeft, ChevronRight } from '@/components/icons';
 import { AuthGate } from '@/components/ui/AuthGate';

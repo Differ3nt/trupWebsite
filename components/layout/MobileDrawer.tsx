@@ -1,7 +1,7 @@
 'use client';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { X } from '@/components/icons';
 import { NavItem } from './NavItem';

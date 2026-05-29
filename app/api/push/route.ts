@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
 import { requireUser } from '@/lib/session';
 import { pushSubscriptionSchema } from '@/lib/validations/push';
@@ -22,6 +23,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = enforceRateLimit(request, { name: 'push-subscribe', limit: 30, windowMs: 60_000 });
+  if (limited) return limited;
+
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
 import { searchSchema } from '@/lib/validations/common';
 import { handleApiError } from '@/lib/api-errors';
 
 export async function GET(request: NextRequest) {
+  const limited = enforceRateLimit(request, { name: 'search', limit: 60, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const q = request.nextUrl.searchParams.get('q');
     const validated = searchSchema.parse({ q });

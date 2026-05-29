@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { requireUser } from '@/lib/session';
 import { handleApiError } from '@/lib/api-errors';
 import { saveFile } from '@/lib/storage';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
+  const limited = enforceRateLimit(request, { name: 'upload-avatar', limit: 20, windowMs: 60_000 });
+  if (limited) return limited;
+
   const auth = await requireUser();
   if (!auth.ok) return auth.response;
 

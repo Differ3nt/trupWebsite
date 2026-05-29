@@ -1,0 +1,29 @@
+{
+  "nav": {
+    "home": "Strona główna",
+    "events": "Wydarzenia",
+    "news": "Aktualności",
+    "wiki": "Wiki",
+    "gallery": "Galeria",
+    "about": "O nas",
+    "panel": "Panel",
+    "notifications": "Powiadomienia",
+    "profile": "Profil",
+    "login": "Zaloguj się"
+  },
+  "footer": {
+    "copyright": "© 2025 TRUP — GÓRSKA SEKCJA TURYSTYCZNA",
+    "instagram": "Instagram",
+    "facebook": "Facebook",
+    "contact": "Kontakt"
+  },
+  "common": {
+    "loading": "Ładowanie...",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "delete": "Usuń",
+    "edit": "Edytuj",
+    "confirm": "Potwierdź",
+    "back": "Wstecz"
+  }
+}

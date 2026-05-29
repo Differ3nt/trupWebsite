@@ -1,5 +1,8 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const securityHeaders = [
   // Only send via HTTPS; include subdomains; preload-eligible.
@@ -41,7 +44,7 @@ const config: NextConfig = {
   },
 };
 
-export default withSentryConfig(config, {
+export default withSentryConfig(withNextIntl(config), {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   silent: !process.env.CI,

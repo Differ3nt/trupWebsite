@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import {
   Plus,
   List,
@@ -238,11 +239,11 @@ export function AdminClient() {
         setActiveTab('list');
         fetchEvents();
       } else {
-        alert(tCommon('saveError'));
+        toast.error(tCommon('saveError'));
       }
     } catch (e) {
       console.error(e);
-      alert(tCommon('saveError'));
+      toast.error(tCommon('saveError'));
     } finally {
       setLoading(false);
     }
@@ -269,11 +270,11 @@ export function AdminClient() {
         setEditingWikiId(null);
         fetchWikiArticles();
       } else {
-        alert(tCommon('saveError'));
+        toast.error(tCommon('saveError'));
       }
     } catch (e) {
       console.error(e);
-      alert(tCommon('saveError'));
+      toast.error(tCommon('saveError'));
     } finally {
       setLoading(false);
     }
@@ -294,11 +295,11 @@ export function AdminClient() {
         setEditingNewsId(null);
         fetchNews();
       } else {
-        alert(tCommon('saveError'));
+        toast.error(tCommon('saveError'));
       }
     } catch (e) {
       console.error(e);
-      alert(tCommon('saveError'));
+      toast.error(tCommon('saveError'));
     } finally {
       setLoading(false);
     }
@@ -1080,10 +1081,10 @@ export function AdminClient() {
                   });
                   setPushTitle('');
                   setPushMessage('');
-                  alert(tPush('sendSuccess'));
+                  toast.success(tPush('sendSuccess'));
                 } catch (e) {
                   console.error(e);
-                  alert(tPush('sendError'));
+                  toast.error(tPush('sendError'));
                 }
               }}
             >

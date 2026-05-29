@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Trash2, Upload } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -80,14 +81,14 @@ export function AdminGalleryClient() {
       const r = await fetch('/api/images', { method: 'POST', body: fd });
       if (r.ok) {
         fetchImages();
-        alert(t('uploadSuccess'));
+        toast.success(t('uploadSuccess'));
         if (fileInputRef.current) fileInputRef.current.value = '';
       } else {
-        alert(t('uploadError'));
+        toast.error(t('uploadError'));
       }
     } catch (e) {
       console.error(e);
-      alert(t('uploadError'));
+      toast.error(t('uploadError'));
     } finally {
       setUploading(false);
     }
@@ -108,13 +109,13 @@ export function AdminGalleryClient() {
       });
       if (r.ok) {
         fetchImages();
-        alert(t('saveSuccess'));
+        toast.success(t('saveSuccess'));
       } else {
-        alert(t('saveError'));
+        toast.error(t('saveError'));
       }
     } catch (e) {
       console.error(e);
-      alert(t('saveError'));
+      toast.error(t('saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -131,13 +132,13 @@ export function AdminGalleryClient() {
           if (r.ok) {
             setSelectedImage(null);
             fetchImages();
-            alert(t('deleteSuccess'));
+            toast.success(t('deleteSuccess'));
           } else {
-            alert(t('deleteError'));
+            toast.error(t('deleteError'));
           }
         } catch (e) {
           console.error(e);
-          alert(t('deleteError'));
+          toast.error(t('deleteError'));
         }
       }
     });

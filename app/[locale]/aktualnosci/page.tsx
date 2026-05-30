@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 async function getNews() {
   try {
     const newsItems = await prisma.newsItem.findMany({
-      orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
     return newsItems;
   } catch {

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { serializeEvent } from '@/lib/serializeEvent';
 import { EventDetailClient } from './EventDetailClient';
 
 type Props = {
@@ -72,17 +73,39 @@ export default async function EventDetailPage({ params }: Props) {
     event = null;
   }
 
-  if (!event || event.isDraft) {
+  // Admins may view drafts; everyone else gets a 404 for drafts/missing events.
+  const isAdmin = session?.role === 'ADMIN';
+  if (!event || (event.isDraft && !isAdmin)) {
     notFound();
   }
 
+  const isParticipant = !!myParticipation;
+
+  // Strip sensitive logistic fields for viewers who aren't entitled (guests,
+  // inactive non-participants) — same contract the events API enforces.
+  const maskedEvent = serializeEvent(event, {
+    authenticated: !!session,
+    role: session?.role,
+    status: session?.status,
+    isParticipant,
+  });
+
+  // Participant display rule (§14.4): on finalized events, non-admins see only
+  // attendees; admins always see the full list.
+  const visibleParticipants =
+    event.isFinalized && !isAdmin
+      ? event.participants.filter((p) => p.attended)
+      : event.participants;
+
+  const eventForClient = { ...maskedEvent, participants: visibleParticipants };
+
   return (
     <EventDetailClient
-      event={event}
+      event={eventForClient}
       myParticipation={myParticipation}
       userHardware={userHardware}
       isAuthenticated={!!session}
-      isAdmin={session?.role === 'ADMIN'}
+      isAdmin={isAdmin}
     />
   );
 }

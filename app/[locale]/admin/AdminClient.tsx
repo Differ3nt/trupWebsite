@@ -263,7 +263,7 @@ export function AdminClient() {
     try {
       const payload = { ...newEvent, isDraft };
       const url = editingId ? `/api/events/${editingId}` : '/api/events';
-      const method = editingId ? 'PATCH' : 'POST';
+      const method = editingId ? 'PUT' : 'POST';
       const r = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -320,7 +320,7 @@ export function AdminClient() {
     setLoading(true);
     try {
       const url = editingNewsId ? `/api/news/${editingNewsId}` : '/api/news';
-      const method = editingNewsId ? 'PATCH' : 'POST';
+      const method = editingNewsId ? 'PUT' : 'POST';
       const r = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -1138,7 +1138,6 @@ export function AdminClient() {
                   onChange={(e) => setNewNewsItem((p) => ({ ...p, type: e.target.value }))}
                 >
                   <option value="GENERAL">{tNews('typeGeneral')}</option>
-                  <option value="ALERT">{tNews('typeAlert')}</option>
                   <option value="ANNOUNCEMENT">{tNews('typeAnnouncement')}</option>
                 </Select>
               </FormField>

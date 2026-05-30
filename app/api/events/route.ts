@@ -3,20 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { getSession, requireAdmin } from '@/lib/session';
 import { createEventSchema } from '@/lib/validations/event';
 import { handleApiError } from '@/lib/api-errors';
-
-const SENSITIVE_FIELDS = [
-  'mapLink',
-  'mapEmbed',
-  'gearRequired',
-  'gearCritical',
-  'transport',
-  'meetingPointLink',
-  'meetingPointEmbed',
-];
+import { SENSITIVE_EVENT_FIELDS } from '@/lib/serializeEvent';
 
 function stripSensitiveFields(event: any) {
   const copy = { ...event };
-  SENSITIVE_FIELDS.forEach((field) => {
+  SENSITIVE_EVENT_FIELDS.forEach((field) => {
     delete copy[field];
   });
   return copy;

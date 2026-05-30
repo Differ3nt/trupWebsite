@@ -5,9 +5,9 @@ import { NewsSection } from './NewsSection';
 
 async function getData() {
   try {
-    const [newsItems, highlightedEvents, userCount, gpxStats] = await Promise.all([
+    const [newsItems, highlightedEvents, userCount, gpxStats, expeditionCount] = await Promise.all([
       prisma.newsItem.findMany({
-        orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
         take: 9,
       }),
       prisma.event.findMany({
@@ -19,16 +19,18 @@ async function getData() {
       prisma.gpxSubmission.aggregate({
         where: { status: 'APPROVED' },
         _sum: { distance: true, elevationGain: true, duration: true },
-        _count: { id: true },
       }),
+      // Expeditions = published GÓRY events (matches /api/stats, §14.12),
+      // not the GPX submission count.
+      prisma.event.count({ where: { isDraft: false, type: 'GÓRY' } }),
     ]);
 
     return {
       newsItems,
       highlightedEvents,
       stats: {
-        expeditions: gpxStats._count.id,
-        distance: Math.round((gpxStats._sum.distance ?? 0) * 10) / 10,
+        expeditions: expeditionCount,
+        distance: Math.round(gpxStats._sum.distance ?? 0),
         elevation: Math.round(gpxStats._sum.elevationGain ?? 0),
         duration: Math.round(gpxStats._sum.duration ?? 0),
         members: userCount,

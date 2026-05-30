@@ -16,6 +16,7 @@ import { FormField } from '@/components/ui/FormField';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Calendar, MapPin, Zap, Mountain, LogOut, Upload } from '@/components/icons';
 import { cn } from '@/lib/utils';
+import { ALL_HARDWARE } from '@/lib/hardware';
 
 // Hardware options are now loaded from translations
 
@@ -74,20 +75,9 @@ export function ProfileClient({ user, personalStats, participations, gpxSubmissi
   const t = useTranslations('profile');
   const [tab, setTab] = useState<'overview' | 'settings'>('overview');
 
-  const HARDWARE_OPTIONS = [
-    t('hardware.backpack'),
-    t('hardware.harness'),
-    t('hardware.hikingBoots'),
-    t('hardware.climbingBoots'),
-    t('hardware.helmet'),
-    t('hardware.crampons'),
-    t('hardware.icePick'),
-    t('hardware.rope'),
-    t('hardware.carabiners'),
-    t('hardware.tent'),
-    t('hardware.stove'),
-    t('hardware.gps'),
-  ];
+  // Shared canonical list — must match the admin event editor's gear options
+  // exactly so "owned" gear is detected on event detail pages.
+  const HARDWARE_OPTIONS = ALL_HARDWARE;
 
   // Settings form state
   const [name, setName] = useState(user.name || '');

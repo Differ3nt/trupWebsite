@@ -30,30 +30,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/states/ErrorState';
 import { useUIStore } from '@/lib/store/ui';
 import { deleteWithUndo } from '@/lib/toast';
-
-const ALL_HARDWARE = [
-  'Kask',
-  'Czekan',
-  'Raki koszykowe',
-  'Raki półautomatyczne',
-  'Raki automatyczne',
-  'Raczki',
-  'Uprząż',
-  'Lonża',
-  'Detektor Lawinowy',
-  'Sonda',
-  'Łopata',
-  'Lina',
-  'Karabinki',
-  'Buty zimowe',
-  'Kurtka puchowa',
-  'Śpiwór letni',
-  'Śpiwór zimowy',
-  'Namiot',
-  'Hamak',
-  'Karimata/Materac',
-  'Poddupnik',
-];
+import { ALL_HARDWARE } from '@/lib/hardware';
 
 const EMPTY_EVENT = {
   title: '',

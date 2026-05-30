@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { signIn } from 'next-auth/react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { Lock, MapPin, Calendar } from '@/components/icons';
@@ -21,29 +21,16 @@ interface AlbumData {
   description?: string | null;
   location?: string | null;
   images: AlbumImage[];
+  imageCount: number;
 }
 
 interface GalleryClientProps {
   albums: AlbumData[];
+  isAuthenticated: boolean;
 }
 
-export function GalleryClient({ albums }: GalleryClientProps) {
+export function GalleryClient({ albums, isAuthenticated }: GalleryClientProps) {
   const t = useTranslations('gallery');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    // Check if user is authenticated by looking for session
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/users/me');
-        setIsAuthenticated(response.ok);
-      } catch {
-        setIsAuthenticated(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
 
   if (albums.length === 0) {
     return (
@@ -80,7 +67,7 @@ export function GalleryClient({ albums }: GalleryClientProps) {
                     </div>
                   )}
                   <div className="text-on-surface-variant/60">
-                    {album.images.length} {t('photoCount')}
+                    {album.imageCount} {t('photoCount')}
                   </div>
                 </div>
               </div>
@@ -107,20 +94,20 @@ export function GalleryClient({ albums }: GalleryClientProps) {
               ))}
 
               {/* Full Album Button - only for authenticated users */}
-              {isAuthenticated && album.images.length > displayImages.length && (
+              {isAuthenticated && album.imageCount > displayImages.length && (
                 <Link
                   href={`/galeria/${album.id}`}
                   className="aspect-square bg-primary hover:bg-primary/80 transition-colors flex flex-col items-center justify-center text-surface font-bold uppercase tracking-widest text-center p-4 cursor-pointer group border border-outline-variant/30"
                 >
                   <div className="text-center">
-                    <div className="text-3xl font-black mb-2">+{album.images.length - displayImages.length}</div>
+                    <div className="text-3xl font-black mb-2">+{album.imageCount - displayImages.length}</div>
                     <div className="text-[9px]">{t('fullAlbum')}</div>
                   </div>
                 </Link>
               )}
 
               {/* Login prompt - only show if not authenticated and there are more images */}
-              {!isAuthenticated && album.images.length > 1 && (
+              {!isAuthenticated && album.imageCount > 1 && (
                 <div className="aspect-square bg-surface-container-low border border-outline-variant/30 flex flex-col items-center justify-center text-center p-4">
                   <Lock size={24} className="text-on-surface-variant/40 mb-2" />
                   <p className="text-[9px] text-on-surface-variant/60 font-bold uppercase tracking-widest">
@@ -139,9 +126,12 @@ export function GalleryClient({ albums }: GalleryClientProps) {
           <p className="text-sm text-on-surface-variant mb-4">
             {t('authMessage')}
           </p>
-          <a href="/api/auth/signin" className="text-primary font-bold uppercase tracking-widest hover:underline">
+          <button
+            onClick={() => signIn('google')}
+            className="text-primary font-bold uppercase tracking-widest hover:underline"
+          >
             {t('loginLink')}
-          </a>
+          </button>
         </div>
       )}
     </div>

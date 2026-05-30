@@ -2,9 +2,23 @@
 
 import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { FileText } from '@/components/icons';
+import { FileText, Trophy, Book, Zap } from '@/components/icons';
 import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
+
+// Pick the timeline icon by news type (mirrors legacy NewsCard).
+function iconForType(type: string) {
+  switch (type) {
+    case 'EVENT':
+      return Trophy;
+    case 'ARTICLE':
+      return Book;
+    case 'ANNOUNCEMENT':
+      return Zap;
+    default:
+      return FileText;
+  }
+}
 
 interface NewsItemData {
   id: string;
@@ -36,12 +50,14 @@ export function NewsClient({ news }: NewsClientProps) {
         />
       ) : (
         <div className="space-y-8">
-          {news.map((item, index) => (
+          {news.map((item, index) => {
+            const Icon = iconForType(item.type);
+            return (
             <div key={item.id} className="flex gap-4 md:gap-8">
               {/* Timeline connector */}
               <div className="w-10 pt-1 flex flex-col items-center shrink-0">
                 <div className="bg-surface-variant border border-outline-variant/30 p-2.5">
-                  <FileText size={16} className="text-on-surface-variant" />
+                  <Icon size={16} className="text-on-surface-variant" />
                 </div>
                 {/* Connector line - show on all except last */}
                 {index < news.length - 1 && (
@@ -64,7 +80,23 @@ export function NewsClient({ news }: NewsClientProps) {
                     </p>
                   )}
 
-                  {item.link && (
+                  {/* Prefer an internal link to the related event/article; fall
+                      back to an external link if one was provided. */}
+                  {item.eventId ? (
+                    <Link
+                      href={`/wydarzenia/${item.eventId}`}
+                      className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline transition-colors inline-block"
+                    >
+                      {t('eventDetails')}
+                    </Link>
+                  ) : item.articleId ? (
+                    <Link
+                      href={`/wiki/${item.articleId}`}
+                      className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline transition-colors inline-block"
+                    >
+                      {t('readArticle')}
+                    </Link>
+                  ) : item.link ? (
                     <a
                       href={item.link}
                       target="_blank"
@@ -73,7 +105,7 @@ export function NewsClient({ news }: NewsClientProps) {
                     >
                       {t('readMore')}
                     </a>
-                  )}
+                  ) : null}
 
                   <p className="text-[9px] text-on-surface-variant/40 uppercase tracking-widest mt-3">
                     {new Date(item.createdAt).toLocaleDateString('pl-PL', {
@@ -85,9 +117,18 @@ export function NewsClient({ news }: NewsClientProps) {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
+      <div className="mt-12 text-center">
+        <Link
+          href="/wydarzenia"
+          className="text-xs font-bold uppercase tracking-widest text-primary hover:underline"
+        >
+          {t('eventsCta')}
+        </Link>
+      </div>
     </AuthGate>
   );
 }

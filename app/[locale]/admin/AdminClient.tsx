@@ -27,6 +27,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { FormField } from '@/components/ui/FormField';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useUIStore } from '@/lib/store/ui';
+import { deleteWithUndo } from '@/lib/toast';
 
 const ALL_HARDWARE = [
   'Kask',
@@ -147,10 +148,13 @@ export function AdminClient() {
 
   // Members
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
+  const [gpxBusyId, setGpxBusyId] = useState<string | null>(null);
 
   // Push
   const [pushMessage, setPushMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
+  const [pushSending, setPushSending] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'list') fetchEvents();
@@ -258,6 +262,101 @@ export function AdminClient() {
     }
   }
 
+  // Promote/demote a member's role. Confirms first (granting admin is
+  // sensitive), shows a per-row spinner, and surfaces server errors.
+  function handleToggleRole(user: any) {
+    const promoting = user.role !== 'ADMIN';
+    openConfirm({
+      title: promoting ? tMembers('promoteConfirmTitle') : tMembers('demoteConfirmTitle'),
+      message: promoting ? tMembers('promoteConfirmMessage') : tMembers('demoteConfirmMessage'),
+      variant: promoting ? 'warning' : 'primary',
+      onConfirm: async () => {
+        setMemberBusyId(user.id);
+        try {
+          const r = await fetch(`/api/users/${user.id}/role`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: promoting ? 'ADMIN' : 'USER' }),
+          });
+          if (!r.ok) throw new Error('role change failed');
+          await fetchUsers();
+        } catch {
+          toast.error(tMembers('roleChangeError'));
+        } finally {
+          setMemberBusyId(null);
+        }
+      },
+    });
+  }
+
+  // Toggle a member between ACTIVE and INACTIVE, with a per-row spinner and
+  // error feedback (the API blocks doing this to the owner or to yourself).
+  async function handleToggleStatus(user: any) {
+    const next = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setMemberBusyId(user.id);
+    try {
+      const r = await fetch(`/api/users/${user.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!r.ok) throw new Error('status change failed');
+      await fetchUsers();
+    } catch {
+      toast.error(tMembers('statusChangeError'));
+    } finally {
+      setMemberBusyId(null);
+    }
+  }
+
+  // Approve/reject a GPX submission. Confirms first (it mutates approval state
+  // and the stats cache), shows a per-row spinner, and reports failures.
+  function handleGpxStatus(item: any, status: 'APPROVED' | 'REJECTED') {
+    openConfirm({
+      title: status === 'APPROVED' ? tGpx('approveConfirmTitle') : tGpx('rejectConfirmTitle'),
+      message: status === 'APPROVED' ? tGpx('approveConfirmMessage') : tGpx('rejectConfirmMessage'),
+      variant: status === 'APPROVED' ? 'primary' : 'danger',
+      onConfirm: async () => {
+        setGpxBusyId(item.id);
+        try {
+          const r = await fetch(`/api/gpx/${item.id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
+          });
+          if (!r.ok) throw new Error('gpx status failed');
+          await fetchGpxQueue();
+        } catch {
+          toast.error(tGpx('statusError'));
+        } finally {
+          setGpxBusyId(null);
+        }
+      },
+    });
+  }
+
+  // Delete a member with the shared 6s-undo flow.
+  function handleDeleteUser(user: any) {
+    openConfirm({
+      title: tMembers('deleteConfirmTitle'),
+      message: tMembers('deleteConfirmMessage'),
+      variant: 'danger',
+      onConfirm: () =>
+        deleteWithUndo({
+          item: user,
+          remove: () => setAllUsers((prev) => prev.filter((u) => u.id !== user.id)),
+          restore: () => setAllUsers((prev) => [...prev, user]),
+          commit: async () => {
+            const r = await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
+            return r.ok;
+          },
+          successMessage: tCommon('deleteSuccess'),
+          errorMessage: tCommon('deleteError'),
+          undoLabel: tCommon('undoButton'),
+        }),
+    });
+  }
+
   async function handleCreateOrUpdate(isDraft = false) {
     setLoading(true);
     try {
@@ -348,9 +447,14 @@ export function AdminClient() {
     try {
       const res = await fetch('/api/auth/make-admin', { method: 'POST' });
       if (res.ok) {
+        toast.success(t('bootstrap.success'));
         await updateSession();
         window.location.reload();
+      } else {
+        toast.error(t('bootstrap.error'));
       }
+    } catch {
+      toast.error(t('bootstrap.error'));
     } finally {
       setIsUpgrading(false);
     }
@@ -735,37 +839,21 @@ export function AdminClient() {
                           message: tEvents('deleteConfirmMessage'),
                           variant: 'danger',
                           onConfirm: () => {
-                            // Optimistically remove
-                            const deletedEvent = event;
-                            setEvents(prev => prev.filter(e => e.id !== event.id));
-
-                            let cancelled = false;
-                            const undoTimeout = setTimeout(async () => {
-                              if (cancelled) return;
-                              try {
-                                await fetch(`/api/events/${event.id}`, { method: 'DELETE' });
-                              } catch (e) {
-                                console.error(e);
-                                // restore on failure
-                                setEvents(prev => [...prev, deletedEvent].sort((a, b) =>
-                                  new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime()
-                                ));
-                                toast.error(tCommon('deleteError'));
-                              }
-                            }, 6000);
-
-                            toast.success(tCommon('deleteSuccess'), {
-                              duration: 6000,
-                              action: {
-                                label: tCommon('undoButton'),
-                                onClick: () => {
-                                  cancelled = true;
-                                  clearTimeout(undoTimeout);
-                                  setEvents(prev => [...prev, deletedEvent].sort((a, b) =>
-                                    new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime()
-                                  ));
-                                }
-                              }
+                            const sortByDate = (list: any[]) =>
+                              [...list].sort(
+                                (a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime()
+                              );
+                            deleteWithUndo({
+                              item: event,
+                              remove: () => setEvents((prev) => prev.filter((e) => e.id !== event.id)),
+                              restore: () => setEvents((prev) => sortByDate([...prev, event])),
+                              commit: async () => {
+                                const r = await fetch(`/api/events/${event.id}`, { method: 'DELETE' });
+                                return r.ok;
+                              },
+                              successMessage: tCommon('deleteSuccess'),
+                              errorMessage: tCommon('deleteError'),
+                              undoLabel: tCommon('undoButton'),
                             });
                           }
                         });
@@ -935,20 +1023,16 @@ export function AdminClient() {
                   <Button
                     size="sm"
                     variant="primary"
-                    onClick={async () => {
-                      await fetch(`/api/gpx/${item.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'APPROVED' }) });
-                      fetchGpxQueue();
-                    }}
+                    isLoading={gpxBusyId === item.id}
+                    onClick={() => handleGpxStatus(item, 'APPROVED')}
                   >
                     {tGpx('approveButton')}
                   </Button>
                   <Button
                     size="sm"
                     variant="danger"
-                    onClick={async () => {
-                      await fetch(`/api/gpx/${item.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'REJECTED' }) });
-                      fetchGpxQueue();
-                    }}
+                    disabled={gpxBusyId === item.id}
+                    onClick={() => handleGpxStatus(item, 'REJECTED')}
                   >
                     {tGpx('rejectButton')}
                   </Button>
@@ -1071,36 +1155,19 @@ export function AdminClient() {
                           title: tWiki('deleteConfirmTitle'),
                           message: tWiki('deleteConfirmMessage'),
                           variant: 'danger',
-                          onConfirm: () => {
-                            // Optimistically remove
-                            const deletedArticle = article;
-                            setWikiArticles(prev => prev.filter(a => a.id !== article.id));
-
-                            let cancelled = false;
-                            const undoTimeout = setTimeout(async () => {
-                              if (cancelled) return;
-                              try {
-                                await fetch(`/api/wiki/${article.id}`, { method: 'DELETE' });
-                              } catch (e) {
-                                console.error(e);
-                                // restore on failure
-                                setWikiArticles(prev => [...prev, deletedArticle]);
-                                toast.error(tCommon('deleteError'));
-                              }
-                            }, 6000);
-
-                            toast.success(tCommon('deleteSuccess'), {
-                              duration: 6000,
-                              action: {
-                                label: tCommon('undoButton'),
-                                onClick: () => {
-                                  cancelled = true;
-                                  clearTimeout(undoTimeout);
-                                  setWikiArticles(prev => [...prev, deletedArticle]);
-                                }
-                              }
-                            });
-                          }
+                          onConfirm: () =>
+                            deleteWithUndo({
+                              item: article,
+                              remove: () => setWikiArticles((prev) => prev.filter((a) => a.id !== article.id)),
+                              restore: () => setWikiArticles((prev) => [...prev, article]),
+                              commit: async () => {
+                                const r = await fetch(`/api/wiki/${article.id}`, { method: 'DELETE' });
+                                return r.ok;
+                              },
+                              successMessage: tCommon('deleteSuccess'),
+                              errorMessage: tCommon('deleteError'),
+                              undoLabel: tCommon('undoButton'),
+                            }),
                         });
                       }}
                     >
@@ -1209,39 +1276,23 @@ export function AdminClient() {
                           message: tNews('deleteConfirmMessage'),
                           variant: 'danger',
                           onConfirm: () => {
-                            // Optimistically remove
-                            const deletedNews = item;
-                            setNews(prev => prev.filter(n => n.id !== item.id));
-
-                            let cancelled = false;
-                            const undoTimeout = setTimeout(async () => {
-                              if (cancelled) return;
-                              try {
-                                await fetch(`/api/news/${item.id}`, { method: 'DELETE' });
-                              } catch (e) {
-                                console.error(e);
-                                // restore on failure
-                                setNews(prev => [...prev, deletedNews].sort((a, b) =>
-                                  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                                ));
-                                toast.error(tCommon('deleteError'));
-                              }
-                            }, 6000);
-
-                            toast.success(tCommon('deleteSuccess'), {
-                              duration: 6000,
-                              action: {
-                                label: tCommon('undoButton'),
-                                onClick: () => {
-                                  cancelled = true;
-                                  clearTimeout(undoTimeout);
-                                  setNews(prev => [...prev, deletedNews].sort((a, b) =>
-                                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                                  ));
-                                }
-                              }
+                            const sortByCreated = (list: any[]) =>
+                              [...list].sort(
+                                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                              );
+                            deleteWithUndo({
+                              item,
+                              remove: () => setNews((prev) => prev.filter((n) => n.id !== item.id)),
+                              restore: () => setNews((prev) => sortByCreated([...prev, item])),
+                              commit: async () => {
+                                const r = await fetch(`/api/news/${item.id}`, { method: 'DELETE' });
+                                return r.ok;
+                              },
+                              successMessage: tCommon('deleteSuccess'),
+                              errorMessage: tCommon('deleteError'),
+                              undoLabel: tCommon('undoButton'),
                             });
-                          }
+                          },
                         });
                       }}
                     >
@@ -1263,80 +1314,59 @@ export function AdminClient() {
         <div className="px-6 py-8">
           <h2 className="font-display font-black text-2xl uppercase mb-6">{tMembers('heading')}</h2>
           <div className="space-y-2">
-            {allUsers.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between p-4 bg-surface-container-low border border-outline-variant/20"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-display font-black text-lg uppercase truncate">{user.email}</p>
-                  <div className="flex gap-3 mt-1">
-                    <Badge variant={user.role === 'ADMIN' ? 'success' : 'secondary'}>{user.role}</Badge>
-                    <Badge variant={user.status === 'ACTIVE' ? 'success' : 'warning'}>{user.status}</Badge>
+            {allUsers.map((user) => {
+              const busy = memberBusyId === user.id;
+              // Owner and self are protected server-side; hide the actions too.
+              const locked = user.isOwner || user.isSelf;
+              return (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-4 bg-surface-container-low border border-outline-variant/20"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display font-black text-lg uppercase truncate">
+                      {user.name || user.nickname || tMembers('noName')}
+                    </p>
+                    <p className="text-xs text-on-surface-variant truncate">{user.email}</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Badge variant={user.role === 'ADMIN' ? 'success' : 'secondary'}>{user.role}</Badge>
+                      <Badge variant={user.status === 'ACTIVE' ? 'success' : 'warning'}>{user.status}</Badge>
+                      {user.isOwner && <Badge variant="primary">{tMembers('ownerBadge')}</Badge>}
+                    </div>
                   </div>
+                  {!locked && (
+                    <div className="flex flex-wrap justify-end gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant={user.status === 'ACTIVE' ? 'warning' : 'outline'}
+                        isLoading={busy}
+                        onClick={() => handleToggleStatus(user)}
+                      >
+                        {user.status === 'ACTIVE'
+                          ? tMembers('deactivateButton')
+                          : tMembers('activateButton')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        isLoading={busy}
+                        onClick={() => handleToggleRole(user)}
+                      >
+                        {user.role === 'ADMIN' ? tMembers('demoteButton') : tMembers('promoteButton')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={busy}
+                        onClick={() => handleDeleteUser(user)}
+                      >
+                        {tMembers('deleteButton')}
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                      const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
-                      await fetch(`/api/users/${user.id}/role`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ role: newRole }),
-                      });
-                      fetchUsers();
-                    }}
-                  >
-                    {user.role === 'ADMIN' ? tMembers('demoteButton') : tMembers('promoteButton')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => {
-                      openConfirm({
-                        title: tMembers('deleteConfirmTitle'),
-                        message: tMembers('deleteConfirmMessage'),
-                        variant: 'danger',
-                        onConfirm: () => {
-                          // Optimistically remove
-                          const deletedUser = user;
-                          setAllUsers(prev => prev.filter(u => u.id !== user.id));
-
-                          let cancelled = false;
-                          const undoTimeout = setTimeout(async () => {
-                            if (cancelled) return;
-                            try {
-                              await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
-                            } catch (e) {
-                              console.error(e);
-                              // restore on failure
-                              setAllUsers(prev => [...prev, deletedUser]);
-                              toast.error(tCommon('deleteError'));
-                            }
-                          }, 6000);
-
-                          toast.success(tCommon('deleteSuccess'), {
-                            duration: 6000,
-                            action: {
-                              label: tCommon('undoButton'),
-                              onClick: () => {
-                                cancelled = true;
-                                clearTimeout(undoTimeout);
-                                setAllUsers(prev => [...prev, deletedUser]);
-                              }
-                            }
-                          });
-                        }
-                      });
-                    }}
-                  >
-                    {tMembers('deleteButton')}
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {allUsers.length === 0 && (
               <p className="text-center py-12 text-on-surface-variant">{tCommon('noUsers')}</p>
             )}
@@ -1369,20 +1399,34 @@ export function AdminClient() {
             <Button
               variant="primary"
               className="mt-6"
-              onClick={async () => {
-                try {
-                  await fetch('/api/push/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: pushTitle, message: pushMessage }),
-                  });
-                  setPushTitle('');
-                  setPushMessage('');
-                  toast.success(tPush('sendSuccess'));
-                } catch (e) {
-                  console.error(e);
-                  toast.error(tPush('sendError'));
-                }
+              isLoading={pushSending}
+              disabled={!pushMessage.trim()}
+              onClick={() => {
+                // Broadcasts to every subscriber — confirm before sending.
+                openConfirm({
+                  title: tPush('sendConfirmTitle'),
+                  message: tPush('sendConfirmMessage'),
+                  variant: 'warning',
+                  onConfirm: async () => {
+                    setPushSending(true);
+                    try {
+                      const r = await fetch('/api/push/send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: pushTitle, message: pushMessage }),
+                      });
+                      if (!r.ok) throw new Error('push send failed');
+                      setPushTitle('');
+                      setPushMessage('');
+                      toast.success(tPush('sendSuccess'));
+                    } catch (e) {
+                      console.error(e);
+                      toast.error(tPush('sendError'));
+                    } finally {
+                      setPushSending(false);
+                    }
+                  },
+                });
               }}
             >
               {tPush('sendButton')}

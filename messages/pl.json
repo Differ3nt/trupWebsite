@@ -485,7 +485,12 @@
       "elevationLabel": "Wznios:",
       "labelLabel": "Label:",
       "approveButton": "Zatwierdź",
-      "rejectButton": "Odrzuć"
+      "rejectButton": "Odrzuć",
+      "approveConfirmTitle": "Zatwierdź trasę GPX",
+      "approveConfirmMessage": "Czy na pewno chcesz zatwierdzić tę trasę? Zostanie wliczona do statystyk grupy.",
+      "rejectConfirmTitle": "Odrzuć trasę GPX",
+      "rejectConfirmMessage": "Czy na pewno chcesz odrzucić tę trasę?",
+      "statusError": "Nie udało się zmienić statusu trasy"
     },
     "wiki": {
       "sectionTitle": "Nowy Artykuł",
@@ -585,9 +590,19 @@
       "heading": "Członkowie",
       "promoteButton": "Promuj",
       "demoteButton": "Zdegraduj",
+      "activateButton": "Aktywuj",
+      "deactivateButton": "Dezaktywuj",
+      "ownerBadge": "Właściciel",
+      "noName": "Bez nazwy",
       "deleteButton": "Usuń",
       "deleteConfirmTitle": "Usuń Użytkownika",
-      "deleteConfirmMessage": "Czy na pewno chcesz usunąć tego użytkownika?"
+      "deleteConfirmMessage": "Czy na pewno chcesz usunąć tego użytkownika?",
+      "promoteConfirmTitle": "Nadaj uprawnienia administratora",
+      "promoteConfirmMessage": "Czy na pewno chcesz nadać temu użytkownikowi pełne uprawnienia administratora?",
+      "demoteConfirmTitle": "Odbierz uprawnienia administratora",
+      "demoteConfirmMessage": "Czy na pewno chcesz odebrać temu użytkownikowi uprawnienia administratora?",
+      "roleChangeError": "Nie udało się zmienić roli użytkownika",
+      "statusChangeError": "Nie udało się zmienić statusu użytkownika"
     },
     "push": {
       "sectionTitle": "Wyślij Powiadomienie",
@@ -605,7 +620,9 @@
       "messagePlaceholder": "Treść wiadomości",
       "sendButton": "Wyślij",
       "sendSuccess": "Powiadomienie wysłane!",
-      "sendError": "Błąd wysyłania."
+      "sendError": "Błąd wysyłania.",
+      "sendConfirmTitle": "Wyślij do wszystkich",
+      "sendConfirmMessage": "To powiadomienie zostanie wysłane do wszystkich subskrybentów. Kontynuować?"
     },
     "gallery": {
       "uploadSectionTitle": "Prześlij Obraz",
@@ -668,7 +685,9 @@
     "bootstrap": {
       "title": "Zostań Administratorem",
       "description": "Brak administratorów w systemie. Kliknij przycisk, aby nadać sobie uprawnienia administratora (tylko raz).",
-      "button": "Zostań Administratorem"
+      "button": "Zostań Administratorem",
+      "success": "Masz teraz uprawnienia administratora!",
+      "error": "Nie udało się nadać uprawnień administratora."
     }
   },
   "confirm": {

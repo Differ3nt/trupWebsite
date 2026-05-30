@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { FormField } from '@/components/ui/FormField';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useUIStore } from '@/lib/store/ui';
+import { deleteWithUndo } from '@/lib/toast';
 
 interface Image {
   id: string;
@@ -126,45 +127,31 @@ export function AdminGalleryClient() {
   }
 
   function handleDelete(id: string) {
+    const deletedImage = images.find((img) => img.id === id);
+    if (!deletedImage) return;
+    const sortByCreated = (list: any[]) =>
+      [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     openConfirm({
       title: t('deleteConfirmTitle'),
       message: t('deleteConfirmMessage'),
       variant: 'danger',
-      onConfirm: () => {
-        // Optimistically remove
-        const deletedImage = images.find(img => img.id === id);
-        setImages(prev => prev.filter(img => img.id !== id));
-        if (selectedImage?.id === id) setSelectedImage(null);
-
-        let cancelled = false;
-        const undoTimeout = setTimeout(async () => {
-          if (cancelled) return;
-          try {
-            await fetch(`/api/images/${id}`, { method: 'DELETE' });
-          } catch (e) {
-            console.error(e);
-            // restore on failure
-            if (deletedImage) setImages(prev => [...prev, deletedImage].sort((a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            ));
-            toast.error(t('deleteError'));
-          }
-        }, 6000);
-
-        toast.success(t('deleteSuccess'), {
-          duration: 6000,
-          action: {
-            label: t('undoButton'),
-            onClick: () => {
-              cancelled = true;
-              clearTimeout(undoTimeout);
-              if (deletedImage) setImages(prev => [...prev, deletedImage].sort((a, b) =>
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              ));
-            }
-          }
-        });
-      }
+      onConfirm: () =>
+        deleteWithUndo({
+          item: deletedImage,
+          remove: () => {
+            setImages((prev) => prev.filter((img) => img.id !== id));
+            if (selectedImage?.id === id) setSelectedImage(null);
+          },
+          restore: () => setImages((prev) => sortByCreated([...prev, deletedImage])),
+          commit: async () => {
+            const r = await fetch(`/api/images/${id}`, { method: 'DELETE' });
+            return r.ok;
+          },
+          successMessage: t('deleteSuccess'),
+          errorMessage: t('deleteError'),
+          undoLabel: t('undoButton'),
+        }),
     });
   }
 

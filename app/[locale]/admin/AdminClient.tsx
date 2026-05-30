@@ -16,6 +16,7 @@ import {
   Trophy,
   Trash2,
   Edit2,
+  AlertTriangle,
 } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -26,6 +27,7 @@ import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { FormField } from '@/components/ui/FormField';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/states/ErrorState';
 import { useUIStore } from '@/lib/store/ui';
 import { deleteWithUndo } from '@/lib/toast';
 
@@ -62,7 +64,7 @@ const EMPTY_EVENT = {
   mapLink: '',
   mapEmbed: '',
   difficulty: 3,
-  spots: 12,
+  spots: 12 as number | null,
   type: 'GÓRY',
   gearRequired: [] as string[],
   gearCritical: [] as string[],
@@ -150,19 +152,27 @@ export function AdminClient() {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
   const [gpxBusyId, setGpxBusyId] = useState<string | null>(null);
+  // Set when a tab's data load fails, so we can show an inline ErrorState
+  // (in addition to the toast) with a retry that re-runs the active loader.
+  const [loadError, setLoadError] = useState(false);
 
   // Push
   const [pushMessage, setPushMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
   const [pushSending, setPushSending] = useState(false);
 
-  useEffect(() => {
+  function reloadActiveTab() {
     if (activeTab === 'list') fetchEvents();
     if (activeTab === 'completion') fetchCompletionQueue();
     if (activeTab === 'gpx') fetchGpxQueue();
     if (activeTab === 'wiki') fetchWikiArticles();
     if (activeTab === 'news') fetchNews();
     if (activeTab === 'members') fetchUsers();
+  }
+
+  useEffect(() => {
+    reloadActiveTab();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Warn user about unsaved changes in create form
@@ -180,12 +190,15 @@ export function AdminClient() {
 
   async function fetchEvents() {
     setEventsLoading(true);
+    setLoadError(false);
     try {
       const r = await fetch('/api/events/admin');
       const data = await r.json();
       if (Array.isArray(data)) setEvents(data);
     } catch (e) {
       console.error(e);
+      setLoadError(true);
+      toast.error(tCommon('loadError'));
     } finally {
       setEventsLoading(false);
     }
@@ -193,6 +206,7 @@ export function AdminClient() {
 
   async function fetchCompletionQueue() {
     setCompletionLoading(true);
+    setLoadError(false);
     try {
       const r = await fetch('/api/events/admin/completion-queue');
       const data = await r.json();
@@ -211,29 +225,37 @@ export function AdminClient() {
       }
     } catch (e) {
       console.error(e);
+      setLoadError(true);
+      toast.error(tCommon('loadError'));
     } finally {
       setCompletionLoading(false);
     }
   }
 
   async function fetchGpxQueue() {
+    setLoadError(false);
     try {
       const r = await fetch('/api/gpx/queue');
       const data = await r.json();
       if (Array.isArray(data)) setGpxQueue(data);
     } catch (e) {
       console.error(e);
+      setLoadError(true);
+      toast.error(tCommon('loadError'));
     }
   }
 
   async function fetchWikiArticles() {
     setWikiLoading(true);
+    setLoadError(false);
     try {
       const r = await fetch('/api/wiki');
       const data = await r.json();
       if (Array.isArray(data)) setWikiArticles(data);
     } catch (e) {
       console.error(e);
+      setLoadError(true);
+      toast.error(tCommon('loadError'));
     } finally {
       setWikiLoading(false);
     }
@@ -241,24 +263,30 @@ export function AdminClient() {
 
   async function fetchNews() {
     setNewsLoading(true);
+    setLoadError(false);
     try {
       const r = await fetch('/api/news');
       const data = await r.json();
       if (Array.isArray(data)) setNews(data);
     } catch (e) {
       console.error(e);
+      setLoadError(true);
+      toast.error(tCommon('loadError'));
     } finally {
       setNewsLoading(false);
     }
   }
 
   async function fetchUsers() {
+    setLoadError(false);
     try {
       const r = await fetch('/api/users');
       const data = await r.json();
       if (Array.isArray(data)) setAllUsers(data);
     } catch (e) {
       console.error(e);
+      setLoadError(true);
+      toast.error(tCommon('loadError'));
     }
   }
 
@@ -360,7 +388,14 @@ export function AdminClient() {
   async function handleCreateOrUpdate(isDraft = false) {
     setLoading(true);
     try {
-      const payload = { ...newEvent, isDraft };
+      // Gear and difficulty only apply to GÓRY trips; clear them for other
+      // types so non-mountain events don't carry stale equipment lists.
+      const isMountain = newEvent.type === 'GÓRY';
+      const payload = {
+        ...newEvent,
+        isDraft,
+        ...(isMountain ? {} : { gearRequired: [], gearCritical: [], difficulty: undefined }),
+      };
       const url = editingId ? `/api/events/${editingId}` : '/api/events';
       const method = editingId ? 'PUT' : 'POST';
       const r = await fetch(url, {
@@ -506,6 +541,21 @@ export function AdminClient() {
         ))}
       </div>
 
+      {/* Inline load-error banner for data tabs (in addition to the toast). */}
+      {loadError && activeTab !== 'create' && (
+        <div className="px-6 pt-6">
+          <ErrorState
+            icon={<AlertTriangle size={40} />}
+            title={tCommon('loadError')}
+            action={
+              <Button variant="outline" size="sm" onClick={() => reloadActiveTab()}>
+                {tCommon('retryButton')}
+              </Button>
+            }
+          />
+        </div>
+      )}
+
       {/* Create Event Tab */}
       {activeTab === 'create' && (
         <div className="px-6 py-8">
@@ -554,11 +604,22 @@ export function AdminClient() {
                 />
               </FormField>
               <FormField label={tEvents('spotsLabel')}>
-                <Input
-                  type="number"
-                  value={newEvent.spots}
-                  onChange={(e) => setNewEvent((p) => ({ ...p, spots: +e.target.value }))}
+                <Checkbox
+                  label={tEvents('spotsLimitedCheckbox')}
+                  checked={newEvent.spots != null && newEvent.spots > 0}
+                  onChange={(e) =>
+                    setNewEvent((p) => ({ ...p, spots: e.target.checked ? (p.spots && p.spots > 0 ? p.spots : 12) : null }))
+                  }
                 />
+                {newEvent.spots != null && newEvent.spots > 0 && (
+                  <Input
+                    type="number"
+                    min={1}
+                    className="mt-2"
+                    value={newEvent.spots}
+                    onChange={(e) => setNewEvent((p) => ({ ...p, spots: +e.target.value }))}
+                  />
+                )}
               </FormField>
               {newEvent.type === 'GÓRY' && (
                 <FormField label={tEvents('difficultyLabel')}>
@@ -642,6 +703,13 @@ export function AdminClient() {
                 <Input
                   value={newEvent.meetingPointLink}
                   onChange={(e) => setNewEvent((p) => ({ ...p, meetingPointLink: e.target.value }))}
+                />
+              </FormField>
+              <FormField label={tEvents('meetingPointEmbedLabel')}>
+                <Textarea
+                  rows={3}
+                  value={newEvent.meetingPointEmbed}
+                  onChange={(e) => setNewEvent((p) => ({ ...p, meetingPointEmbed: e.target.value }))}
                 />
               </FormField>
 
@@ -745,10 +813,10 @@ export function AdminClient() {
 
           <div className="flex gap-4 mt-8">
             <Button variant="secondary" onClick={() => handleCreateOrUpdate(true)} isLoading={loading}>
-              {tEvents('saveDraftButton')}
+              {editingId ? tEvents('updateDraftButton') : tEvents('saveDraftButton')}
             </Button>
             <Button variant="primary" onClick={() => handleCreateOrUpdate(false)} isLoading={loading}>
-              {tEvents('publishButton')}
+              {editingId ? tEvents('saveChangesButton') : tEvents('publishButton')}
             </Button>
             {editingId && (
               <Button

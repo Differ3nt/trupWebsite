@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EventCountdown } from '@/components/EventCountdown';
+import { showToast } from '@/lib/toast';
 
 // Type definitions for event and participation
 type User = { id: string; name: string | null; avatarUrl: string | null };
@@ -370,15 +371,20 @@ export function EventDetailClient({
       });
 
       if (res.ok) {
+        const isNew = !rsvpStatus;
         setRsvpStatus(status);
+        showToast.success(tRsvp('saveSuccess'));
         router.refresh();
         // Show notify modal if this is a new RSVP
-        if (!rsvpStatus) {
+        if (isNew) {
           setTimeout(() => setShowNotifyModal(true), 300);
         }
+      } else {
+        showToast.error(tRsvp('saveError'));
       }
     } catch (err) {
       console.error('Error confirming RSVP:', err);
+      showToast.error(tRsvp('saveError'));
     } finally {
       setRsvpLoading(false);
     }
@@ -403,10 +409,14 @@ export function EventDetailClient({
       if (res.ok) {
         setRsvpStatus(null);
         setNotifyDays(null);
+        showToast.success(tRsvp('cancelSuccess'));
         router.refresh();
+      } else {
+        showToast.error(tRsvp('saveError'));
       }
     } catch (err) {
       console.error('Error canceling RSVP:', err);
+      showToast.error(tRsvp('saveError'));
     } finally {
       setRsvpLoading(false);
     }
@@ -863,7 +873,7 @@ export function EventDetailClient({
                 <div className="flex gap-4">
                   {/* RSVP Button */}
                   <button
-                    disabled={isPast || (missingCriticalGear && !rsvpStatus)}
+                    disabled={isPast || rsvpLoading || (missingCriticalGear && !rsvpStatus)}
                     onClick={() => {
                       setPendingStatus(rsvpStatus === 'GOING' ? 'GOING' : 'GOING');
                       setShowStatusModal(true);

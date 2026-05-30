@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Mountain } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
+import { EVENT_TYPE_STYLES, eventTypeBlock } from '@/lib/eventTypes';
 
 interface CalendarEvent {
   id: string;
@@ -19,12 +20,6 @@ interface CalendarEvent {
 interface CalendarClientProps {
   events: CalendarEvent[];
 }
-
-const eventTypeColors: Record<string, string> = {
-  GÓRY: 'bg-primary text-surface',
-  INTEGRACJA: 'bg-yellow-500 text-surface',
-  KULTURA: 'bg-blue-500 text-white',
-};
 
 export function CalendarClient({ events }: CalendarClientProps) {
   const searchParams = useSearchParams();
@@ -192,9 +187,7 @@ export function CalendarClient({ events }: CalendarClientProps) {
                     </span>
                     <div className="flex flex-col gap-1">
                       {dayEvents.slice(0, 2).map((event) => {
-                        const colorClass =
-                          eventTypeColors[event.type] ||
-                          'bg-surface-variant text-on-surface-variant';
+                        const colorClass = eventTypeBlock(event.type);
                         return (
                           <Link
                             key={event.id}
@@ -227,9 +220,9 @@ export function CalendarClient({ events }: CalendarClientProps) {
             {t('legend')}
           </span>
           <div className="space-y-2">
-            {Object.entries(eventTypeColors).map(([type, colorClass]) => (
+            {Object.entries(EVENT_TYPE_STYLES).map(([type, style]) => (
               <div key={type} className="flex items-center gap-2">
-                <div className={`w-3 h-3 ${colorClass}`} />
+                <div className={`w-3 h-3 ${style.block}`} />
                 <span className="text-xs text-on-surface-variant">{type}</span>
               </div>
             ))}

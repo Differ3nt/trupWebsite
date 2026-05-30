@@ -8,6 +8,7 @@ import { AuthGate } from '@/components/ui/AuthGate';
 import { EmptyState } from '@/components/states/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { EventCountdown } from '@/components/EventCountdown';
+import { EVENT_TYPE_STYLES, eventTypeBlock } from '@/lib/eventTypes';
 
 interface EventItem {
   id: string;
@@ -33,11 +34,6 @@ interface EventsClientProps {
 // Months and weekdays are now fetched from translations
 // const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
 // const WEEK_DAYS = ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
-const TYPE_COLORS: Record<string, string> = {
-  'GÓRY': 'bg-primary text-surface',
-  'INTEGRACJA': 'bg-yellow-500 text-surface',
-  'KULTURA': 'bg-blue-500 text-white',
-};
 
 export function EventsClient({ events }: EventsClientProps) {
   const t = useTranslations('events.list');
@@ -384,9 +380,9 @@ function EventsCalendarView({ events, currentDate, onPrev, onNext, t, monthNames
                         key={event.id}
                         href={`/wydarzenia/${event.id}`}
                         title={event.title}
-                        className={`text-[9px] font-bold uppercase tracking-tight px-1.5 py-0.5 truncate hover:opacity-80 transition-opacity ${
-                          TYPE_COLORS[event.type] ?? 'bg-surface-variant text-on-surface-variant'
-                        }`}
+                        className={`text-[9px] font-bold uppercase tracking-tight px-1.5 py-0.5 truncate hover:opacity-80 transition-opacity ${eventTypeBlock(
+                          event.type
+                        )}`}
                       >
                         {event.title}
                       </Link>
@@ -406,9 +402,9 @@ function EventsCalendarView({ events, currentDate, onPrev, onNext, t, monthNames
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4">
-        {Object.entries(TYPE_COLORS).map(([type, cls]) => (
+        {Object.entries(EVENT_TYPE_STYLES).map(([type, style]) => (
           <div key={type} className="flex items-center gap-2">
-            <div className={`w-3 h-3 ${cls}`} />
+            <div className={`w-3 h-3 ${style.block}`} />
             <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{type}</span>
           </div>
         ))}

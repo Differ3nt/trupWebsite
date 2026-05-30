@@ -213,7 +213,10 @@
       "cancel": "Rezygnuję z wyprawy",
       "statusButtonGoing": "Zapisany",
       "statusButtonInterested": "Zainteresowany",
-      "statusButtonDefault": "Zapisz się"
+      "statusButtonDefault": "Zapisz się",
+      "saveSuccess": "Zapisano Twój udział!",
+      "cancelSuccess": "Zrezygnowano z udziału.",
+      "saveError": "Nie udało się zapisać udziału."
     },
     "notifications": {
       "title": "Powiadomienia",

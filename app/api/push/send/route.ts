@@ -29,12 +29,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Dynamically import web-push (optional dependency)
+    // Dynamically import web-push (optional dependency). Use a normal dynamic
+    // import via a runtime-computed specifier so the bundler treats it as
+    // optional, instead of `new Function(...)` (an eval-equivalent).
     let webpush: any;
     try {
-      // Use function to avoid static type checking
-      const importModule = new Function('return import("web-push")');
-      webpush = await importModule();
+      const moduleName = 'web-push';
+      webpush = await import(/* webpackIgnore: true */ moduleName);
     } catch {
       return NextResponse.json(
         {
@@ -106,7 +107,9 @@ export async function POST(request: NextRequest) {
             await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
           } else {
             failed++;
-            errors.push(`${sub.endpoint.slice(0, 50)}: ${error?.message ?? 'Unknown error'}`);
+            // Don't leak the subscription endpoint (a per-browser identifier);
+            // report only the error message.
+            errors.push(error?.message ?? 'Unknown error');
           }
         }
       }),

@@ -4,6 +4,7 @@ import { getSession, requireAdmin } from '@/lib/session';
 import { createEventSchema } from '@/lib/validations/event';
 import { handleApiError } from '@/lib/api-errors';
 import { SENSITIVE_EVENT_FIELDS } from '@/lib/serializeEvent';
+import { sanitizeEmbed } from '@/lib/sanitizeEmbed';
 
 function stripSensitiveFields(event: any) {
   const copy = { ...event };
@@ -136,10 +137,10 @@ export async function POST(request: NextRequest) {
         transport: validated.transport,
         weatherInfo: validated.weatherInfo,
         mapLink: validated.mapLink,
-        mapEmbed: validated.mapEmbed,
+        mapEmbed: sanitizeEmbed(validated.mapEmbed),
         meetingPointName: validated.meetingPointName,
         meetingPointLink: validated.meetingPointLink,
-        meetingPointEmbed: validated.meetingPointEmbed,
+        meetingPointEmbed: sanitizeEmbed(validated.meetingPointEmbed),
         plannedDistance: validated.plannedDistance,
         plannedElevation: validated.plannedElevation,
         plannedDuration: plannedDurationMin,

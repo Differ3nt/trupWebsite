@@ -4,6 +4,7 @@ import { getSession, requireAdmin } from '@/lib/session';
 import { updateEventSchema } from '@/lib/validations/event';
 import { handleApiError } from '@/lib/api-errors';
 import { SENSITIVE_EVENT_FIELDS } from '@/lib/serializeEvent';
+import { sanitizeEmbed } from '@/lib/sanitizeEmbed';
 
 function stripSensitiveFields(event: any) {
   const copy = { ...event };
@@ -108,10 +109,10 @@ export async function PUT(
         ...(validated.transport !== undefined && { transport: validated.transport }),
         ...(validated.weatherInfo !== undefined && { weatherInfo: validated.weatherInfo }),
         ...(validated.mapLink !== undefined && { mapLink: validated.mapLink }),
-        ...(validated.mapEmbed !== undefined && { mapEmbed: validated.mapEmbed }),
+        ...(validated.mapEmbed !== undefined && { mapEmbed: sanitizeEmbed(validated.mapEmbed) }),
         ...(validated.meetingPointName !== undefined && { meetingPointName: validated.meetingPointName }),
         ...(validated.meetingPointLink !== undefined && { meetingPointLink: validated.meetingPointLink }),
-        ...(validated.meetingPointEmbed !== undefined && { meetingPointEmbed: validated.meetingPointEmbed }),
+        ...(validated.meetingPointEmbed !== undefined && { meetingPointEmbed: sanitizeEmbed(validated.meetingPointEmbed) }),
         ...(validated.plannedDistance !== undefined && { plannedDistance: validated.plannedDistance }),
         ...(validated.plannedElevation !== undefined && { plannedElevation: validated.plannedElevation }),
         ...(plannedDurationMin !== undefined && { plannedDuration: plannedDurationMin }),

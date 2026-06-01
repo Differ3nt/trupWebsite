@@ -19,5 +19,7 @@ declare module 'next-auth/jwt' {
     id: string;
     role: 'USER' | 'ADMIN';
     status: 'ACTIVE' | 'INACTIVE' | 'FLAGGED';
+    /** Unix seconds when this token was first issued (set at sign-in, never updated). Used for logout-based revocation. */
+    authTime: number;
   }
 }

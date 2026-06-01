@@ -6,6 +6,7 @@ import { handleApiError } from '@/lib/api-errors';
 import { prisma } from '@/lib/prisma';
 import { saveFile, resolvePath } from '@/lib/storage';
 import { analyzeGpxFile } from '@/lib/gpx';
+import { validateUpload, MAX_GPX_BYTES, GPX_MIME_TYPES } from '@/lib/uploadValidation';
 
 export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, { name: 'gpx-upload', limit: 20, windowMs: 60_000 });
@@ -21,6 +22,13 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
+
+    const invalid = validateUpload(file, {
+      maxBytes: MAX_GPX_BYTES,
+      allowedTypes: GPX_MIME_TYPES,
+      allowedExtensions: ['.gpx'],
+    });
+    if (invalid) return invalid;
 
     const label = formData.get('label') as string | null;
     const participantIds = formData.getAll('participantIds') as string[];

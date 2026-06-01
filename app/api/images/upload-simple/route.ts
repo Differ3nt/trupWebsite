@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/session';
 import { handleApiError } from '@/lib/api-errors';
 import { saveFile } from '@/lib/storage';
 import { prisma } from '@/lib/prisma';
+import { validateUpload, MAX_IMAGE_BYTES, IMAGE_MIME_TYPES } from '@/lib/uploadValidation';
 
 export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, { name: 'upload-avatar', limit: 20, windowMs: 60_000 });
@@ -20,6 +21,9 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
+
+    const invalid = validateUpload(file, { maxBytes: MAX_IMAGE_BYTES, allowedTypes: IMAGE_MIME_TYPES });
+    if (invalid) return invalid;
 
     const inputBuffer = Buffer.from(await file.arrayBuffer());
     const suffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;

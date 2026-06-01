@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/session';
 import { handleApiError } from '@/lib/api-errors';
 import { saveFile } from '@/lib/storage';
 import { prisma } from '@/lib/prisma';
+import { validateUpload, MAX_IMAGE_BYTES, IMAGE_MIME_TYPES } from '@/lib/uploadValidation';
 
 export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, { name: 'upload-asset', limit: 30, windowMs: 60_000 });
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
     const results = [];
     for (const file of files) {
       if (!(file instanceof File)) continue;
+
+      const invalid = validateUpload(file, { maxBytes: MAX_IMAGE_BYTES, allowedTypes: IMAGE_MIME_TYPES });
+      if (invalid) return invalid;
 
       const name = (formData.get('name') as string) || file.name;
       const tagsRaw = formData.get('tags') as string | null;

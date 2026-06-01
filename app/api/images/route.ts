@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/session';
 import { handleApiError } from '@/lib/api-errors';
 import { saveFile } from '@/lib/storage';
 import { prisma } from '@/lib/prisma';
+import { validateUpload, MAX_IMAGE_BYTES, IMAGE_MIME_TYPES } from '@/lib/uploadValidation';
 
 export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, { name: 'upload', limit: 30, windowMs: 60_000 });
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
     const results = [];
     for (const file of files) {
       if (!(file instanceof File)) continue;
+
+      const invalid = validateUpload(file, { maxBytes: MAX_IMAGE_BYTES, allowedTypes: IMAGE_MIME_TYPES });
+      if (invalid) return invalid;
 
       const albumId = formData.get('albumId') as string | null;
       if (!albumId) return NextResponse.json({ error: 'albumId is required' }, { status: 400 });

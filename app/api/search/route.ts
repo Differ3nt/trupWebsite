@@ -3,10 +3,16 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
 import { searchSchema } from '@/lib/validations/common';
 import { handleApiError } from '@/lib/api-errors';
+import { requireUser } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
   const limited = enforceRateLimit(request, { name: 'search', limit: 60, windowMs: 60_000 });
   if (limited) return limited;
+
+  // Search is members-only: previously public, which let anyone enumerate every
+  // member's email address (security hardening §2).
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
 
   try {
     const q = request.nextUrl.searchParams.get('q');
@@ -22,12 +28,12 @@ export async function GET(request: NextRequest) {
             { email: { contains: validated.q, mode: 'insensitive' } },
           ],
         },
+        // email is intentionally NOT selected — it must never reach the client.
         select: {
           id: true,
           name: true,
           nickname: true,
           avatarUrl: true,
-          email: true,
         },
         take: 10,
       }),
@@ -68,8 +74,8 @@ export async function GET(request: NextRequest) {
       ...users.map((user) => ({
         type: 'user',
         id: user.id,
-        title: user.name || user.nickname || user.email,
-        description: user.email,
+        title: user.name || user.nickname || 'Użytkownik',
+        description: user.nickname && user.name ? `@${user.nickname}` : '',
         url: `/profil/${user.id}`,
       })),
       ...events.map((event) => ({

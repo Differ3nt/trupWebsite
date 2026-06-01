@@ -304,11 +304,30 @@ The full, detailed rebuild plan lives in **`REBUILD_PLAN.md`** at the project ro
 **Layout components:**
 - `NotificationDropdown` — SWR-powered notification bell dropdown; polls `/api/push` every 60s; mark-read + dismiss; wired into Navbar for authenticated users
 - `PwaBanner` — iOS PWA add-to-home-screen banner; localStorage dismiss; shown only on iOS Safari when not already installed
+- `TopProgressBar` (`components/layout/`) — fixed thin indeterminate line just below the navbar (`top-14 md:top-16`); rendered inside `PageSkeleton` during route transitions
 
 **UI primitives:**
 - `ConfirmationModal` — Global confirm dialog driven by Zustand `useUIStore`
+- `Spinner` (`components/ui/Spinner.tsx`) — circular spinner (`Loader2`); sizes sm/md/lg; for in-button DB-action loading
+- `ProgressBar` (`components/ui/ProgressBar.tsx`) — determinate (0–100) or indeterminate horizontal bar; for loading content/images in a box
+- `ImageLoader` (`components/ui/ImageLoader.tsx`) — lazy `<img>` with skeleton placeholder; cross-fades on load, "Brak obrazu" fallback on error
+- `Lightbox` (`components/ui/Lightbox.tsx`) — full-screen image viewer; streams full-res image with real download progress (`ProgressBar`); keyboard nav
 
-(Other UI components and feature components TBD as rewrite progresses.)
+**Feature components:**
+- `EventCountdown` (`components/EventCountdown.tsx`) — live countdown timer to event start
+
+**State components:**
+- `PageSkeleton` (`components/states/PageSkeleton.tsx`) — reusable loading screen (`TopProgressBar` + content-shaped skeleton); variants `list | grid | detail | form | default`; consumed by every route's `loading.tsx`
+
+### Loading & Feedback Conventions (Next.js rewrite)
+
+Four standard loading affordances, used consistently:
+1. **Loading screen with skeleton** — `PageSkeleton` via per-route `loading.tsx` files
+2. **Circle spinner** — `Spinner` for in-button DB actions (per-row `busyId` state)
+3. **Progress bar in a box** — `ProgressBar` for larger content/image loads
+4. **Thin top line** — `TopProgressBar` just below the navbar during route transitions
+
+Feedback uses three layers: **inline** (`ErrorState` with retry on data-load failures), **modal** (`useUIStore.openConfirm` for destructive/role/status changes), and **toast** (`lib/toast.ts` `showToast` + 6 s UNDO pattern via `deleteWithUndo`).
 
 ### Backend Libraries (Next.js rewrite)
 
@@ -322,6 +341,19 @@ The full, detailed rebuild plan lives in **`REBUILD_PLAN.md`** at the project ro
 - `enforceRateLimit(req, opts)` — returns `429 NextResponse` if limit exceeded, otherwise `null`
 - Applied to: upload (30/min), upload-asset (30/min), upload-avatar (20/min), gpx-upload (20/min), search (60/min), push-broadcast (5/min), push-subscribe (30/min)
 - Cloudflare WAF remains the primary edge rate limit
+
+**`lib/toast.ts`** — Single import point for user feedback:
+- `showToast.success/error/info` — thin wrapper over Sonner
+- `deleteWithUndo({ item, remove, restore, commit, ... })` — optimistic delete with a 6 s UNDO toast; shared by all admin delete flows (event, wiki, news, user, image)
+
+**`lib/serializeEvent.ts`** — Shared event guest-masking, used by both API routes and RSC pages:
+- `SENSITIVE_EVENT_FIELDS` — fields stripped for unauthorized viewers (`mapLink`, `mapEmbed`, `gearRequired`, `gearCritical`, `transport`, `meetingPointLink`, `meetingPointEmbed`, etc.)
+- `canSeeSensitive(viewer)` — 3-layer visibility rule (guest → masked; inactive → only their events; active/admin → full)
+- `serializeEvent(event, viewer)` — applies the masking
+
+**`lib/hardware.ts`** — `ALL_HARDWARE`: canonical list of 20 Polish gear names. Consumed by both the admin event creator and profile settings so gear-matching compares identical strings.
+
+**`lib/eventTypes.ts`** — `EVENT_TYPE_STYLES` map (`badge`/`block` classes for GÓRY/INTEGRACJA/KULTURA) plus `eventTypeBadge()`/`eventTypeBlock()` helpers; shared by events list and calendar (semantic tokens, not raw palette).
 
 ### Stats Cache Invalidation (Next.js rewrite)
 
